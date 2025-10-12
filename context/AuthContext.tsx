@@ -2,41 +2,69 @@
 
 import React, { createContext, useState, useEffect, useContext } from "react";
 
-interface User {
-  uid: string;
+interface UserData {
   username: string;
-  accessToken: string;
+  wallet_address?: string;
+  accessToken?: string;
 }
 
 interface AuthContextType {
-  user: User | null;
-  login: (userData: User) => void;
+  user: UserData | null;
+  login: () => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserData | null>(null);
 
-  // 🔁 Lấy user từ localStorage khi load lại trang
+  // ✅ Tự động khôi phục khi reload
   useEffect(() => {
-    const savedUser = localStorage.getItem("piUser");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    const saved = localStorage.getItem("pi_user");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setUser(parsed);
     }
   }, []);
 
-  // 🟢 Hàm login — lưu user vào cả state và localStorage
-  const login = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem("piUser", JSON.stringify(userData));
+  // ✅ Hàm login qua Pi SDK
+  const login = async () => {
+    if (typeof window === "undefined" || !window.Pi) {
+      alert("⚠️ Vui lòng mở trang này trong Pi Browser để đăng nhập!");
+      return;
+    }
+
+    try {
+      window.Pi.init({ version: "2.0", sandbox: false });
+
+      const userInfo = await window.Pi.authenticate(
+        ["username", "wallet_address"],
+        () => {}
+      );
+
+      const userData = {
+        username: userInfo.user.username,
+        wallet_address: userInfo.user.wallet_address,
+        accessToken: userInfo.accessToken,
+      };
+
+      setUser(userData);
+      localStorage.setItem("pi_user", JSON.stringify(userData));
+      localStorage.setItem("titi_is_logged_in", "true");
+
+      alert(`🎉 Chào mừng ${userData.username}!`);
+    } catch (err) {
+      console.error("❌ Lỗi đăng nhập Pi:", err);
+      alert("Lỗi đăng nhập, vui lòng thử lại!");
+    }
   };
 
-  // 🔴 Hàm logout
+  // ✅ Hàm logout
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("piUser");
+    localStorage.removeItem("pi_user");
+    localStorage.removeItem("titi_is_logged_in");
   };
 
   return (
@@ -48,6 +76,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) throw new Error("useAuth phải được sử dụng trong AuthProvider");
   return ctx;
 };
