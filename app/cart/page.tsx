@@ -1,4 +1,20 @@
 "use client";
+import { useAuth } from "../../context/AuthContext"; // ✅ thêm dòng này
+import React from "react";
+
+export default function CartPage() {
+  const { user } = useAuth();
+
+  return (
+    <div className="p-4">
+      {user ? (
+        <p>🛒 Giỏ hàng của {user.username}</p>
+      ) : (
+        <p>⚠️ Bạn cần đăng nhập để xem giỏ hàng.</p>
+      )}
+    </div>
+  );
+}
 
 import { useEffect, useState } from "react";
 
