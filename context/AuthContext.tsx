@@ -1,81 +1,86 @@
 "use client";
 
-import React, { createContext, useState, useEffect, useContext } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { isSellerByEnv } from "../utils/roles"; // ✅ kiểm tra quyền seller
 
-interface UserData {
-  username: string;
+interface User {
+  username?: string;
   wallet_address?: string;
-  accessToken?: string;
 }
 
 interface AuthContextType {
-  user: UserData | null;
-  login: () => Promise<void>;
+  user: User | null;
+  login: () => void;
   logout: () => void;
+  isSeller: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserData | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isSeller, setIsSeller] = useState(false);
 
-  // ✅ Khôi phục user nếu đã lưu trong localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("pi_user");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setUser(parsed);
+    const savedUser = localStorage.getItem("pi_user");
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      setIsSeller(isSellerByEnv(parsedUser)); // ✅ kiểm tra quyền
     }
   }, []);
 
-  // ✅ Hàm đăng nhập qua Pi Network
   const login = async () => {
-    if (typeof window === "undefined" || !window.Pi) {
-      alert("⚠️ Vui lòng mở trang này trong Pi Browser để đăng nhập!");
-      return;
-    }
-
     try {
-      window.Pi.init({ version: "2.0", sandbox: false });
+      if (typeof window === "undefined" || !window.Pi) {
+        alert("⚠️ Vui lòng mở ứng dụng trong Pi Browser để đăng nhập!");
+        return;
+      }
 
-      const userInfo = await window.Pi.authenticate(
-        ["username", "wallet_address"],
-        () => {}
-      );
+      const scopes = ["username", "payments", "wallet_address"];
+      const Pi = window.Pi;
+      Pi.init({ version: "2.0" });
 
-      const userData = {
-        username: userInfo.user.username,
-        wallet_address: userInfo.user.wallet_address,
-        accessToken: userInfo.accessToken,
+      const authResult = await Pi.authenticate(scopes, onIncompletePaymentFound);
+
+      const loggedUser: User = {
+        username: authResult.user.username,
+        wallet_address: authResult.user.wallet_address,
       };
 
-      setUser(userData);
-      localStorage.setItem("pi_user", JSON.stringify(userData));
-      localStorage.setItem("titi_is_logged_in", "true");
+      setUser(loggedUser);
+      localStorage.setItem("pi_user", JSON.stringify(loggedUser));
+      setIsSeller(isSellerByEnv(loggedUser)); // ✅ xác định seller
 
-      alert(`🎉 Chào mừng ${userData.username}!`);
-    } catch (err) {
-      console.error("❌ Lỗi đăng nhập:", err);
-      alert("Không thể đăng nhập, vui lòng thử lại!");
+      alert(`🎉 Đăng nhập thành công! Xin chào ${loggedUser.username}`);
+    } catch (error) {
+      console.error("Lỗi đăng nhập:", error);
+      alert("Đăng nhập thất bại!");
     }
   };
 
-  // ✅ Hàm đăng xuất
   const logout = () => {
     setUser(null);
+    setIsSeller(false);
     localStorage.removeItem("pi_user");
-    localStorage.removeItem("titi_is_logged_in");
+    alert("👋 Bạn đã đăng xuất.");
+  };
+
+  const onIncompletePaymentFound = (payment: any) => {
+    console.log("Incomplete payment found:", payment);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, isSeller }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth phải được sử dụng trong AuthProvider");
-  return ctx;
-};
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth phải được sử dụng trong AuthProvider");
+  }
+  return context;
+}

@@ -68,12 +68,12 @@ export default function AccountPage() {
 
   return (
     <main className="flex flex-col items-center justify-start min-h-screen p-6">
-      <h1 className="text-2xl font-bold mb-4">👤 Tài khoản Pi Network</h1>
+      <h1 className="text-2xl font-bold mb-4"></h1>
 
       {user ? (
         <>
           <p className="text-lg mb-2">
-            Xin chào, <b>{user.username}</b>
+            👤, <b>{user.username}</b>
           </p>
           <p className="text-gray-600 mb-4">
             Ví Pi: {user.wallet_address || "Chưa liên kết"}
@@ -129,7 +129,7 @@ export default function AccountPage() {
           onClick={login}
           className="bg-yellow-500 text-white px-6 py-3 rounded hover:bg-yellow-600"
         >
-          🔐 Đăng nhập với Pi Network
+          🔐 Đăng nhập
         </button>
       )}
     </main>
