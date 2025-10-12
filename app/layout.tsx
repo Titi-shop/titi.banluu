@@ -1,5 +1,7 @@
 import "./globals.css";
-import { AuthProvider } from "../context/AuthContext"; // ✅ dùng AuthProvider
+import { AuthProvider } from "../context/AuthContext";
+import BottomNav from "../components/BottomNav";  // ✅ thêm import
+// nếu bạn còn Navbar (header) thì import vào đây nếu cần
 
 export const metadata = {
   title: "TiTi Shop",
@@ -10,13 +12,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi">
       <head>
-        {/* ✅ Thêm script SDK Pi Network */}
         <script src="https://sdk.minepi.com/pi-sdk.js"></script>
       </head>
-      <body>
-        {/* ✅ Bọc toàn bộ app trong AuthProvider để giữ login */}
+      <body className="relative pb-16">  {/* pb-16 để chừa khoảng cho BottomNav */}
         <AuthProvider>
           {children}
+          <BottomNav />        {/* ✅ chèn thanh điều hướng dưới ở đây */}
         </AuthProvider>
       </body>
     </html>
