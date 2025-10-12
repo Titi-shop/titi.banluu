@@ -128,7 +128,7 @@ export default function AccountPage() {
           onClick={login}
           className="bg-yellow-500 text-white px-6 py-3 rounded hover:bg-yellow-600"
         >
-          🔐 Đăng nhập với Pi Network
+          🔐 Đăng nhập
         </button>
       )}
     </main>
