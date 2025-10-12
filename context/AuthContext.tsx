@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserData | null>(null);
 
-  // ✅ Tự động khôi phục khi reload
+  // ✅ Khôi phục user nếu đã lưu trong localStorage
   useEffect(() => {
     const saved = localStorage.getItem("pi_user");
     if (saved) {
@@ -28,7 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // ✅ Hàm login qua Pi SDK
+  // ✅ Hàm đăng nhập qua Pi Network
   const login = async () => {
     if (typeof window === "undefined" || !window.Pi) {
       alert("⚠️ Vui lòng mở trang này trong Pi Browser để đăng nhập!");
@@ -55,12 +55,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       alert(`🎉 Chào mừng ${userData.username}!`);
     } catch (err) {
-      console.error("❌ Lỗi đăng nhập Pi:", err);
-      alert("Lỗi đăng nhập, vui lòng thử lại!");
+      console.error("❌ Lỗi đăng nhập:", err);
+      alert("Không thể đăng nhập, vui lòng thử lại!");
     }
   };
 
-  // ✅ Hàm logout
+  // ✅ Hàm đăng xuất
   const logout = () => {
     setUser(null);
     localStorage.removeItem("pi_user");
