@@ -1,5 +1,5 @@
 import "./globals.css";
-import { AuthProvider } from "../context/AuthContext"; // ✅ thêm dòng này
+import { AuthProvider } from "../context/AuthContext"; // ✅ dùng AuthProvider
 
 export const metadata = {
   title: "TiTi Shop",
@@ -8,9 +8,13 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="vi">
+      <head>
+        {/* ✅ Thêm script SDK Pi Network */}
+        <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+      </head>
       <body>
-        {/* ✅ Bọc toàn bộ ứng dụng bằng AuthProvider */}
+        {/* ✅ Bọc toàn bộ app trong AuthProvider để giữ login */}
         <AuthProvider>
           {children}
         </AuthProvider>
