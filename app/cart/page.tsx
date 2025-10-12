@@ -1,25 +1,10 @@
 "use client";
-import { useAuth } from "../../context/AuthContext"; // ✅ thêm dòng này
-import React from "react";
-
-export default function CartPage() {
-  const { user } = useAuth();
-
-  return (
-    <div className="p-4">
-      {user ? (
-        <p>🛒 Giỏ hàng của {user.username}</p>
-      ) : (
-        <p>⚠️ Bạn cần đăng nhập để xem giỏ hàng.</p>
-      )}
-    </div>
-  );
-}
-
 import { useEffect, useState } from "react";
+import { useAuth } from "../../context/AuthContext"; // ✅ thêm dòng này
 
 export default function CartPage() {
   const [cart, setCart] = useState<any[]>([]);
+  const { user } = useAuth(); // ✅ lấy thông tin người dùng đăng nhập
 
   useEffect(() => {
     const stored = localStorage.getItem("cart");
@@ -34,11 +19,23 @@ export default function CartPage() {
     localStorage.setItem("cart", JSON.stringify(updated));
   };
 
+  // ✅ Nếu chưa đăng nhập, chặn truy cập
+  if (!user) {
+    return (
+      <main className="flex items-center justify-center min-h-screen">
+        <p className="text-lg text-gray-600">
+          ⚠️ Bạn cần đăng nhập tài khoản Pi Network để xem giỏ hàng.
+        </p>
+      </main>
+    );
+  }
+
+  // ✅ Nếu đã đăng nhập, hiển thị giỏ hàng
   return (
     <main>
       <section className="p-8 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 text-center">
-          Giỏ hàng 🛒
+          Giỏ hàng của {user.username} 🛒
         </h1>
 
         {cart.length === 0 ? (
@@ -71,7 +68,7 @@ export default function CartPage() {
 
             <div className="text-right mt-6">
               <button
-                onClick={() => alert("Chức năng thanh toán đang phát triển")}
+                onClick={() => (window.location.href = "/checkout")}
                 className="bg-green-600 text-white px-6 py-3 rounded hover:bg-green-700"
               >
                 Thanh toán tất cả
