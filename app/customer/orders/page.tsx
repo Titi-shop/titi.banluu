@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function CustomerOrdersPage() {
+function OrdersContent() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const params = useSearchParams();
-  const statusParam = params.get("status"); // "cho-xac-nhan" | "cho-giao-hang" ...
+  const statusParam = params.get("status"); // "cho-xac-nhan" | "cho-lay-hang" ...
   const mapStatus: Record<string, string> = {
     "cho-xac-nhan": "Chờ xác nhận",
     "cho-lay-hang": "Đang giao",
@@ -17,20 +17,26 @@ export default function CustomerOrdersPage() {
 
   useEffect(() => {
     const loadOrders = async () => {
-      const res = await fetch("/api/orders");
-      const data = await res.json();
-      const userInfo = JSON.parse(localStorage.getItem("user_info") || "{}");
-      const buyer = userInfo.username || "guest_user";
+      try {
+        const res = await fetch("/api/orders");
+        const data = await res.json();
+        const userInfo = JSON.parse(localStorage.getItem("user_info") || "{}");
+        const buyer = userInfo.username || "guest_user";
 
-      const filtered = data.filter(
-        (o: any) =>
-          o.buyer === buyer &&
-          (statusParam ? o.status === mapStatus[statusParam] : true)
-      );
+        const filtered = data.filter(
+          (o: any) =>
+            o.buyer === buyer &&
+            (statusParam ? o.status === mapStatus[statusParam] : true)
+        );
 
-      setOrders(filtered);
-      setLoading(false);
+        setOrders(filtered);
+      } catch (err) {
+        console.error("Lỗi khi tải đơn hàng:", err);
+      } finally {
+        setLoading(false);
+      }
     };
+
     loadOrders();
   }, [statusParam]);
 
@@ -53,5 +59,14 @@ export default function CustomerOrdersPage() {
         </div>
       ))}
     </div>
+  );
+}
+
+// ✅ Bọc trong Suspense để build không lỗi
+export default function CustomerOrdersPage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-center">⏳ Đang tải đơn hàng...</p>}>
+      <OrdersContent />
+    </Suspense>
   );
 }

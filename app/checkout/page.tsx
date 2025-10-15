@@ -8,15 +8,21 @@ export default function CheckoutPage() {
   const { cart, clearCart, total } = useCart();
   const [wallet, setWallet] = useState<number>(0);
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState("guest"); // 👈 thêm state lưu tên người mua
   const router = useRouter();
 
-  // --- Lấy ví Pi khi mở trang ---
+  // --- Lấy ví Pi và user khi mở trang ---
   useEffect(() => {
+    // Lấy ví
     const w = Number(localStorage.getItem("pi_wallet") ?? "1000");
     setWallet(w);
     if (!localStorage.getItem("pi_wallet")) {
       localStorage.setItem("pi_wallet", String(w));
     }
+
+    // Lấy user
+    const u = localStorage.getItem("pi_user") ?? "guest";
+    setUser(u);
   }, []);
 
   // --- Xử lý thanh toán ---
@@ -43,7 +49,7 @@ export default function CheckoutPage() {
         items: cart,
         total,
         createdAt: new Date().toISOString(),
-        buyer: localStorage.getItem("pi_user") ?? "guest",
+        buyer: user,
       };
 
       const res = await fetch("/api/orders", {
@@ -56,7 +62,7 @@ export default function CheckoutPage() {
 
       clearCart();
       alert(`✅ Thanh toán thành công! Đã trừ ${total} Pi.`);
-      router.push("/"); // quay lại trang chủ
+      router.push("/");
     } catch (err) {
       console.error(err);
       alert("❌ Lỗi khi thanh toán.");
@@ -73,7 +79,7 @@ export default function CheckoutPage() {
       <h1 className="text-2xl font-bold mb-4">💳 Thanh toán</h1>
 
       <div className="bg-white p-4 rounded shadow mb-4">
-        <p>Người mua: <b>{localStorage.getItem("pi_user") ?? "guest"}</b></p>
+        <p>Người mua: <b>{user}</b></p> {/* ✅ dùng state user */}
         <p>Ví Pi hiện tại: <b className="text-yellow-600">{wallet} Pi</b></p>
         <p>Tổng đơn: <b className="text-yellow-600">{total} Pi</b></p>
       </div>
