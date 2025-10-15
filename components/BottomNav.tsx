@@ -3,19 +3,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, ShoppingCart, User, Store } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../app/context/LanguageContext"; // ✅ Thêm dòng này
 
 export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { translate } = useLanguage(); // ✅ Lấy hàm dịch từ context
 
+  // ✅ Dịch các nhãn dựa theo ngôn ngữ hiện tại
   const navItems = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/cart", label: "Cart", icon: ShoppingCart },
-    { href: "/account", label: "Account", icon: User },
+    { href: "/", label: translate("home"), icon: Home },
+    { href: "/cart", label: translate("cart"), icon: ShoppingCart },
+    { href: "/account", label: translate("account"), icon: User },
   ];
 
   if (user?.role === "seller") {
-    navItems.push({ href: "/seller", label: "Seller", icon: Store });
+    navItems.push({ href: "/seller", label: translate("seller") || "Seller", icon: Store });
   }
 
   return (
