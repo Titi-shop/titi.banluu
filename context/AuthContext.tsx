@@ -1,86 +1,66 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { isSellerByEnv } from "../utils/roles"; // ✅ kiểm tra quyền seller
+import { createContext, useContext, useEffect, useState } from "react";
 
-interface User {
-  username?: string;
-  wallet_address?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  login: () => void;
-  logout: () => void;
-  isSeller: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ✅ Tạo Context mặc định
+const AuthContext = createContext<any>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isSeller, setIsSeller] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [role, setRole] = useState<string | null>(null); // "seller" | "customer"
 
+  // ✅ Khi app load, lấy thông tin từ localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem("pi_user");
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      setIsSeller(isSellerByEnv(parsedUser)); // ✅ kiểm tra quyền
+    try {
+      const savedRole = localStorage.getItem("user_role");
+      const savedUser = localStorage.getItem("user_info");
+
+      if (savedRole) setRole(savedRole);
+      if (savedUser) setUser(JSON.parse(savedUser));
+    } catch (err) {
+      console.error("❌ Lỗi khi đọc localStorage:", err);
     }
   }, []);
 
-  const login = async () => {
+  // ✅ Hàm chọn vai trò
+  const chooseRole = (newRole: "seller" | "customer") => {
+    const mockUser =
+      newRole === "seller"
+        ? { username: "nguyenminhduc1991111", wallet: "SELLER-MOCK" }
+        : { username: "guest_user", wallet: "CUSTOMER-MOCK" };
+
+    setRole(newRole);
+    setUser(mockUser);
+
+    // 🔒 Lưu vào localStorage
+    localStorage.setItem("user_role", newRole);
+    localStorage.setItem("user_info", JSON.stringify(mockUser));
+  };
+
+  // ✅ Đăng xuất (đã sửa chuẩn)
+  const logout = () => {
     try {
-      if (typeof window === "undefined" || !window.Pi) {
-        alert("⚠️ Vui lòng mở ứng dụng trong Pi Browser để đăng nhập!");
-        return;
-      }
+      // Xóa dữ liệu trong localStorage nhưng không dùng clear() (để không xóa giỏ hàng)
+      localStorage.removeItem("user_role");
+      localStorage.removeItem("user_info");
+      localStorage.removeItem("pi_wallet");
 
-      const scopes = ["username", "payments", "wallet_address"];
-      const Pi = window.Pi;
-      Pi.init({ version: "2.0" });
+      // Reset state
+      setRole(null);
+      setUser(null);
 
-      const authResult = await Pi.authenticate(scopes, onIncompletePaymentFound);
-
-      const loggedUser: User = {
-        username: authResult.user.username,
-        wallet_address: authResult.user.wallet_address,
-      };
-
-      setUser(loggedUser);
-      localStorage.setItem("pi_user", JSON.stringify(loggedUser));
-      setIsSeller(isSellerByEnv(loggedUser)); // ✅ xác định seller
-
-      alert(`🎉 Đăng nhập thành công! Xin chào ${loggedUser.username}`);
-    } catch (error) {
-      console.error("Lỗi đăng nhập:", error);
-      alert("Đăng nhập thất bại!");
+      console.log("🚪 Đăng xuất thành công");
+    } catch (err) {
+      console.error("❌ Lỗi khi đăng xuất:", err);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsSeller(false);
-    localStorage.removeItem("pi_user");
-    alert("👋 Bạn đã đăng xuất.");
-  };
-
-  const onIncompletePaymentFound = (payment: any) => {
-    console.log("Incomplete payment found:", payment);
-  };
-
   return (
-    <AuthContext.Provider value={{ user, login, logout, isSeller }}>
+    <AuthContext.Provider value={{ user, role, chooseRole, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth phải được sử dụng trong AuthProvider");
-  }
-  return context;
-}
+// ✅ Custom hook để dùng ở các trang khác
+export const useAuth = () => useContext(AuthContext);

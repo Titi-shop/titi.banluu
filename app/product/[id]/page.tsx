@@ -1,20 +1,22 @@
 "use client";
-import { useEffect, useState } from "react";
 
-export default function ProductDetail({ params }) {
-  const [product, setProduct] = useState(null);
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useCart } from "../../context/CartContext"; // ✅ dùng chung context giỏ hàng
+
+export default function ProductDetail() {
+  const { id } = useParams(); // ✅ Lấy id từ URL
+  const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { addToCart, clearCart } = useCart(); // ✅ lấy hàm từ context
 
   useEffect(() => {
     async function fetchProduct() {
       try {
-        const resolvedParams = await params;
-        const productId = resolvedParams.id;
-
-        const res = await fetch("/api/add-product");
+        const res = await fetch("/api/products");
         const products = await res.json();
 
-        const found = products.find((p) => p.id === Number(productId));
+        const found = products.find((p: any) => p.id.toString() === id.toString());
         setProduct(found);
       } catch (err) {
         console.error("Lỗi khi tải sản phẩm:", err);
@@ -23,28 +25,41 @@ export default function ProductDetail({ params }) {
       }
     }
 
-    fetchProduct();
-  }, [params]);
+    if (id) fetchProduct();
+  }, [id]);
 
   const handleAddToCart = () => {
     if (!product) return;
-    let cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    cart.push(product);
-    localStorage.setItem("cart", JSON.stringify(cart));
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: Number(product.price),
+      description: product.description,
+      images: product.images,
+    });
     alert("✅ Đã thêm vào giỏ hàng!");
   };
 
   const handleCheckout = () => {
-  if (!product) return;
-  localStorage.setItem("cart", JSON.stringify([product]));
-  window.location.href = "/checkout"; // ✅ điều hướng sang trang thanh toán
-};
-
+    if (!product) return;
+    clearCart(); // xoá giỏ cũ để chỉ thanh toán 1 sản phẩm
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: Number(product.price),
+      description: product.description,
+      images: product.images,
+    });
+    window.location.href = "/checkout"; // điều hướng sang trang thanh toán
+  };
 
   if (loading)
     return <p className="text-center mt-6">⏳ Đang tải sản phẩm...</p>;
+
   if (!product)
-    return <p className="text-center mt-6">❌ Không tìm thấy sản phẩm.</p>;
+    return <p className="text-center mt-6 text-red-600 font-medium">
+      ❌ Không tìm thấy sản phẩm.
+    </p>;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -58,10 +73,10 @@ export default function ProductDetail({ params }) {
 
       {product.images?.length > 0 && (
         <div className="flex gap-3 flex-wrap mb-6">
-          {product.images.map((src, i) => (
+          {product.images.map((src: string, i: number) => (
             <img
               key={i}
-              src={src}
+              src={src.startsWith("/uploads/") ? src : `/uploads/${src.split("\\").pop()}`}
               alt={`Ảnh ${i + 1}`}
               className="w-40 h-40 object-cover rounded border"
             />

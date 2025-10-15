@@ -1,17 +1,22 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  eslint: {
-    // Bỏ qua lỗi lint khi build
-    ignoreDuringBuilds: true,
+// next.config.js
+const path = require("path");
+
+module.exports = {
+  webpackDevMiddleware: (config) => {
+    // 🧹 Bỏ qua theo dõi các file hệ thống Windows
+    config.watchOptions.ignored = [
+      '**/node_modules/**',
+      '**/.next/**',
+      'C:/pagefile.sys',
+      'C:/hiberfil.sys',
+      'C:/swapfile.sys',
+      'C:/DumpStack.log.tmp',
+    ];
+    return config;
   },
-  typescript: {
-    // Bỏ qua lỗi TypeScript khi build
-    ignoreBuildErrors: true,
-  },
+
+  // Cho phép ảnh trong thư mục uploads được load
   images: {
-    // Cho phép dùng <img> mà không bị cảnh báo
-    unoptimized: true,
+    domains: ["localhost"],
   },
 };
-
-module.exports = nextConfig;

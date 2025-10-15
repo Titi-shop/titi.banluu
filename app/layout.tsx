@@ -1,7 +1,8 @@
 import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
-import BottomNav from "../components/BottomNav";  // ✅ thêm import
-// nếu bạn còn Navbar (header) thì import vào đây nếu cần
+import { CartProvider } from "./context/CartContext";
+import { LanguageProvider } from "./context/LanguageContext"; // 🟠 Thêm ngôn ngữ
+import BottomNav from "../components/BottomNav";
 
 export const metadata = {
   title: "TiTi Shop",
@@ -14,11 +15,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script src="https://sdk.minepi.com/pi-sdk.js"></script>
       </head>
-      <body className="relative pb-16">  {/* pb-16 để chừa khoảng cho BottomNav */}
-        <AuthProvider>
-          {children}
-          <BottomNav />        {/* ✅ chèn thanh điều hướng dưới ở đây */}
-        </AuthProvider>
+
+      <body className="relative pb-16">
+        {/* ✅ Bọc toàn bộ app trong LanguageProvider để ngôn ngữ hoạt động */}
+        <LanguageProvider>
+          <AuthProvider>
+            <CartProvider>
+              {children}
+              <BottomNav />
+            </CartProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

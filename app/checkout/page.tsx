@@ -1,87 +1,90 @@
 "use client";
 
-import { useEffect } from "react";
-import { useAuth } from "../../context/AuthContext"; // ✅ thêm dòng này
+import { useEffect, useState } from "react";
+import { useCart } from "../context/CartContext";
+import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
-  const { user } = useAuth(); // ✅ kiểm tra đăng nhập
+  const { cart, clearCart, total } = useCart();
+  const [wallet, setWallet] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
+  // --- Lấy ví Pi khi mở trang ---
   useEffect(() => {
-    if (!user) return; // ✅ Nếu chưa đăng nhập thì không chạy thanh toán
-
-    if (typeof window === "undefined" || !window.Pi) {
-      alert("⚠️ Vui lòng mở trang này trong Pi Browser để thanh toán!");
-      return;
+    const w = Number(localStorage.getItem("pi_wallet") ?? "1000");
+    setWallet(w);
+    if (!localStorage.getItem("pi_wallet")) {
+      localStorage.setItem("pi_wallet", String(w));
     }
+  }, []);
 
-    const Pi = window.Pi;
-    Pi.init({ version: "2.0" });
-
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-
+  // --- Xử lý thanh toán ---
+  const handlePay = async () => {
     if (cart.length === 0) {
-      alert("🛒 Giỏ hàng trống!");
+      alert("🛒 Giỏ hàng trống.");
+      return;
+    }
+    if (wallet < total) {
+      alert("📛 Ví Pi không đủ. Vui lòng nạp thêm.");
       return;
     }
 
-    const totalAmount = cart.reduce(
-      (sum, item) => sum + Number(item.price || 0),
-      0
-    );
+    setLoading(true);
+    try {
+      // Giả lập trừ ví Pi
+      const newWallet = wallet - total;
+      localStorage.setItem("pi_wallet", String(newWallet));
+      setWallet(newWallet);
 
-    const paymentData = {
-      amount: totalAmount,
-      memo: `Thanh toán ${cart.length} sản phẩm tại TiTi Shop`,
-      metadata: { products: cart, user: user.username }, // ✅ thêm user vào metadata
-    };
+      // Tạo đơn hàng
+      const order = {
+        id: Date.now(),
+        items: cart,
+        total,
+        createdAt: new Date().toISOString(),
+        buyer: localStorage.getItem("pi_user") ?? "guest",
+      };
 
-    async function startPayment() {
-      try {
-        const payment = await Pi.createPayment(paymentData, {
-          onReadyForServerApproval: async (paymentId) => {
-            console.log("🟡 Gửi paymentId lên server:", paymentId);
-          },
-          onReadyForServerCompletion: async (paymentId, txid) => {
-            console.log("🟢 Giao dịch thành công:", txid);
-            alert("✅ Thanh toán thành công qua Pi Wallet!");
-            localStorage.removeItem("cart");
-          },
-          onCancel: () => {
-            alert("❌ Bạn đã hủy thanh toán.");
-          },
-          onError: (error) => {
-            console.error("🚨 Lỗi khi thanh toán:", error);
-            alert("Lỗi khi thanh toán!");
-          },
-        });
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(order),
+      });
 
-        console.log("Payment object:", payment);
-      } catch (err) {
-        console.error("❌ Không thể tạo thanh toán:", err);
-      }
+      if (!res.ok) throw new Error("Không thể tạo đơn");
+
+      clearCart();
+      alert(`✅ Thanh toán thành công! Đã trừ ${total} Pi.`);
+      router.push("/"); // quay lại trang chủ
+    } catch (err) {
+      console.error(err);
+      alert("❌ Lỗi khi thanh toán.");
+      // Nếu lỗi → hoàn tiền tạm
+      const w = Number(localStorage.getItem("pi_wallet") ?? "0");
+      setWallet(w);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    startPayment();
-  }, [user]); // ✅ chạy lại khi user đã login
-
-  // ✅ Nếu chưa đăng nhập
-  if (!user) {
-    return (
-      <main className="flex flex-col items-center justify-center min-h-screen">
-        <p className="text-lg text-gray-600">
-          ⚠️ Bạn cần đăng nhập bằng tài khoản Pi để thanh toán.
-        </p>
-      </main>
-    );
-  }
-
-  // ✅ Nếu đã đăng nhập
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-xl font-bold mb-3">
-        💳 Đang khởi tạo thanh toán cho {user.username}...
-      </h1>
-      <p>Vui lòng chờ hoặc xác nhận trong Pi Browser.</p>
+    <main className="max-w-3xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-4">💳 Thanh toán</h1>
+
+      <div className="bg-white p-4 rounded shadow mb-4">
+        <p>Người mua: <b>{localStorage.getItem("pi_user") ?? "guest"}</b></p>
+        <p>Ví Pi hiện tại: <b className="text-yellow-600">{wallet} Pi</b></p>
+        <p>Tổng đơn: <b className="text-yellow-600">{total} Pi</b></p>
+      </div>
+
+      <button
+        onClick={handlePay}
+        disabled={loading}
+        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+      >
+        {loading ? "Đang xử lý..." : "Thanh toán bằng Pi (Giả lập)"}
+      </button>
     </main>
   );
 }

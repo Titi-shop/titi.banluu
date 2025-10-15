@@ -1,137 +1,63 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 
-interface Profile {
-  address: string;
-  phone: string;
-}
-
 export default function AccountPage() {
-  const { user, login, logout } = useAuth();
+  const router = useRouter();
+  const { chooseRole, logout } = useAuth();
 
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("");
-  const [profileLoaded, setProfileLoaded] = useState(false);
-
-  // Khi user đăng nhập, fetch thông tin profile nếu đã lưu
-  useEffect(() => {
-    if (!user) return;
-
-    // Gọi API lấy profile
-    fetch(`/api/profile?user=${user.username}`)
-      .then((res) => res.json())
-      .then((data: Profile | null) => {
-        if (data) {
-          setAddress(data.address);
-          setPhone(data.phone);
-        }
-      })
-      .catch((err) => {
-        console.error("Lỗi khi lấy profile:", err);
-      })
-      .finally(() => {
-        setProfileLoaded(true);
-      });
-  }, [user]);
-
-  const handleSave = async () => {
-    if (!user) {
-      alert("Vui lòng đăng nhập trước!");
-      return;
-    }
-    const body = {
-      username: user.username,
-      address,
-      phone,
-    };
-    try {
-      const res = await fetch("/api/profile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (json.success) {
-        alert("Lưu thông tin thành công!");
-      } else {
-        alert("Lỗi khi lưu thông tin!");
-      }
-    } catch (err) {
-      console.error("Lỗi khi gửi profile:", err);
-      alert("Lỗi khi lưu thông tin!");
+  // Khi chọn vai trò → lưu vào localStorage → điều hướng
+  const handleChooseRole = (role: "seller" | "customer") => {
+    chooseRole(role);
+    localStorage.setItem("user_role", role);
+    if (role === "seller") {
+      router.push("/seller");
+    } else {
+      router.push("/customer");
     }
   };
 
+  // Khi nhấn “Đăng xuất” (nếu cần)
+  const handleLogout = () => {
+    logout();
+    localStorage.clear();
+    router.push("/account");
+  };
+
   return (
-    <main className="flex flex-col items-center justify-start min-h-screen p-6">
-      <h1 className="text-2xl font-bold mb-4"></h1>
+    <main className="flex flex-col items-center justify-center min-h-screen text-center bg-white">
+      {/* Tiêu đề */}
+      <h1 className="text-3xl font-bold mb-4">👋 Chào mừng đến TiTi Shop</h1>
 
-      {user ? (
-        <>
-          <p className="text-lg mb-2">
-            👤, <b>{user.username}</b>
-          </p>
-          <p className="text-gray-600 mb-4">
-            Ví Pi: {user.wallet_address || "Chưa liên kết"}
-          </p>
+      {/* Mô tả */}
+      <p className="text-gray-600 mb-8">Chọn vai trò để tiếp tục:</p>
 
-          <div className="w-full max-w-md border p-4 rounded bg-gray-50 mb-4">
-            <h2 className="text-lg font-semibold mb-3">Thông tin giao hàng</h2>
-
-            <label className="block mb-1">Địa chỉ</label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full border px-3 py-2 rounded mb-3"
-              placeholder="Số nhà, tên đường, quận, thành phố"
-            />
-
-            <label className="block mb-1">Số điện thoại</label>
-            <input
-              type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full border px-3 py-2 rounded mb-3"
-              placeholder="0123456789"
-            />
-
-            <button
-              onClick={handleSave}
-              className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700"
-            >
-              Lưu thông tin
-            </button>
-          </div>
-
-          {/* Nếu profile đã load và có dữ liệu, hiển thị thông tin */}
-          {profileLoaded && (address || phone) && (
-            <div className="w-full max-w-md p-4 border rounded bg-white">
-              <h3 className="font-semibold mb-2">Thông tin hiện tại:</h3>
-              <p>Địa chỉ: {address}</p>
-              <p>Số điện thoại: {phone}</p>
-            </div>
-          )}
-
-          <button
-            onClick={logout}
-            className="bg-red-500 text-white px-6 py-2 rounded mt-6 hover:bg-red-600"
-          >
-            Đăng xuất
-          </button>
-        </>
-      ) : (
+      {/* Hai nút chọn vai trò */}
+      <div className="flex gap-6">
         <button
-          onClick={login}
-          className="bg-yellow-500 text-white px-6 py-3 rounded hover:bg-yellow-600"
+          onClick={() => handleChooseRole("seller")}
+          className="bg-green-500 hover:bg-green-600 text-white font-semibold px-8 py-3 rounded-lg text-lg shadow-md transition-all"
         >
-          🔐 Đăng nhập
+          🏪 Tôi là người bán
         </button>
-      )}
+
+        <button
+          onClick={() => handleChooseRole("customer")}
+          className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg text-lg shadow-md transition-all"
+        >
+          👤 Tôi là khách hàng
+        </button>
+      </div>
+
+      {/* (Tùy chọn) Nút đăng xuất khi người dùng đang đăng nhập */}
+      <button
+        onClick={handleLogout}
+        className="mt-10 text-red-500 hover:text-red-700 text-sm underline"
+      >
+        🔓 Đăng xuất
+      </button>
     </main>
   );
 }

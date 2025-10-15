@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default function AddProductPage() {
+export default function SellerPostPage() {
+  const router = useRouter();
+
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
@@ -31,7 +34,8 @@ export default function AddProductPage() {
       formData.append("description", description);
       images.forEach((img) => formData.append("images", img));
 
-      const res = await fetch("/api/add-product", {
+      // ✅ Gửi dữ liệu đến API /api/products
+      const res = await fetch("/api/products", {
         method: "POST",
         body: formData,
       });
@@ -46,9 +50,14 @@ export default function AddProductPage() {
       setPrice("");
       setDescription("");
       setImages([]);
-      setTimeout(() => setMessage(""), 2500);
 
-      console.log("Sản phẩm mới:", data.product);
+      // Hiển thị thông báo rồi quay lại kho hàng
+      setTimeout(() => {
+        setMessage("");
+        router.push("/seller/stock"); // ✅ Quay lại trang kho hàng
+      }, 1500);
+
+      console.log("🆕 Sản phẩm mới:", data.product);
     } catch (error) {
       console.error(error);
       setMessage("❌ Lỗi khi đăng sản phẩm!");
@@ -62,7 +71,13 @@ export default function AddProductPage() {
       </h1>
 
       {message && (
-        <p className="text-center mb-3 font-medium text-green-600">{message}</p>
+        <p
+          className={`text-center mb-3 font-medium ${
+            message.includes("✅") ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {message}
+        </p>
       )}
 
       <form
@@ -134,7 +149,16 @@ export default function AddProductPage() {
           type="submit"
           className="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 rounded mt-4"
         >
-          Đăng sản phẩm
+          📦 Đăng sản phẩm
+        </button>
+
+        {/* Nút quay lại */}
+        <button
+          type="button"
+          onClick={() => router.push("/seller")}
+          className="bg-gray-300 hover:bg-gray-400 text-black font-medium py-2 rounded mt-2"
+        >
+          ↩️ Quay lại khu vực Người Bán
         </button>
       </form>
     </main>
