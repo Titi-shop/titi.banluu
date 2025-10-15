@@ -1,8 +1,14 @@
 "use client";
+
 import { useEffect, useState } from "react";
 
+interface Order {
+  id: number;
+  status: string;
+}
+
 export default function SellerStatusPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -12,7 +18,7 @@ export default function SellerStatusPage() {
   const fetchOrders = async () => {
     try {
       const res = await fetch("/api/orders");
-      const data = await res.json();
+      const data: Order[] = await res.json();
       setOrders(data);
     } catch (err) {
       console.error("❌ Lỗi tải đơn:", err);
@@ -24,7 +30,6 @@ export default function SellerStatusPage() {
   if (loading)
     return <p className="text-center mt-6 text-gray-500">⏳ Đang tải dữ liệu...</p>;
 
-  // Đếm số lượng từng loại trạng thái
   const stats = {
     pending: orders.filter((o) => o.status === "Chờ xác nhận").length,
     delivering: orders.filter((o) => o.status === "Đang giao").length,
@@ -37,27 +42,32 @@ export default function SellerStatusPage() {
       <h1 className="text-2xl font-bold mb-5">📦 Trạng thái đơn hàng</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-        <div className="bg-yellow-100 text-yellow-800 rounded-xl p-5 text-center shadow">
-          <h2 className="text-3xl font-bold">{stats.pending}</h2>
-          <p className="mt-1 font-medium">Chờ xác nhận</p>
-        </div>
-        <div className="bg-blue-100 text-blue-800 rounded-xl p-5 text-center shadow">
-          <h2 className="text-3xl font-bold">{stats.delivering}</h2>
-          <p className="mt-1 font-medium">Đang giao</p>
-        </div>
-        <div className="bg-green-100 text-green-800 rounded-xl p-5 text-center shadow">
-          <h2 className="text-3xl font-bold">{stats.completed}</h2>
-          <p className="mt-1 font-medium">Hoàn tất</p>
-        </div>
-        <div className="bg-red-100 text-red-800 rounded-xl p-5 text-center shadow">
-          <h2 className="text-3xl font-bold">{stats.canceled}</h2>
-          <p className="mt-1 font-medium">Đã huỷ</p>
-        </div>
+        <StatusCard color="yellow" value={stats.pending} label="Chờ xác nhận" />
+        <StatusCard color="blue" value={stats.delivering} label="Đang giao" />
+        <StatusCard color="green" value={stats.completed} label="Hoàn tất" />
+        <StatusCard color="red" value={stats.canceled} label="Đã huỷ" />
       </div>
 
       <div className="mt-8 text-gray-600 text-center">
         <p>Tổng số đơn: {orders.length}</p>
       </div>
     </main>
+  );
+}
+
+function StatusCard({
+  color,
+  value,
+  label,
+}: {
+  color: string;
+  value: number;
+  label: string;
+}) {
+  return (
+    <div className={`bg-${color}-100 text-${color}-800 rounded-xl p-5 text-center shadow`}>
+      <h2 className="text-3xl font-bold">{value}</h2>
+      <p className="mt-1 font-medium">{label}</p>
+    </div>
   );
 }

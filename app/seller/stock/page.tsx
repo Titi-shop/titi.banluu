@@ -1,10 +1,20 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, ChangeEvent } from "react";
+import Image from "next/image";
+
+interface Product {
+  id: number;
+  name: string;
+  price: string;
+  description: string;
+  images?: string[];
+}
 
 export default function StockManager() {
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm] = useState({
     name: "",
     price: "",
@@ -13,7 +23,6 @@ export default function StockManager() {
     previews: [] as string[],
   });
 
-  // 🧾 Lấy danh sách sản phẩm
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -22,7 +31,7 @@ export default function StockManager() {
     try {
       const res = await fetch("/api/products");
       if (!res.ok) throw new Error("Không thể tải danh sách sản phẩm");
-      const data = await res.json();
+      const data: Product[] = await res.json();
       setProducts(data);
     } catch (err) {
       console.error("❌ Lỗi tải sản phẩm:", err);
@@ -31,7 +40,6 @@ export default function StockManager() {
     }
   };
 
-  // ❌ Xóa sản phẩm
   const deleteProduct = async (id: number) => {
     if (!confirm("Bạn có chắc muốn xóa sản phẩm này không?")) return;
     try {
@@ -46,8 +54,7 @@ export default function StockManager() {
     }
   };
 
-  // ✏️ Mở popup sửa
-  const startEdit = (product: any) => {
+  const startEdit = (product: Product) => {
     setEditingProduct(product);
     setForm({
       name: product.name,
@@ -58,17 +65,15 @@ export default function StockManager() {
     });
   };
 
-  // 💾 Lưu cập nhật sản phẩm (cho phép nhiều ảnh)
   const saveEdit = async () => {
     if (!editingProduct) return;
 
     try {
       const formData = new FormData();
-      formData.append("id", editingProduct.id);
+      formData.append("id", editingProduct.id.toString());
       formData.append("name", form.name);
       formData.append("price", form.price);
       formData.append("description", form.description);
-
       form.images.forEach((img) => formData.append("images", img));
 
       const res = await fetch("/api/products", {
@@ -90,7 +95,7 @@ export default function StockManager() {
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     const selected = Array.from(files).slice(0, 6);
@@ -104,14 +109,10 @@ export default function StockManager() {
 
   return (
     <main className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6 text-center">
-        📦 Quản lý Kho hàng
-      </h1>
+      <h1 className="text-2xl font-bold mb-6 text-center">📦 Quản lý Kho hàng</h1>
 
       {!products.length ? (
-        <p className="text-center text-gray-500">
-          ❗ Chưa có sản phẩm nào trong kho.
-        </p>
+        <p className="text-center text-gray-500">❗ Chưa có sản phẩm nào trong kho.</p>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {products.map((p) => (
@@ -120,15 +121,16 @@ export default function StockManager() {
               className="border rounded-lg p-4 shadow bg-white flex flex-col justify-between hover:shadow-lg"
             >
               <div>
-                {/* ✅ Hiển thị tất cả ảnh */}
                 <div className="flex gap-2 overflow-x-auto mb-2">
-                  {p.images?.length > 0 ? (
-                    p.images.map((img: string, idx: number) => (
-                      <img
+                  {p.images?.length ? (
+                    p.images.map((img, idx) => (
+                      <Image
                         key={idx}
                         src={img}
                         alt={p.name}
-                        className="w-20 h-20 object-cover rounded border"
+                        width={100}
+                        height={100}
+                        className="object-cover rounded border"
                       />
                     ))
                   ) : (
@@ -140,9 +142,7 @@ export default function StockManager() {
 
                 <h2 className="font-semibold text-lg truncate">{p.name}</h2>
                 <p className="text-sm text-gray-600">💰 {p.price} Pi</p>
-                <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                  {p.description}
-                </p>
+                <p className="text-sm text-gray-500 mt-1 line-clamp-2">{p.description}</p>
               </div>
 
               <div className="flex gap-2 mt-3">
@@ -164,13 +164,10 @@ export default function StockManager() {
         </div>
       )}
 
-      {/* ✏️ Popup chỉnh sửa */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
-            <h2 className="text-xl font-bold mb-4 text-center">
-              ✏️ Chỉnh sửa sản phẩm
-            </h2>
+            <h2 className="text-xl font-bold mb-4 text-center">✏️ Chỉnh sửa sản phẩm</h2>
 
             <label className="block mb-2">
               Tên sản phẩm:
@@ -196,9 +193,7 @@ export default function StockManager() {
               Mô tả:
               <textarea
                 value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="w-full border px-2 py-1 rounded mt-1 h-20"
               />
             </label>
@@ -217,11 +212,13 @@ export default function StockManager() {
             {form.previews.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {form.previews.map((src, i) => (
-                  <img
+                  <Image
                     key={i}
                     src={src}
                     alt="preview"
-                    className="w-full h-20 object-cover rounded border"
+                    width={100}
+                    height={100}
+                    className="object-cover rounded border"
                   />
                 ))}
               </div>

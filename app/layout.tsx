@@ -1,8 +1,9 @@
 import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "./context/CartContext";
-import { LanguageProvider } from "./context/LanguageContext"; // 🟠 Thêm ngôn ngữ
+import { LanguageProvider } from "./context/LanguageContext";
 import BottomNav from "../components/BottomNav";
+import Script from "next/script"; // ✅
 
 export const metadata = {
   title: "TiTi Shop",
@@ -13,11 +14,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi">
       <head>
-        <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+        {/* ✅ nạp Pi SDK theo cách không đồng bộ */}
+        <Script src="https://sdk.minepi.com/pi-sdk.js" strategy="afterInteractive" />
       </head>
-
       <body className="relative pb-16">
-        {/* ✅ Bọc toàn bộ app trong LanguageProvider để ngôn ngữ hoạt động */}
         <LanguageProvider>
           <AuthProvider>
             <CartProvider>

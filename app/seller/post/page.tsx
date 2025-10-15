@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function SellerPostPage() {
   const router = useRouter();
@@ -12,14 +13,14 @@ export default function SellerPostPage() {
   const [images, setImages] = useState<File[]>([]);
   const [message, setMessage] = useState("");
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     const selected = Array.from(files).slice(0, 6);
     setImages(selected);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!name || !price) {
@@ -34,7 +35,6 @@ export default function SellerPostPage() {
       formData.append("description", description);
       images.forEach((img) => formData.append("images", img));
 
-      // ✅ Gửi dữ liệu đến API /api/products
       const res = await fetch("/api/products", {
         method: "POST",
         body: formData,
@@ -54,7 +54,7 @@ export default function SellerPostPage() {
       // Hiển thị thông báo rồi quay lại kho hàng
       setTimeout(() => {
         setMessage("");
-        router.push("/seller/stock"); // ✅ Quay lại trang kho hàng
+        router.push("/seller/stock");
       }, 1500);
 
       console.log("🆕 Sản phẩm mới:", data.product);
@@ -135,11 +135,13 @@ export default function SellerPostPage() {
         {images.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mt-3">
             {images.map((img, i) => (
-              <img
+              <Image
                 key={i}
                 src={URL.createObjectURL(img)}
                 alt={`Ảnh ${i + 1}`}
-                className="w-full h-24 object-cover rounded border"
+                width={120}
+                height={120}
+                className="object-cover rounded border"
               />
             ))}
           </div>
@@ -152,7 +154,6 @@ export default function SellerPostPage() {
           📦 Đăng sản phẩm
         </button>
 
-        {/* Nút quay lại */}
         <button
           type="button"
           onClick={() => router.push("/seller")}

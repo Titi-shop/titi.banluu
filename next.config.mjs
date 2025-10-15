@@ -1,15 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ⛳ Không fail build nếu còn lỗi ESLint
   eslint: {
-    // ✅ Bỏ qua lỗi ESLint khi build (chặn các lỗi Unexpected any)
     ignoreDuringBuilds: true,
   },
+  // ⛳ Không fail build nếu còn lỗi TypeScript
   typescript: {
-    // ✅ Bỏ qua lỗi type check khi build
     ignoreBuildErrors: true,
   },
+  // Cho phép dùng <img> local & không tối ưu hoá ảnh (đỡ cấu hình miền)
   images: {
-    // ✅ Cho phép dùng <img> thay vì <Image>
     unoptimized: true,
   },
 };
