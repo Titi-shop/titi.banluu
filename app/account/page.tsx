@@ -6,10 +6,18 @@ export default function AccountPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const saved = localStorage.getItem("pi_user");
-    if (saved) {
-      // Nếu đã có tài khoản → chuyển hướng sang trang customer
-      router.replace("/customer");
+    const savedUser = localStorage.getItem("pi_user");
+    const savedRole = localStorage.getItem("titi_role");
+
+    if (savedUser && savedRole) {
+      // ✅ Điều hướng đúng trang theo vai trò
+      if (savedRole === "seller") {
+        router.replace("/seller");
+      } else {
+        router.replace("/customer");
+      }
+    } else {
+      router.push("/pilogin");
     }
   }, [router]);
 
