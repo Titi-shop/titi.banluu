@@ -13,10 +13,12 @@ export default function PiLoginPage() {
       window.Pi.init({ version: "2.0", sandbox: false });
       setIsPiBrowser(true);
 
-      // Nếu đã đăng nhập từ trước
       const saved = localStorage.getItem("pi_user");
-      if (saved) {
-        router.replace("/customer");
+      const savedRole = localStorage.getItem("titi_role");
+
+      // ✅ Nếu đã đăng nhập từ trước → quay lại đúng trang theo vai trò
+      if (saved && savedRole) {
+        router.replace(savedRole === "seller" ? "/seller" : "/customer");
       }
     }
   }, [router]);
@@ -30,11 +32,23 @@ export default function PiLoginPage() {
     try {
       const scopes = ["username", "payments", "wallet_address"];
       const auth = await window.Pi.authenticate(scopes, () => {});
+
+      const username = auth?.user?.username || "guest_user";
+
+      // ✅ Lưu user
       localStorage.setItem("pi_user", JSON.stringify(auth));
       localStorage.setItem("titi_is_logged_in", "true");
 
-      alert("🎉 Đăng nhập thành công!");
-      router.replace("/customer"); // 👉 chuyển hướng sang customer
+      // ✅ Phân quyền theo username
+      if (username === "nguyenminhduc1991111") {
+        localStorage.setItem("titi_role", "seller");
+        router.replace("/seller");
+      } else {
+        localStorage.setItem("titi_role", "customer");
+        router.replace("/customer");
+      }
+
+      alert(`🎉 Đăng nhập thành công với vai trò ${username === "nguyenminhduc1991111" ? "Seller" : "Khách hàng"}`);
     } catch (err: any) {
       console.error(err);
       alert("❌ Lỗi đăng nhập: " + err.message);
