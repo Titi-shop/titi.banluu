@@ -12,16 +12,47 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const info = localStorage.getItem("user_info");
+      const info = localStorage.getItem("pi_user") || localStorage.getItem("user_info");
       if (info) {
-        const parsed = JSON.parse(info);
-        setUsername(parsed.username || "guest_user");
+        try {
+          const parsed = JSON.parse(info);
+          setUsername(parsed?.user?.username || parsed?.username || "guest_user");
+        } catch {
+          setUsername("guest_user");
+        }
+      } else {
+        router.replace("/pilogin");
       }
     }
-  }, []);
+  }, [router]);
 
   const goTo = (path: string) => {
     router.push(path);
+  };
+
+  // 🔹 Hàm đăng xuất khỏi Pi Network
+  const handleLogoutPi = async () => {
+    try {
+      // 1️⃣ Nếu có window.Pi thì gọi logout() của Pi Browser
+      if (typeof window !== "undefined" && window.Pi && typeof window.Pi.logout === "function") {
+        await window.Pi.logout();
+        console.log("Đã đăng xuất khỏi Pi Network session");
+      }
+
+      // 2️⃣ Xóa localStorage
+      localStorage.removeItem("pi_user");
+      localStorage.removeItem("user_info");
+      localStorage.removeItem("titi_is_logged_in");
+
+      // 3️⃣ Gọi logout từ context nếu có
+      if (logout) logout();
+
+      // 4️⃣ Điều hướng về trang login
+      router.replace("/pilogin");
+    } catch (err) {
+      console.error("Lỗi đăng xuất:", err);
+      router.replace("/pilogin");
+    }
   };
 
   return (
@@ -41,7 +72,7 @@ export default function CustomerDashboard() {
           {/* 🔗 Nút Hồ sơ cá nhân */}
           <button
             onClick={(e) => {
-              e.stopPropagation(); // tránh trùng event click vùng lớn
+              e.stopPropagation();
               router.push("/customer/profile");
             }}
             className="mt-3 bg-white text-orange-600 text-sm px-4 py-1 rounded-full flex items-center gap-1 hover:bg-gray-100 transition"
@@ -98,11 +129,9 @@ export default function CustomerDashboard() {
             <span className="text-sm mt-1">Đánh giá</span>
           </button>
 
+          {/* 🔹 Nút đăng xuất Pi Network */}
           <button
-            onClick={() => {
-              logout();
-              setTimeout(() => router.replace("/account"), 200);
-            }}
+            onClick={handleLogoutPi}
             className="flex flex-col items-center text-red-600 hover:text-red-700"
           >
             <LogOut size={28} />
