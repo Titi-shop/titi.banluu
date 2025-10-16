@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 
 export default function AccountPage() {
   const router = useRouter();
-  const [user, setUser] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    // 🔹 Kiểm tra user đã đăng nhập hay chưa
-    const storedUser = localStorage.getItem("pi_user");
-    if (storedUser) setUser(storedUser);
-  }, []);
+    const saved = localStorage.getItem("pi_user");
+    if (saved) {
+      setUser(JSON.parse(saved));
+    } else {
+      // Nếu chưa đăng nhập -> điều hướng về /pilogin
+      router.push("/pilogin");
+    }
+  }, [router]);
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
@@ -19,12 +23,15 @@ export default function AccountPage() {
 
         {user ? (
           <>
-            <p className="mb-4">👤 Xin chào, <b>{user}</b></p>
+            <p className="mb-2">👤 Xin chào, <b>{user.user.username}</b></p>
+            <p className="mb-6">💰 Ví Pi: <b>{user.user.wallet_address || "Không có ví"}</b></p>
+
             <button
               onClick={() => {
                 localStorage.removeItem("pi_user");
                 alert("🚪 Đã đăng xuất!");
                 setUser(null);
+                router.push("/pilogin");
               }}
               className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
             >
@@ -32,15 +39,7 @@ export default function AccountPage() {
             </button>
           </>
         ) : (
-          <>
-            <p className="mb-6 text-gray-600">Bạn chưa đăng nhập</p>
-            <button
-              onClick={() => router.push("/pilogin")}
-              className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg"
-            >
-              🔑 Đăng nhập
-            </button>
-          </>
+          <p className="text-gray-600">Đang kiểm tra đăng nhập...</p>
         )}
       </div>
     </main>
