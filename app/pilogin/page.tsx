@@ -1,24 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function PiLoginPage() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [isPiBrowser, setIsPiBrowser] = useState(false);
+  const router = useRouter();
 
-  // Kiểm tra Pi Browser và khởi tạo SDK
+  // 🔹 Kiểm tra Pi Browser và khởi tạo SDK
   useEffect(() => {
     if (typeof window !== "undefined" && window.Pi) {
       window.Pi.init({ version: "2.0", sandbox: false });
       setIsPiBrowser(true);
 
-      // Khôi phục session
+      // Nếu người dùng đã đăng nhập -> chuyển hướng luôn
       const saved = localStorage.getItem("pi_user");
-      if (saved) setUser(JSON.parse(saved));
+      if (saved) {
+        const userData = JSON.parse(saved);
+        setUser(userData);
+        router.push("/customer");
+      }
     }
-  }, []);
+  }, [router]);
 
-  // Đăng nhập
+  // 🔹 Đăng nhập
   const handleLogin = async () => {
     if (!window.Pi) {
       alert("⚠️ Vui lòng mở trang này bằng Pi Browser.");
@@ -29,16 +35,21 @@ export default function PiLoginPage() {
       const scopes = ["username", "payments", "wallet_address"];
       const auth = await window.Pi.authenticate(scopes, () => {});
       setUser(auth);
+
+      // ✅ Lưu thông tin user vào localStorage
       localStorage.setItem("pi_user", JSON.stringify(auth));
       localStorage.setItem("titi_is_logged_in", "true");
+
       alert("🎉 Đăng nhập thành công!");
-    } catch (err) {
+      router.push("/customer"); // 👉 chuyển hướng sang trang customer
+
+    } catch (err: any) {
       console.error(err);
       alert("❌ Lỗi đăng nhập: " + err.message);
     }
   };
 
-  // Đăng xuất
+  // 🔹 Đăng xuất
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem("pi_user");
