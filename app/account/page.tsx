@@ -1,63 +1,38 @@
 "use client";
-
-import React from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../context/AuthContext";
 
 export default function AccountPage() {
   const router = useRouter();
-  const { chooseRole, logout } = useAuth();
 
-  // Khi chọn vai trò → lưu vào localStorage → điều hướng
-  const handleChooseRole = (role: "seller" | "customer") => {
-    chooseRole(role);
-    localStorage.setItem("user_role", role);
-    if (role === "seller") {
-      router.push("/seller");
+  useEffect(() => {
+    const savedUser = localStorage.getItem("pi_user");
+    const savedRole = localStorage.getItem("titi_role");
+
+    if (savedUser && savedRole) {
+      // ✅ Điều hướng đúng trang theo vai trò
+      if (savedRole === "seller") {
+        router.replace("/seller");
+      } else {
+        router.replace("/customer");
+      }
     } else {
-      router.push("/customer");
+      router.push("/pilogin");
     }
-  };
-
-  // Khi nhấn “Đăng xuất” (nếu cần)
-  const handleLogout = () => {
-    logout();
-    localStorage.clear();
-    router.push("/account");
-  };
+  }, [router]);
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen text-center bg-white">
-      {/* Tiêu đề */}
-      <h1 className="text-3xl font-bold mb-4">👋 Chào mừng đến TiTi Shop</h1>
-
-      {/* Mô tả */}
-      <p className="text-gray-600 mb-8">Chọn vai trò để tiếp tục:</p>
-
-      {/* Hai nút chọn vai trò */}
-      <div className="flex gap-6">
+    <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+      <div className="bg-white shadow-md rounded-2xl p-6 w-[90%] max-w-md text-center">
+        <h1 className="text-2xl font-bold text-purple-700 mb-6">Tài khoản của tôi</h1>
+        <p className="mb-6 text-gray-600">Bạn chưa đăng nhập</p>
         <button
-          onClick={() => handleChooseRole("seller")}
-          className="bg-green-500 hover:bg-green-600 text-white font-semibold px-8 py-3 rounded-lg text-lg shadow-md transition-all"
+          onClick={() => router.push("/pilogin")}
+          className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg"
         >
-          🏪 Tôi là người bán
-        </button>
-
-        <button
-          onClick={() => handleChooseRole("customer")}
-          className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg text-lg shadow-md transition-all"
-        >
-          👤 Tôi là khách hàng
+          🔑 Đăng nhập
         </button>
       </div>
-
-      {/* (Tùy chọn) Nút đăng xuất khi người dùng đang đăng nhập */}
-      <button
-        onClick={handleLogout}
-        className="mt-10 text-red-500 hover:text-red-700 text-sm underline"
-      >
-        🔓 Đăng xuất
-      </button>
     </main>
   );
 }
