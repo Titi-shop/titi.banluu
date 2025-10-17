@@ -11,7 +11,7 @@ export default function CheckoutPage() {
   const [user, setUser] = useState("guest");
   const router = useRouter();
 
-  // 🪙 Lấy ví Pi và user khi mở trang
+  // ✅ Lấy ví Pi và thông tin user
   useEffect(() => {
     const w = Number(localStorage.getItem("pi_wallet") ?? "1000");
     setWallet(w);
@@ -19,23 +19,24 @@ export default function CheckoutPage() {
       localStorage.setItem("pi_wallet", String(w));
     }
 
-    const u = localStorage.getItem("pi_user") ?? "guest";
-    setUser(u);
+    const info = localStorage.getItem("user_info");
+    if (info) {
+      const parsed = JSON.parse(info);
+      setUser(parsed.username || "guest");
+    }
   }, []);
 
-  // 💳 Xử lý thanh toán
+  // 💳 Thanh toán
   const handlePay = async () => {
     if (cart.length === 0) return alert("🛒 Giỏ hàng trống.");
-    if (wallet < total) return alert("📛 Ví Pi không đủ. Vui lòng nạp thêm.");
+    if (wallet < total) return alert("📛 Ví Pi không đủ.");
 
     setLoading(true);
     try {
-      // ✅ Trừ ví
       const newWallet = wallet - total;
       localStorage.setItem("pi_wallet", String(newWallet));
       setWallet(newWallet);
 
-      // ✅ Tạo đơn hàng có trạng thái chờ xác nhận
       const order = {
         id: Date.now(),
         items: cart,
@@ -45,7 +46,6 @@ export default function CheckoutPage() {
         status: "Chờ xác nhận",
       };
 
-      // ✅ Gửi lên API (và fallback localStorage nếu API fail)
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,42 +53,30 @@ export default function CheckoutPage() {
       });
 
       if (!res.ok) {
-        console.warn("⚠️ API không phản hồi, lưu tạm localStorage");
         const existing = JSON.parse(localStorage.getItem("orders") ?? "[]");
         existing.push(order);
         localStorage.setItem("orders", JSON.stringify(existing));
       }
 
-      // ✅ Dọn giỏ và điều hướng
       clearCart();
-      alert(`✅ Thanh toán thành công!\nĐã trừ ${total} Pi khỏi ví.`);
+      alert("✅ Thanh toán thành công!");
       router.push("/customer/pending");
     } catch (err) {
-      console.error("❌ Lỗi khi thanh toán:", err);
-      alert("❌ Giao dịch thất bại. Vui lòng thử lại.");
-      setWallet(Number(localStorage.getItem("pi_wallet") ?? "0"));
+      console.error("❌ Lỗi thanh toán:", err);
+      alert("❌ Giao dịch thất bại.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🧾 Giao diện
   return (
     <main className="max-w-3xl mx-auto p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold mb-4 text-center text-orange-600">
-        💳 Thanh toán
-      </h1>
+      <h1 className="text-2xl font-bold mb-4 text-center text-orange-600">💳 Thanh toán</h1>
 
       <div className="bg-white p-4 rounded shadow mb-4">
-        <p>
-          Người mua: <b>{user}</b>
-        </p>
-        <p>
-          Ví Pi hiện tại: <b className="text-yellow-600">{wallet} Pi</b>
-        </p>
-        <p>
-          Tổng đơn hàng: <b className="text-yellow-600">{total} Pi</b>
-        </p>
+        <p>Người mua: <b>{user}</b></p>
+        <p>Ví Pi: <b className="text-yellow-600">{wallet} Pi</b></p>
+        <p>Tổng đơn: <b className="text-yellow-600">{total} Pi</b></p>
       </div>
 
       <button
