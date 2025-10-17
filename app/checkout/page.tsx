@@ -80,23 +80,31 @@ export default function CheckoutPage() {
 
       console.log("💰 Kết quả thanh toán:", payment);
 
-      // ✅ 3. Lưu đơn hàng
-      const order = {
-        id: Date.now(),
-        items: cart,
-        total,
-        createdAt: new Date().toISOString(),
-        buyer: auth.user?.username || user,
-        status: "Chờ xác nhận (Pi đã thanh toán)",
-      };
+      // ✅ 3. Lưu đơn hàng (client-side fallback nếu server không lưu được)
+const order = {
+  id: Date.now(),
+  items: cart,
+  total,
+  createdAt: new Date().toISOString(),
+  buyer: auth.user?.username || user,
+  status: "Chờ xác nhận (Pi đã thanh toán)",
+};
 
-      await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(order),
-      });
+// Gửi server lưu
+const res = await fetch("/api/orders", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(order),
+});
 
-      clearCart();
+// Nếu server lỗi => lưu tạm local
+if (!res.ok) {
+  const existing = JSON.parse(localStorage.getItem("orders") || "[]");
+  existing.push(order);
+  localStorage.setItem("orders", JSON.stringify(existing));
+}
+
+clearCart();
       alert("✅ Thanh toán qua Pi Wallet thành công!");
       router.push("/customer/pending");
     } catch (err) {
