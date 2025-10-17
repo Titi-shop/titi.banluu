@@ -81,14 +81,15 @@ export default function CheckoutPage() {
       console.log("💰 Kết quả thanh toán:", payment);
 
       // ✅ 3. Lưu đơn hàng
-      const order = {
-        id: Date.now(),
-        items: cart,
-        total,
-        createdAt: new Date().toISOString(),
-        buyer: auth.user?.username || user,
-        status: "Chờ xác nhận (Pi đã thanh toán)",
-      };
+     const order = {
+  id: Date.now(),
+  items: cart,
+  total,
+  createdAt: new Date().toISOString(),
+  buyer: auth.user?.username || user,
+  status: "Chờ xác nhận",              // <= CHUẨN HOÁ
+  note: "Pi đã thanh toán (testnet)",  // nếu muốn giữ thông tin
+};
 
       await fetch("/api/orders", {
         method: "POST",
