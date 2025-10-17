@@ -9,7 +9,11 @@ export async function POST(req: Request) {
     }
 
     const API_KEY = process.env.njwgouspt6vqo1pqc5hb0wv9vgxxptmityjm2xnujmg0hqkuqwoa3m4fgxz4t81l;
-    const res = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
+    const API_URL = process.env.PI_API_URL || "https://api.minepi.com/v2/payments";
+
+    console.log("⏳ [Pi COMPLETE] ID:", paymentId, txid);
+
+    const res = await fetch(`${API_URL}/${paymentId}/complete`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -18,15 +22,15 @@ export async function POST(req: Request) {
       body: JSON.stringify({ txid }),
     });
 
-    const data = await res.text();
-    console.log("✅ [Pi COMPLETE SUCCESS]:", data);
+    const text = await res.text();
+    console.log("✅ [Pi COMPLETE RESULT]:", res.status, text);
 
-    return new NextResponse(data, {
+    return new NextResponse(text, {
       status: res.status,
       headers: { "Access-Control-Allow-Origin": "*" },
     });
   } catch (err: any) {
-    console.error("❌ [Pi COMPLETE ERROR]:", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("💥 [Pi COMPLETE ERROR]:", err);
+    return NextResponse.json({ error: err.message || "unknown" }, { status: 500 });
   }
 }
