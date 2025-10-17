@@ -1,56 +1,62 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { put, list } from "@vercel/blob";
 
-const dataFile = path.join(process.cwd(), "data", "orders.json");
+const BLOB_NAME = "orders.json";
 
-// Đọc danh sách đơn hàng
-function readOrders() {
+// đọc đơn: lấy file từ Blob, nếu chưa có => []
+async function readOrdersFromBlob(): Promise<any[]> {
+  const { blobs } = await list({ prefix: BLOB_NAME });
+  const file = blobs.find(b => b.pathname === BLOB_NAME);
+  if (!file) return [];
+  const res = await fetch(file.url, { cache: "no-store" });
+  if (!res.ok) return [];
+  return await res.json();
+}
+
+// ghi đơn: overwrite toàn bộ file JSON
+async function saveOrdersToBlob(orders: any[]) {
+  await put(BLOB_NAME, JSON.stringify(orders, null, 2), {
+    access: "public",
+    contentType: "application/json",
+  });
+}
+
+// --- GET: Lấy tất cả đơn ---
+export async function GET() {
   try {
-    if (!fs.existsSync(dataFile)) return [];
-    const raw = fs.readFileSync(dataFile, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
+    const orders = await readOrdersFromBlob();
+    return NextResponse.json(orders);
+  } catch (e) {
+    console.error("GET orders error:", e);
+    return NextResponse.json([], { status: 200 });
   }
 }
 
-// Lưu danh sách đơn hàng
-function saveOrders(orders: any[]) {
-  fs.writeFileSync(dataFile, JSON.stringify(orders, null, 2), "utf-8");
-}
-
-// GET: lấy toàn bộ đơn hàng
-export async function GET() {
-  const orders = readOrders();
-  return NextResponse.json(orders);
-}
-
-// POST: tạo đơn hàng mới
+// --- POST: Tạo đơn mới ---
 export async function POST(req: Request) {
   try {
     const order = await req.json();
-    const orders = readOrders();
+    const orders = await readOrdersFromBlob();
 
     orders.push({
       ...order,
       id: order.id ?? Date.now(),
-      status: order.status ?? "Chờ xác nhận",
+      status: order.status ?? "Chờ xác nhận", // đảm bảo đúng chuỗi
     });
 
-    saveOrders(orders);
+    await saveOrdersToBlob(orders);
     return NextResponse.json({ success: true, order });
   } catch (err) {
-    console.error("Lỗi tạo đơn:", err);
+    console.error("Create order error:", err);
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }
 
-// PUT: cập nhật trạng thái đơn hàng
+// --- PUT: cập nhật trạng thái ---
 export async function PUT(req: Request) {
   try {
     const { id, status } = await req.json();
-    let orders = readOrders();
+    let orders = await readOrdersFromBlob();
     let updated = false;
 
     orders = orders.map((o: any) => {
@@ -68,10 +74,10 @@ export async function PUT(req: Request) {
       );
     }
 
-    saveOrders(orders);
+    await saveOrdersToBlob(orders);
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Lỗi cập nhật đơn:", err);
+    console.error("Update order error:", err);
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }
