@@ -87,8 +87,8 @@ export default function CheckoutPage() {
         {
           amount: total,
           memo: `Thanh toán đơn hàng #${Date.now()}`,
-          metadata: { items: cart, buyer: auth.user?.username || user },
-        },
+          metadata: { orderId: Date.now(), items: cart, buyer: auth.user?.username || user },
+
         {
           onReadyForServerApproval: async (paymentId) => {
             console.log("⏳ Approval ID:", paymentId);
