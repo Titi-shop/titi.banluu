@@ -1,30 +1,40 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-
-const dataFile = path.join(process.cwd(), "data", "orders.json");
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    console.log("✅ [Pi COMPLETE] Giao dịch hoàn tất:", body);
+    const { paymentId, txid } = await req.json();
+    console.log("📡 [Pi COMPLETE] Giao dịch:", paymentId, txid);
 
-    const orders = fs.existsSync(dataFile)
-      ? JSON.parse(fs.readFileSync(dataFile, "utf-8"))
-      : [];
+    if (!paymentId) {
+      return NextResponse.json({ error: "missing paymentId" }, { status: 400 });
+    }
 
-    const updated = orders.map((o: any) =>
-      o.id === body.metadata?.orderId
-        ? { ...o, status: "Chờ xác nhận (Pi đã thanh toán)" }
-        : o
+    const API_KEY = process.env.njwgouspt6vqo1pqc5hb0wv9vgxxptmityjm2xnujmg0hqkuqwoa3m4fgxz4t81l
+      ;
+    const API_URL = "https://api.minepi.com/v2/payments";
+
+    // ✅ Gọi đến Pi API thật
+    const res = await fetch(`${API_URL}/${paymentId}/complete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Key ${API_KEY}`,
+      },
+      body: JSON.stringify({ txid }),
+    });
+
+    const data = await res.text();
+    console.log("✅ [Pi COMPLETE SUCCESS]:", data);
+
+    return new NextResponse(data, {
+      status: res.status,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
+  } catch (err: any) {
+    console.error("❌ [Pi COMPLETE ERROR]:", err);
+    return NextResponse.json(
+      { error: String(err) },
+      { status: 500, headers: { "Access-Control-Allow-Origin": "*" } }
     );
-
-    fs.writeFileSync(dataFile, JSON.stringify(updated, null, 2));
-
-    // Phản hồi nhanh cho Pi Wallet
-    return NextResponse.json({ status: "completed" }, { status: 200 });
-  } catch (err) {
-    console.error("❌ Lỗi complete:", err);
-    return NextResponse.json({ status: "error" }, { status: 500 });
   }
 }
