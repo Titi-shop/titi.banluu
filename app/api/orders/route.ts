@@ -4,7 +4,7 @@ import path from "path";
 
 const dataFile = path.join(process.cwd(), "data", "orders.json");
 
-// --- Đọc danh sách đơn hàng từ file ---
+// Đọc danh sách đơn hàng
 function readOrders() {
   try {
     if (!fs.existsSync(dataFile)) return [];
@@ -15,27 +15,29 @@ function readOrders() {
   }
 }
 
-// --- Lưu danh sách đơn hàng ---
+// Lưu danh sách đơn hàng
 function saveOrders(orders: any[]) {
   fs.writeFileSync(dataFile, JSON.stringify(orders, null, 2), "utf-8");
 }
 
-// --- GET: Lấy tất cả đơn hàng ---
+// GET: lấy toàn bộ đơn hàng
 export async function GET() {
   const orders = readOrders();
   return NextResponse.json(orders);
 }
 
-// --- POST: Tạo đơn hàng mới ---
+// POST: tạo đơn hàng mới
 export async function POST(req: Request) {
   try {
     const order = await req.json();
     const orders = readOrders();
+
     orders.push({
-  ...order,
-  id: order.id ?? Date.now(),
-  status: "pending", // chuẩn hóa trạng thái
-});
+      ...order,
+      id: order.id ?? Date.now(),
+      status: order.status ?? "Chờ xác nhận",
+    });
+
     saveOrders(orders);
     return NextResponse.json({ success: true, order });
   } catch (err) {
@@ -44,7 +46,7 @@ export async function POST(req: Request) {
   }
 }
 
-// --- PUT: Cập nhật trạng thái đơn hàng ---
+// PUT: cập nhật trạng thái đơn hàng
 export async function PUT(req: Request) {
   try {
     const { id, status } = await req.json();
@@ -59,8 +61,12 @@ export async function PUT(req: Request) {
       return o;
     });
 
-    if (!updated)
-      return NextResponse.json({ success: false, message: "Không tìm thấy đơn hàng" }, { status: 404 });
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, message: "Không tìm thấy đơn hàng" },
+        { status: 404 }
+      );
+    }
 
     saveOrders(orders);
     return NextResponse.json({ success: true });
