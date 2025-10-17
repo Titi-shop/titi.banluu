@@ -9,37 +9,79 @@ export default function CartPage() {
   const { cart, removeFromCart, updateQty, clearCart } = useCart();
   const router = useRouter();
 
-  // ✅ Hàm thanh toán riêng từng sản phẩm
+  // ✅ Thanh toán 1 sản phẩm qua Pi Testnet
   const handlePayOne = async (item: any) => {
     try {
+      if (!window.Pi) {
+        alert("⚠️ Hãy mở trang này trong Pi Browser để thanh toán bằng Pi.");
+        return;
+      }
+
       const userInfo = JSON.parse(localStorage.getItem("user_info") || "{}");
       const buyer = userInfo.username || "guest_user";
+      const orderId = Date.now(); // dùng làm metadata
 
+      const scopes = ["payments", "username", "wallet_address"];
+      const auth = await window.Pi.authenticate(scopes, (res) => res);
+      console.log("✅ Xác thực Pi:", auth);
+
+      // ✅ Gọi thanh toán thật
+      const payment = await window.Pi.createPayment(
+        {
+          amount: item.price * (item.quantity || 1),
+          memo: `Thanh toán sản phẩm ${item.name}`,
+          metadata: {
+            orderId,
+            buyer,
+            item: { id: item.id, name: item.name, price: item.price },
+          },
+        },
+        {
+          onReadyForServerApproval: async (paymentId) => {
+            console.log("⏳ Approval:", paymentId);
+            await fetch("/api/pi/approve", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentId, orderId }),
+            });
+          },
+          onReadyForServerCompletion: async (paymentId, txid) => {
+            console.log("✅ Completed:", paymentId, txid);
+            await fetch("/api/pi/complete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentId, txid, metadata: { orderId } }),
+            });
+          },
+          onCancel: () => alert("❌ Bạn đã huỷ giao dịch."),
+          onError: (err) => console.error("💥 Lỗi SDK:", err),
+        }
+      );
+
+      console.log("💰 Kết quả:", payment);
+
+      // ✅ Lưu đơn vào hệ thống
       const orderData = {
+        id: orderId,
         buyer,
         total: item.price * (item.quantity || 1),
         items: [item],
         createdAt: new Date().toISOString(),
+        status: "Chờ xác nhận (Pi đã thanh toán)",
       };
 
-      const res = await fetch("/api/orders", {
+      await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderData),
       });
 
-      if (!res.ok) throw new Error("Không thể tạo đơn hàng.");
-
-      const data = await res.json();
-      console.log("✅ Đơn hàng đã tạo:", data);
-
-      removeFromCart(item.id); // Xóa sản phẩm sau khi thanh toán
-      alert(`🎉 Đã thanh toán thành công sản phẩm: ${item.name}`);
-
-      router.push("/customer"); // Quay lại trang khách hàng
+      removeFromCart(item.id);
+      alert(`🎉 Thanh toán thành công sản phẩm: ${item.name}`);
+      router.push("/customer/pending");
     } catch (error) {
       console.error("❌ Lỗi khi thanh toán:", error);
-      alert("Đã xảy ra lỗi khi thanh toán sản phẩm này!");
+      alert("💥 Lỗi khi thực hiện thanh toán Pi Testnet!");
     }
   };
 
@@ -76,7 +118,6 @@ export default function CartPage() {
                     )}
                   </div>
 
-                  {/* Thông tin sản phẩm */}
                   <div className="flex-1">
                     <h3 className="font-semibold">{it.name}</h3>
                     <p className="text-yellow-600 font-bold">{it.price} Pi</p>
@@ -105,12 +146,12 @@ export default function CartPage() {
                     Xóa
                   </button>
 
-                  {/* ✅ Nút thanh toán riêng */}
+                  {/* 🔥 Thanh toán thật qua Pi Testnet */}
                   <button
                     onClick={() => handlePayOne(it)}
-                    className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 flex items-center gap-1"
+                    className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 flex items-center gap-1"
                   >
-                    💳 Thanh toán
+                    💳 Thanh toán (Pi)
                   </button>
                 </div>
               </div>
