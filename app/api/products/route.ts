@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
 
-// Bộ nhớ tạm (RAM) lưu sản phẩm
+// Bộ nhớ tạm lưu sản phẩm (RAM)
 let products: any[] = [];
 
 // ==============================
@@ -12,51 +11,37 @@ export async function GET() {
 }
 
 // ==============================
-// 🔹 POST — Thêm sản phẩm mới
+// 🔹 POST — Nhận JSON từ client
 // ==============================
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData();
-    const name = formData.get("name") as string;
-    const price = formData.get("price") as string;
-    const description = formData.get("description") as string;
-    const images = formData.getAll("images") as File[];
+    const body = await req.json();
+    const { name, price, description, images } = body;
 
     if (!name || !price) {
       return NextResponse.json(
-        { success: false, message: "Thiếu thông tin sản phẩm" },
+        { success: false, message: "Thiếu tên hoặc giá sản phẩm" },
         { status: 400 }
       );
     }
 
-    // ✅ Upload ảnh lên Vercel Blob
-    const imageUrls: string[] = [];
-    for (const img of images) {
-      const buffer = Buffer.from(await img.arrayBuffer());
-      const blob = await put(`uploads/${Date.now()}-${img.name}`, buffer, {
-        access: "public",
-        contentType: img.type,
-      });
-      imageUrls.push(blob.url);
-    }
-
-    // ✅ Lưu sản phẩm vào bộ nhớ tạm
     const newProduct = {
       id: Date.now(),
       name,
       price,
       description,
-      images: imageUrls,
+      images: images || [],
       createdAt: new Date().toISOString(),
     };
 
+    // ✅ Thêm sản phẩm mới vào danh sách tạm
     products.unshift(newProduct);
 
     return NextResponse.json({ success: true, product: newProduct });
   } catch (error: any) {
     console.error("❌ Lỗi POST:", error);
     return NextResponse.json(
-      { success: false, message: error.message || "Lỗi thêm sản phẩm" },
+      { success: false, message: "Lỗi khi thêm sản phẩm" },
       { status: 500 }
     );
   }
