@@ -1,24 +1,23 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { put } from "@vercel/blob";
 
 // ==============================
-// 📦 ĐƯỜNG DẪN LƯU TRỮ DỮ LIỆU
+// 📦 ĐƯỜNG DẪN LƯU FILE JSON
 // ==============================
 const dataDir = path.join(process.cwd(), "data");
 const dataFile = path.join(dataDir, "products.json");
-const uploadDir = path.join(process.cwd(), "public", "uploads");
 
 // ==============================
 // 🔧 HÀM HỖ TRỢ
 // ==============================
 
-// ✅ Đọc danh sách sản phẩm (và tự tạo file nếu chưa có)
+// ✅ Đọc danh sách sản phẩm
 function readProducts() {
   try {
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
     if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, "[]", "utf-8");
-
     const data = fs.readFileSync(dataFile, "utf-8");
     return JSON.parse(data);
   } catch (error) {
@@ -27,7 +26,7 @@ function readProducts() {
   }
 }
 
-// ✅ Ghi dữ liệu vào file JSON
+// ✅ Ghi dữ liệu sản phẩm vào file JSON
 function saveProducts(products: any[]) {
   try {
     fs.writeFileSync(dataFile, JSON.stringify(products, null, 2), "utf-8");
@@ -45,7 +44,7 @@ export async function GET() {
 }
 
 // ==============================
-// 🔹 POST — Thêm sản phẩm mới
+// 🔹 POST — Thêm sản phẩm mới (Upload ảnh lên Blob)
 // ==============================
 export async function POST(req: Request) {
   try {
@@ -55,33 +54,34 @@ export async function POST(req: Request) {
     const description = formData.get("description") as string;
     const images = formData.getAll("images") as File[];
 
-    if (!name || !price)
+    if (!name || !price) {
       return NextResponse.json(
         { success: false, message: "Thiếu thông tin sản phẩm" },
         { status: 400 }
       );
-
-    // ✅ Tạo thư mục upload nếu chưa có
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-    const imagePaths: string[] = [];
-    for (const img of images) {
-      if (!img || !img.name) continue;
-      const arrayBuffer = await img.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const safeName = `${Date.now()}-${img.name.replace(/\s+/g, "_")}`;
-      const imgPath = path.join(uploadDir, safeName);
-      fs.writeFileSync(imgPath, buffer);
-      imagePaths.push(`/uploads/${safeName}`);
     }
 
+    // ✅ Upload từng ảnh lên Blob Storage
+    const uploadedUrls: string[] = [];
+    for (const img of images) {
+      if (!img || !img.name) continue;
+      const buffer = Buffer.from(await img.arrayBuffer());
+      const blob = await put(`uploads/${Date.now()}-${img.name}`, buffer, {
+        access: "public",
+        contentType: img.type,
+      });
+      uploadedUrls.push(blob.url);
+    }
+
+    // ✅ Tạo sản phẩm mới
     const products = readProducts();
     const newProduct = {
       id: Date.now(),
       name,
       price,
       description,
-      images: imagePaths,
+      images: uploadedUrls,
+      createdAt: new Date().toISOString(),
     };
 
     products.push(newProduct);
@@ -105,12 +105,9 @@ export async function PUT(req: Request) {
     const contentType = req.headers.get("content-type") || "";
     let updatedData: any = {};
 
-    // 🧩 Nếu client gửi JSON
     if (contentType.includes("application/json")) {
       updatedData = await req.json();
-    }
-    // 🖼 Nếu client gửi formData
-    else if (contentType.includes("multipart/form-data")) {
+    } else if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       updatedData.id = Number(formData.get("id"));
       updatedData.name = formData.get("name");
@@ -119,17 +116,15 @@ export async function PUT(req: Request) {
 
       const images = formData.getAll("images") as File[];
       if (images.length) {
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
         updatedData.images = [];
-
         for (const img of images) {
           if (!img || !img.name) continue;
-          const arrayBuffer = await img.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const safeName = `${Date.now()}-${img.name.replace(/\s+/g, "_")}`;
-          const imgPath = path.join(uploadDir, safeName);
-          fs.writeFileSync(imgPath, buffer);
-          updatedData.images.push(`/uploads/${safeName}`);
+          const buffer = Buffer.from(await img.arrayBuffer());
+          const blob = await put(`uploads/${Date.now()}-${img.name}`, buffer, {
+            access: "public",
+            contentType: img.type,
+          });
+          updatedData.images.push(blob.url);
         }
       }
     }
@@ -148,7 +143,7 @@ export async function PUT(req: Request) {
         { status: 404 }
       );
 
-    // 🧠 Giữ nguyên hình ảnh cũ nếu không upload ảnh mới
+    // Giữ hình cũ nếu không có ảnh mới
     products[index] = {
       ...products[index],
       ...updatedData,
