@@ -11,69 +11,88 @@ export default function SellerPostPage() {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [message, setMessage] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     const selected = Array.from(files).slice(0, 6);
     setImages(selected);
+    setPreviewUrls(selected.map((f) => URL.createObjectURL(f)));
+  };
+
+  // 🧩 Hàm upload ảnh lên Vercel Blob
+  const uploadToBlob = async (file: File): Promise<string> => {
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": file.type,
+        "x-filename": file.name,
+      },
+      body: file,
+    });
+    if (!res.ok) throw new Error("Upload thất bại");
+    const data = await res.json();
+    return data.url;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-
-    if (!name || !price) {
-      alert("⚠️ Vui lòng nhập đủ tên và giá sản phẩm!");
-      return;
-    }
+    if (!name || !price) return alert("⚠️ Nhập đủ tên và giá sản phẩm!");
 
     try {
-      const formData = new FormData();
-      formData.append("name", name);
-      formData.append("price", price);
-      formData.append("description", description);
-      images.forEach((img) => formData.append("images", img));
+      setUploading(true);
+      setMessage("Đang tải ảnh lên Vercel Blob...");
+
+      // ✅ Upload ảnh lên Blob song song
+      const uploadedUrls = await Promise.all(images.map(uploadToBlob));
+
+      // ✅ Gửi dữ liệu sản phẩm lên server
+      const product = {
+        name,
+        price: Number(price),
+        description,
+        images: uploadedUrls,
+        createdAt: new Date().toISOString(),
+      };
 
       const res = await fetch("/api/products", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(product),
       });
 
-      if (!res.ok) throw new Error("Lỗi khi gửi sản phẩm");
+      if (!res.ok) throw new Error("Lỗi khi đăng sản phẩm");
 
-      const data = await res.json();
       setMessage("✅ Đăng sản phẩm thành công!");
-
-      // Reset form
       setName("");
       setPrice("");
       setDescription("");
       setImages([]);
+      setPreviewUrls([]);
 
-      // Hiển thị thông báo rồi quay lại kho hàng
       setTimeout(() => {
         setMessage("");
         router.push("/seller/stock");
       }, 1500);
-
-      console.log("🆕 Sản phẩm mới:", data.product);
-    } catch (error) {
-      console.error(error);
-      setMessage("❌ Lỗi khi đăng sản phẩm!");
+    } catch (err) {
+      console.error(err);
+      setMessage("❌ Đăng sản phẩm thất bại!");
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
     <main className="p-6 max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold mb-4 text-center flex items-center justify-center gap-2">
-        🛒 Đăng sản phẩm mới
-      </h1>
+      <h1 className="text-2xl font-bold mb-4 text-center">🛒 Đăng sản phẩm mới</h1>
 
       {message && (
         <p
           className={`text-center mb-3 font-medium ${
-            message.includes("✅") ? "text-green-600" : "text-red-600"
+            message.includes("✅") ? "text-green-600" : "text-orange-600"
           }`}
         >
           {message}
@@ -83,61 +102,46 @@ export default function SellerPostPage() {
       <form
         onSubmit={handleSubmit}
         className="flex flex-col gap-3 bg-white shadow p-4 rounded-lg"
-        encType="multipart/form-data"
       >
-        <div>
-          <label className="block mb-1 font-medium">Tên sản phẩm</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nhập tên sản phẩm"
-            className="w-full border px-3 py-2 rounded"
-            required
-          />
-        </div>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Tên sản phẩm"
+          className="border p-2 rounded"
+          required
+        />
 
-        <div>
-          <label className="block mb-1 font-medium">Giá (Pi)</label>
-          <input
-            type="number"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="Nhập giá"
-            className="w-full border px-3 py-2 rounded"
-            required
-          />
-        </div>
+        <input
+          type="number"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="Giá (Pi)"
+          className="border p-2 rounded"
+          required
+        />
 
-        <div>
-          <label className="block mb-1 font-medium">Mô tả</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Mô tả ngắn gọn về sản phẩm"
-            className="w-full border px-3 py-2 rounded h-24"
-          />
-        </div>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Mô tả sản phẩm"
+          className="border p-2 rounded h-24"
+        />
 
-        <div>
-          <label className="block mb-1 font-medium">
-            Hình ảnh sản phẩm (tối đa 6)
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleImageChange}
-            className="w-full border px-3 py-2 rounded"
-          />
-        </div>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageChange}
+          className="border p-2 rounded"
+        />
 
-        {images.length > 0 && (
+        {previewUrls.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mt-3">
-            {images.map((img, i) => (
+            {previewUrls.map((url, i) => (
               <Image
                 key={i}
-                src={URL.createObjectURL(img)}
+                src={url}
                 alt={`Ảnh ${i + 1}`}
                 width={120}
                 height={120}
@@ -149,15 +153,18 @@ export default function SellerPostPage() {
 
         <button
           type="submit"
-          className="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 rounded mt-4"
+          disabled={uploading}
+          className={`${
+            uploading ? "bg-gray-400" : "bg-yellow-500 hover:bg-yellow-600"
+          } text-white py-2 rounded mt-4`}
         >
-          📦 Đăng sản phẩm
+          {uploading ? "⏳ Đang đăng..." : "📦 Đăng sản phẩm"}
         </button>
 
         <button
           type="button"
           onClick={() => router.push("/seller")}
-          className="bg-gray-300 hover:bg-gray-400 text-black font-medium py-2 rounded mt-2"
+          className="bg-gray-300 hover:bg-gray-400 text-black py-2 rounded mt-2"
         >
           ↩️ Quay lại khu vực Người Bán
         </button>
