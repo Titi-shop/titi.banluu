@@ -1,12 +1,45 @@
 import { NextResponse } from "next/server";
+import { put, list, del } from "@vercel/blob";
 
-// Bộ nhớ tạm (RAM)
-let products: any[] = [];
+// Tên file lưu danh sách sản phẩm trong Blob
+const PRODUCTS_BLOB = "products.json";
+
+// ==============================
+// 🔹 Hàm hỗ trợ: Đọc danh sách sản phẩm từ Blob
+// ==============================
+async function readProducts() {
+  try {
+    const blobs = await list();
+    const file = blobs.blobs.find((b) => b.pathname === PRODUCTS_BLOB);
+    if (!file) return [];
+    const res = await fetch(file.url);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("❌ Lỗi đọc Blob:", err);
+    return [];
+  }
+}
+
+// ==============================
+// 🔹 Ghi lại danh sách vào Blob
+// ==============================
+async function writeProducts(products: any[]) {
+  try {
+    await put(PRODUCTS_BLOB, JSON.stringify(products, null, 2), {
+      access: "public",
+      addRandomSuffix: false, // ghi đè file cũ
+    });
+  } catch (err) {
+    console.error("❌ Lỗi ghi Blob:", err);
+  }
+}
 
 // ==============================
 // 🔹 GET — Lấy danh sách sản phẩm
 // ==============================
 export async function GET() {
+  const products = await readProducts();
   return NextResponse.json(products);
 }
 
@@ -25,6 +58,7 @@ export async function POST(req: Request) {
       );
     }
 
+    const products = await readProducts();
     const newProduct = {
       id: Date.now(),
       name,
@@ -35,6 +69,7 @@ export async function POST(req: Request) {
     };
 
     products.unshift(newProduct);
+    await writeProducts(products);
 
     return NextResponse.json({ success: true, product: newProduct });
   } catch (error) {
@@ -59,6 +94,7 @@ export async function PUT(req: Request) {
         { status: 400 }
       );
 
+    const products = await readProducts();
     const index = products.findIndex((p) => p.id === id);
     if (index === -1)
       return NextResponse.json(
@@ -71,14 +107,12 @@ export async function PUT(req: Request) {
     const description = formData.get("description") as string;
     const imagesData = formData.getAll("images");
 
-    // ✅ Xử lý ảnh: có thể là URL hoặc File
+    // ✅ Xử lý ảnh: URL cũ hoặc File mới
     let uploadedUrls: string[] = [];
     for (const item of imagesData) {
       if (typeof item === "string") {
-        // Trường hợp ảnh cũ (URL)
         uploadedUrls.push(item);
       } else if (item instanceof File) {
-        // Ảnh mới cần upload
         const res = await fetch("/api/upload", {
           method: "POST",
           headers: {
@@ -92,10 +126,7 @@ export async function PUT(req: Request) {
       }
     }
 
-    if (uploadedUrls.length === 0) {
-      // Nếu không có ảnh gửi lên, giữ ảnh cũ
-      uploadedUrls = products[index].images;
-    }
+    if (uploadedUrls.length === 0) uploadedUrls = products[index].images;
 
     const updatedProduct = {
       ...products[index],
@@ -107,6 +138,7 @@ export async function PUT(req: Request) {
     };
 
     products[index] = updatedProduct;
+    await writeProducts(products);
 
     return NextResponse.json({ success: true, product: updatedProduct });
   } catch (error) {
@@ -131,15 +163,16 @@ export async function DELETE(req: Request) {
         { status: 400 }
       );
 
+    let products = await readProducts();
     const before = products.length;
     products = products.filter((p) => p.id !== id);
-
     if (products.length === before)
       return NextResponse.json(
         { success: false, message: "Không tìm thấy sản phẩm" },
         { status: 404 }
       );
 
+    await writeProducts(products);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("❌ Lỗi DELETE:", error);
