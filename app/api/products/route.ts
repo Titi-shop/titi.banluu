@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { list, put } from "@vercel/blob";
 
 // ==============================
-// 🔹 Hàm đọc danh sách sản phẩm từ Blob
+// 🔹 Đọc danh sách sản phẩm từ Blob
 // ==============================
 async function readProducts() {
   try {
@@ -22,13 +22,14 @@ async function readProducts() {
 }
 
 // ==============================
-// 🔹 Hàm ghi danh sách sản phẩm vào Blob
+// 🔹 Ghi danh sách sản phẩm vào Blob (đã thêm overwrite)
 // ==============================
 async function writeProducts(products: any[]) {
   try {
     await put("products.json", JSON.stringify(products, null, 2), {
       access: "public",
       addRandomSuffix: false,
+      overwrite: true, // ✅ Cho phép ghi đè file cũ
     });
     console.log("✅ Ghi products.json thành công:", products.length);
   } catch (err) {
