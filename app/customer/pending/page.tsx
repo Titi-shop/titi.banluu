@@ -12,18 +12,23 @@ export default function PendingOrdersPage() {
 
   // ✅ Lấy username từ localStorage
   useEffect(() => {
+    const info = localStorage.getItem("user_info");
+    if (!info) {
+      console.warn("⚠️ Không tìm thấy user_info trong localStorage");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const info = localStorage.getItem("user_info");
-      if (info) {
-        const parsed = JSON.parse(info);
-        setUsername(parsed.username || "");
-      }
+      const parsed = JSON.parse(info);
+      setUsername(parsed.username || "");
     } catch {
+      console.error("⚠️ Lỗi parse user_info");
       setUsername("");
     }
   }, []);
 
-  // ✅ Chỉ fetch đơn hàng khi đã có username
+  // ✅ Fetch đơn hàng khi có username
   useEffect(() => {
     if (!username) return;
 
@@ -39,7 +44,6 @@ export default function PendingOrdersPage() {
             o.status === "Chờ xác nhận" &&
             o.buyer?.toLowerCase() === username.toLowerCase()
         );
-
         setOrders(filtered);
       } catch (err) {
         console.error("❌ Lỗi tải đơn:", err);
@@ -51,11 +55,13 @@ export default function PendingOrdersPage() {
     fetchOrders();
   }, [username]);
 
-  // 🕒 Loading state
   if (loading)
+    return <p className="text-center mt-6 text-gray-500">⏳ Đang tải đơn hàng...</p>;
+
+  if (!username)
     return (
       <p className="text-center mt-6 text-gray-500">
-        ⏳ Đang tải đơn hàng...
+        ⚠️ Không xác định được tài khoản, vui lòng đăng nhập lại.
       </p>
     );
 
@@ -76,9 +82,7 @@ export default function PendingOrdersPage() {
               key={order.id}
               className="border p-4 rounded bg-white shadow hover:shadow-md transition"
             >
-              <h2 className="font-semibold text-lg">
-                🧾 Mã đơn: #{order.id}
-              </h2>
+              <h2 className="font-semibold text-lg">🧾 Mã đơn: #{order.id}</h2>
               <p>💰 Tổng tiền: {order.total} Pi</p>
               <p>
                 📅 Ngày tạo:{" "}
