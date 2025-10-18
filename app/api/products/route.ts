@@ -1,26 +1,27 @@
 // app/api/products/route.ts
 import { NextResponse } from "next/server";
-import { del, put, list } from "@vercel/blob"; // ✅ Không còn get()
+import { del, put, list } from "@vercel/blob";
 
+// ==================================
 // 🧩 Hàm ghi sản phẩm vào Blob
+// ==================================
 async function writeProducts(products: any[]) {
   try {
-    // Ghi tạm file mới
-    const tempFileName = "products-temp.json";
-    await put(tempFileName, JSON.stringify(products, null, 2), {
-      access: "public",
-      addRandomSuffix: false,
-    });
+    const data = JSON.stringify(products, null, 2);
 
-    // Xóa file cũ nếu tồn tại
-    try {
+    // Kiểm tra xem file products.json có tồn tại không
+    const { blobs } = await list();
+    const oldFile = blobs.find((b) => b.pathname === "products.json");
+
+    if (oldFile) {
+      console.log("🗑 Xóa file cũ...");
       await del("products.json");
-    } catch (err) {
-      console.warn("⚠️ Không tìm thấy products.json cũ, bỏ qua xoá.");
+      // Đợi 2 giây để đảm bảo xóa hoàn tất trên tất cả edge server
+      await new Promise((r) => setTimeout(r, 2000));
     }
 
-    // Ghi lại file chính thức
-    await put("products.json", JSON.stringify(products, null, 2), {
+    // Ghi file mới (ép ghi mới hoàn toàn)
+    await put("products.json", data, {
       access: "public",
       addRandomSuffix: false,
     });
@@ -36,16 +37,15 @@ async function writeProducts(products: any[]) {
 // ==================================
 let products: any[] = [];
 
-// ✅ Đọc dữ liệu từ Blob khi khởi động
+// ✅ Load dữ liệu từ Blob khi server start
 (async () => {
   try {
-    const blobs = await list();
-    const file = blobs.blobs.find((b) => b.pathname === "products.json");
+    const { blobs } = await list();
+    const file = blobs.find((b) => b.pathname === "products.json");
 
     if (file) {
-      const res = await fetch(file.url);
-      const json = await res.json();
-      products = json;
+      const res = await fetch(file.url, { cache: "no-store" });
+      products = await res.json();
       console.log("📦 Đã load", products.length, "sản phẩm từ Blob");
     } else {
       console.warn("⚠️ Chưa có file products.json trong Blob");
@@ -112,12 +112,11 @@ export async function PUT(req: Request) {
     const images = formData.getAll("images") as string[];
 
     const index = products.findIndex((p) => p.id === id);
-    if (index === -1) {
+    if (index === -1)
       return NextResponse.json(
         { success: false, message: "Không tìm thấy sản phẩm" },
         { status: 404 }
       );
-    }
 
     const updated = {
       ...products[index],
@@ -159,12 +158,11 @@ export async function DELETE(req: Request) {
     const before = products.length;
     products = products.filter((p) => p.id !== id);
 
-    if (before === products.length) {
+    if (before === products.length)
       return NextResponse.json(
         { success: false, message: "Không tìm thấy sản phẩm" },
         { status: 404 }
       );
-    }
 
     await writeProducts(products);
     return NextResponse.json({ success: true });
