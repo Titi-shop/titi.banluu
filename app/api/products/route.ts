@@ -1,25 +1,25 @@
 // app/api/products/route.ts
 import { NextResponse } from "next/server";
-import { del, put, list, get } from "@vercel/blob";  // <--- Thêm dòng này
+import { del, put, list } from "@vercel/blob"; // ✅ Không còn get()
 
 // 🧩 Hàm ghi sản phẩm vào Blob
 async function writeProducts(products: any[]) {
   try {
-    // 🧩 Bước 1: Ghi tạm file mới
+    // Ghi tạm file mới
     const tempFileName = "products-temp.json";
     await put(tempFileName, JSON.stringify(products, null, 2), {
       access: "public",
       addRandomSuffix: false,
     });
 
-    // 🧩 Bước 2: Xóa file cũ nếu tồn tại
+    // Xóa file cũ nếu tồn tại
     try {
       await del("products.json");
     } catch (err) {
       console.warn("⚠️ Không tìm thấy products.json cũ, bỏ qua xoá.");
     }
 
-    // 🧩 Bước 3: Ghi lại file chính thức
+    // Ghi lại file chính thức
     await put("products.json", JSON.stringify(products, null, 2), {
       access: "public",
       addRandomSuffix: false,
@@ -39,14 +39,19 @@ let products: any[] = [];
 // ✅ Đọc dữ liệu từ Blob khi khởi động
 (async () => {
   try {
-    const existing = await get("products.json");
-    if (existing?.blob) {
-      const text = await existing.blob.text();
-      products = JSON.parse(text);
+    const blobs = await list();
+    const file = blobs.blobs.find((b) => b.pathname === "products.json");
+
+    if (file) {
+      const res = await fetch(file.url);
+      const json = await res.json();
+      products = json;
       console.log("📦 Đã load", products.length, "sản phẩm từ Blob");
+    } else {
+      console.warn("⚠️ Chưa có file products.json trong Blob");
     }
   } catch (err) {
-    console.warn("⚠️ Chưa có products.json trong Blob");
+    console.error("❌ Lỗi đọc products.json:", err);
   }
 })();
 
@@ -65,8 +70,12 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, price, description, images } = body;
 
-    if (!name || !price)
-      return NextResponse.json({ success: false, message: "Thiếu tên hoặc giá" }, { status: 400 });
+    if (!name || !price) {
+      return NextResponse.json(
+        { success: false, message: "Thiếu tên hoặc giá" },
+        { status: 400 }
+      );
+    }
 
     const newProduct = {
       id: Date.now(),
@@ -78,14 +87,15 @@ export async function POST(req: Request) {
     };
 
     products.unshift(newProduct);
-
-    // 🧩 Ghi lại Blob JSON
     await writeProducts(products);
 
     return NextResponse.json({ success: true, product: newProduct });
   } catch (error) {
     console.error("❌ POST Error:", error);
-    return NextResponse.json({ success: false, message: "Lỗi khi thêm" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Lỗi khi thêm sản phẩm" },
+      { status: 500 }
+    );
   }
 }
 
@@ -102,8 +112,12 @@ export async function PUT(req: Request) {
     const images = formData.getAll("images") as string[];
 
     const index = products.findIndex((p) => p.id === id);
-    if (index === -1)
-      return NextResponse.json({ success: false, message: "Không tìm thấy sản phẩm" }, { status: 404 });
+    if (index === -1) {
+      return NextResponse.json(
+        { success: false, message: "Không tìm thấy sản phẩm" },
+        { status: 404 }
+      );
+    }
 
     const updated = {
       ...products[index],
@@ -120,7 +134,10 @@ export async function PUT(req: Request) {
     return NextResponse.json({ success: true, product: updated });
   } catch (err) {
     console.error("❌ PUT Error:", err);
-    return NextResponse.json({ success: false, message: "Cập nhật thất bại" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Cập nhật thất bại" },
+      { status: 500 }
+    );
   }
 }
 
@@ -131,19 +148,31 @@ export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = Number(searchParams.get("id"));
-    if (!id)
-      return NextResponse.json({ success: false, message: "Thiếu ID sản phẩm" }, { status: 400 });
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Thiếu ID sản phẩm" },
+        { status: 400 }
+      );
+    }
 
     const before = products.length;
     products = products.filter((p) => p.id !== id);
 
-    if (before === products.length)
-      return NextResponse.json({ success: false, message: "Không tìm thấy sản phẩm" }, { status: 404 });
+    if (before === products.length) {
+      return NextResponse.json(
+        { success: false, message: "Không tìm thấy sản phẩm" },
+        { status: 404 }
+      );
+    }
 
     await writeProducts(products);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("❌ DELETE Error:", err);
-    return NextResponse.json({ success: false, message: "Xóa thất bại" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Xóa thất bại" },
+      { status: 500 }
+    );
   }
 }
