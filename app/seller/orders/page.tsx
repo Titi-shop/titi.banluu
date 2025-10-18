@@ -4,22 +4,23 @@ import { useEffect, useState } from "react";
 
 /**
  * Trang quản lý và xử lý đơn hàng của người bán.
- * Hiển thị danh sách đơn hàng, cho phép thay đổi trạng thái (Giao, Hoàn tất, Huỷ).
+ * Hiển thị danh sách đơn hàng và cho phép thay đổi trạng thái (Giao, Hoàn tất, Huỷ).
  */
 export default function OrderManager() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
 
+  // 🧾 Lấy danh sách đơn hàng khi load trang
   useEffect(() => {
     fetchOrders();
   }, []);
 
-  // 🧾 Lấy danh sách đơn hàng từ API
+  // 🔹 Hàm lấy danh sách đơn hàng
   const fetchOrders = async () => {
     try {
-      const res = await fetch("/api/orders");
-      if (!res.ok) throw new Error("Lỗi khi tải đơn hàng");
+      const res = await fetch("/api/orders", { cache: "no-store" });
+      if (!res.ok) throw new Error("Không thể tải danh sách đơn hàng");
       const data = await res.json();
       setOrders(data);
     } catch (err) {
@@ -30,7 +31,7 @@ export default function OrderManager() {
     }
   };
 
-  // 🔄 Cập nhật trạng thái đơn hàng
+  // 🔹 Cập nhật trạng thái đơn hàng
   const updateStatus = async (id: string | number, status: string) => {
     const confirmMsg =
       status === "Đã huỷ"
@@ -43,34 +44,39 @@ export default function OrderManager() {
       const res = await fetch("/api/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status }),
+        // ✅ ép kiểu id về number để tương thích API
+        body: JSON.stringify({ id: Number(id), status }),
       });
 
       if (!res.ok) throw new Error("Cập nhật thất bại");
       alert("✅ Đã cập nhật trạng thái đơn hàng!");
-      fetchOrders();
+      fetchOrders(); // tải lại danh sách
     } catch (err) {
-      console.error("❌ Lỗi cập nhật:", err);
+      console.error("❌ Lỗi cập nhật đơn hàng:", err);
       alert("Không thể cập nhật trạng thái. Vui lòng thử lại!");
     }
   };
 
-  // 🧮 Lọc đơn hàng theo trạng thái
+  // 🔹 Lọc đơn hàng theo trạng thái
   const filteredOrders =
     filter === "all" ? orders : orders.filter((o) => o.status === filter);
 
-  // 🕒 Hiển thị trạng thái loading hoặc rỗng
+  // 🕒 Khi đang tải
   if (loading)
     return <p className="text-center mt-6 text-gray-500">⏳ Đang tải đơn hàng...</p>;
+
+  // 🔍 Khi không có đơn
   if (!orders.length)
     return <p className="text-center mt-6 text-gray-500">🕳️ Chưa có đơn hàng nào.</p>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-5">📦 Quản lý & Xử lý Đơn hàng</h1>
+    <main className="p-6 max-w-5xl mx-auto">
+      <h1 className="text-2xl font-bold mb-5 text-center text-blue-700">
+        📦 Quản lý & Xử lý Đơn hàng
+      </h1>
 
       {/* Bộ lọc trạng thái */}
-      <div className="flex flex-wrap gap-2 mb-5">
+      <div className="flex flex-wrap justify-center gap-2 mb-5">
         {["all", "Chờ xác nhận", "Đang giao", "Hoàn tất", "Đã huỷ"].map((status) => (
           <button
             key={status}
@@ -91,8 +97,9 @@ export default function OrderManager() {
         {filteredOrders.map((o) => (
           <div
             key={o.id}
-            className="border rounded-lg p-5 shadow-md bg-white transition hover:shadow-lg"
+            className="border rounded-lg p-5 bg-white shadow-md hover:shadow-lg transition"
           >
+            {/* Header đơn hàng */}
             <div className="flex justify-between items-center mb-2">
               <h2 className="font-semibold text-lg">🧾 Mã đơn: #{o.id}</h2>
               <span
@@ -110,6 +117,7 @@ export default function OrderManager() {
               </span>
             </div>
 
+            {/* Thông tin chi tiết */}
             <p>
               <b>👤 Người mua:</b> {o.buyer}
             </p>
@@ -128,7 +136,7 @@ export default function OrderManager() {
               <ul className="ml-6 list-disc text-gray-700">
                 {o.items?.map((item: any, idx: number) => (
                   <li key={idx}>
-                    {item.name} — {item.price} Pi x {item.quantity || 1}
+                    {item.name} — {item.price} Pi × {item.quantity || 1}
                   </li>
                 ))}
               </ul>
@@ -166,6 +174,6 @@ export default function OrderManager() {
           </div>
         ))}
       </div>
-    </div>
+    </main>
   );
 }
