@@ -3,37 +3,37 @@
 import { useEffect, useState } from "react";
 
 /**
- * Trang hiển thị đơn hàng "Chờ xác nhận" của khách hàng.
- * Đồng bộ với API /api/orders (dữ liệu lấy từ Vercel Blob)
+ * Trang hiển thị các đơn hàng "Chờ xác nhận" của khách hàng
  */
 export default function PendingOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState<string>("");
 
-  // ✅ Lấy username từ localStorage (nếu có)
+  // ✅ Lấy username từ localStorage
   useEffect(() => {
-    const info = localStorage.getItem("user_info");
-    if (info) {
-      try {
+    try {
+      const info = localStorage.getItem("user_info");
+      if (info) {
         const parsed = JSON.parse(info);
         setUsername(parsed.username || "");
-      } catch {
-        setUsername("");
       }
+    } catch {
+      setUsername("");
     }
   }, []);
 
-  // ✅ Gọi API lấy đơn hàng (đồng bộ với username)
+  // ✅ Chỉ fetch đơn hàng khi đã có username
   useEffect(() => {
-    if (!username) return; // Chờ có username mới load
+    if (!username) return;
+
     const fetchOrders = async () => {
       try {
         const res = await fetch("/api/orders", { cache: "no-store" });
         if (!res.ok) throw new Error("Không thể tải đơn hàng");
         const data = await res.json();
 
-        // 🔍 Lọc các đơn hàng của user và trạng thái "Chờ xác nhận"
+        // Lọc theo người dùng & trạng thái
         const filtered = data.filter(
           (o: any) =>
             o.status === "Chờ xác nhận" &&
@@ -42,7 +42,7 @@ export default function PendingOrdersPage() {
 
         setOrders(filtered);
       } catch (err) {
-        console.error("❌ Lỗi tải đơn hàng:", err);
+        console.error("❌ Lỗi tải đơn:", err);
       } finally {
         setLoading(false);
       }
@@ -51,9 +51,13 @@ export default function PendingOrdersPage() {
     fetchOrders();
   }, [username]);
 
-  // 🕒 Hiển thị khi đang tải
+  // 🕒 Loading state
   if (loading)
-    return <p className="text-center mt-6 text-gray-500">⏳ Đang tải đơn hàng...</p>;
+    return (
+      <p className="text-center mt-6 text-gray-500">
+        ⏳ Đang tải đơn hàng...
+      </p>
+    );
 
   return (
     <main className="p-6 max-w-4xl mx-auto">
@@ -61,7 +65,6 @@ export default function PendingOrdersPage() {
         ⏳ Đơn hàng đang chờ xác nhận
       </h1>
 
-      {/* Khi không có đơn */}
       {orders.length === 0 ? (
         <p className="text-center text-gray-500">
           Hiện bạn chưa có đơn hàng nào đang chờ xác nhận.
@@ -74,17 +77,15 @@ export default function PendingOrdersPage() {
               className="border p-4 rounded bg-white shadow hover:shadow-md transition"
             >
               <h2 className="font-semibold text-lg">
-                🧾 Mã đơn: <span className="text-gray-700">#{order.id}</span>
+                🧾 Mã đơn: #{order.id}
               </h2>
-
-              <p className="text-gray-600">💰 Tổng tiền: {order.total} Pi</p>
-              <p className="text-gray-600">
+              <p>💰 Tổng tiền: {order.total} Pi</p>
+              <p>
                 📅 Ngày tạo:{" "}
                 {order.createdAt
                   ? new Date(order.createdAt).toLocaleString()
                   : "Không xác định"}
               </p>
-
               <ul className="list-disc ml-6 mt-2 text-gray-700">
                 {order.items?.map((item: any, i: number) => (
                   <li key={i}>
@@ -92,7 +93,6 @@ export default function PendingOrdersPage() {
                   </li>
                 ))}
               </ul>
-
               <p className="mt-2 text-yellow-600 font-medium">
                 Trạng thái: {order.status}
               </p>
