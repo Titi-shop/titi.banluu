@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-// Bộ nhớ tạm lưu sản phẩm (RAM)
+// Bộ nhớ tạm (RAM)
 let products: any[] = [];
 
 // ==============================
@@ -25,20 +25,25 @@ export async function POST(req: Request) {
       );
     }
 
+    // ✅ Đảm bảo mảng ảnh chỉ chứa URL string
+    const imageUrls = Array.isArray(images)
+      ? images.map((img: any) => (typeof img === "string" ? img : img.url))
+      : [];
+
     const newProduct = {
       id: Date.now(),
       name,
       price,
       description,
-      images: images || [],
+      images: imageUrls,
       createdAt: new Date().toISOString(),
     };
 
-    // ✅ Thêm sản phẩm mới vào danh sách tạm
+    // Lưu vào bộ nhớ tạm (RAM)
     products.unshift(newProduct);
 
     return NextResponse.json({ success: true, product: newProduct });
-  } catch (error: any) {
+  } catch (error) {
     console.error("❌ Lỗi POST:", error);
     return NextResponse.json(
       { success: false, message: "Lỗi khi thêm sản phẩm" },
