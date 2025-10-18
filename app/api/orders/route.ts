@@ -1,83 +1,104 @@
 import { NextResponse } from "next/server";
-import { put, list } from "@vercel/blob";
+import { list, del, put } from "@vercel/blob";
 
-const BLOB_NAME = "orders.json";
+const FILE_NAME = "orders.json";
 
-// đọc đơn: lấy file từ Blob, nếu chưa có => []
-async function readOrdersFromBlob(): Promise<any[]> {
-  const { blobs } = await list({ prefix: BLOB_NAME });
-  const file = blobs.find(b => b.pathname === BLOB_NAME);
-  if (!file) return [];
-  const res = await fetch(file.url, { cache: "no-store" });
-  if (!res.ok) return [];
-  return await res.json();
-}
-
-// ghi đơn: overwrite toàn bộ file JSON
-async function saveOrdersToBlob(orders: any[]) {
-  await put(BLOB_NAME, JSON.stringify(orders, null, 2), {
-    access: "public",
-    contentType: "application/json",
-  });
-}
-
-// --- GET: Lấy tất cả đơn ---
-export async function GET() {
+// 🧩 Đọc tất cả đơn hàng
+async function readOrders(): Promise<any[]> {
   try {
-    const orders = await readOrdersFromBlob();
-    return NextResponse.json(orders);
-  } catch (e) {
-    console.error("GET orders error:", e);
-    return NextResponse.json([], { status: 200 });
+    const { blobs } = await list();
+    const file = blobs.find((b) => b.pathname === FILE_NAME);
+    if (!file) return [];
+    const res = await fetch(file.url, { cache: "no-store" });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.error("❌ Lỗi đọc orders:", err);
+    return [];
   }
 }
 
-// --- POST: Tạo đơn mới ---
+// 🧩 Ghi lại toàn bộ danh sách đơn
+async function writeOrders(orders: any[]) {
+  try {
+    const { blobs } = await list();
+    const old = blobs.find((b) => b.pathname === FILE_NAME);
+    if (old) {
+      await del(FILE_NAME);
+      await new Promise((r) => setTimeout(r, 1500)); // đợi xóa hoàn tất
+    }
+
+    await put(FILE_NAME, JSON.stringify(orders, null, 2), {
+      access: "public",
+      addRandomSuffix: false,
+      contentType: "application/json",
+    });
+
+    console.log("✅ Đã ghi orders.json:", orders.length);
+  } catch (err) {
+    console.error("❌ Lỗi ghi orders:", err);
+  }
+}
+
+// ----------------------------
+// 🔹 GET: Lấy danh sách đơn
+// ----------------------------
+export async function GET() {
+  const orders = await readOrders();
+  return NextResponse.json(orders);
+}
+
+// ----------------------------
+// 🔹 POST: Tạo đơn mới
+// ----------------------------
 export async function POST(req: Request) {
   try {
     const order = await req.json();
-    const orders = await readOrdersFromBlob();
+    const orders = await readOrders();
 
-    orders.push({
+    const newOrder = {
       ...order,
       id: order.id ?? Date.now(),
-      status: order.status ?? "Chờ xác nhận", // đảm bảo đúng chuỗi
-    });
+      status: order.status ?? "Chờ xác nhận",
+      createdAt: new Date().toISOString(),
+    };
 
-    await saveOrdersToBlob(orders);
-    return NextResponse.json({ success: true, order });
+    orders.unshift(newOrder);
+    await writeOrders(orders);
+
+    return NextResponse.json({ success: true, order: newOrder });
   } catch (err) {
-    console.error("Create order error:", err);
+    console.error("❌ POST /orders:", err);
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }
 
-// --- PUT: cập nhật trạng thái ---
+// ----------------------------
+// 🔹 PUT: Cập nhật trạng thái
+// ----------------------------
 export async function PUT(req: Request) {
   try {
     const { id, status } = await req.json();
-    let orders = await readOrdersFromBlob();
-    let updated = false;
+    const orders = await readOrders();
 
-    orders = orders.map((o: any) => {
-      if (o.id === id) {
-        updated = true;
-        return { ...o, status };
-      }
-      return o;
-    });
-
-    if (!updated) {
+    const index = orders.findIndex((o) => o.id === id);
+    if (index === -1) {
       return NextResponse.json(
         { success: false, message: "Không tìm thấy đơn hàng" },
         { status: 404 }
       );
     }
 
-    await saveOrdersToBlob(orders);
-    return NextResponse.json({ success: true });
+    orders[index] = {
+      ...orders[index],
+      status,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await writeOrders(orders);
+    return NextResponse.json({ success: true, order: orders[index] });
   } catch (err) {
-    console.error("Update order error:", err);
+    console.error("❌ PUT /orders:", err);
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }
