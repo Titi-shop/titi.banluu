@@ -9,7 +9,9 @@ async function readProducts() {
     const blobs = await list();
     const file = blobs.blobs.find((b) => b.pathname === "products.json");
     if (!file) return [];
-    const res = await fetch(file.url);
+
+    // ⚠️ Tránh lỗi cache cũ — luôn đọc bản mới nhất
+    const res = await fetch(file.url, { cache: "no-store" });
     return await res.json();
   } catch (err) {
     console.error("❌ Lỗi đọc sản phẩm:", err);
@@ -54,6 +56,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // 🧩 Đọc danh sách hiện tại
     const products = await readProducts();
 
     const newProduct = {
@@ -65,7 +68,10 @@ export async function POST(req: Request) {
       createdAt: new Date().toISOString(),
     };
 
+    // ✅ Thêm vào đầu danh sách (không ghi đè)
     products.unshift(newProduct);
+
+    // 🧠 Ghi lại danh sách mới
     await writeProducts(products);
 
     return NextResponse.json({ success: true, product: newProduct });
