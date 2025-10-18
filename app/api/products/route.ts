@@ -1,12 +1,38 @@
 import { NextResponse } from "next/server";
+import { promises as fs } from "fs";
+import path from "path";
 
-// Bộ nhớ tạm (RAM)
-let products: any[] = [];
+const dataFile = path.join(process.cwd(), "data", "products.json");
+
+// ✅ Đảm bảo thư mục /data tồn tại
+async function ensureDataFile() {
+  const dir = path.dirname(dataFile);
+  try {
+    await fs.mkdir(dir, { recursive: true });
+    await fs.access(dataFile);
+  } catch {
+    await fs.writeFile(dataFile, "[]", "utf-8");
+  }
+}
+
+// ✅ Đọc danh sách sản phẩm
+async function readProducts() {
+  await ensureDataFile();
+  const data = await fs.readFile(dataFile, "utf-8");
+  return JSON.parse(data || "[]");
+}
+
+// ✅ Ghi danh sách sản phẩm
+async function writeProducts(products: any[]) {
+  await ensureDataFile();
+  await fs.writeFile(dataFile, JSON.stringify(products, null, 2), "utf-8");
+}
 
 // ==============================
 // 🔹 GET — Lấy danh sách sản phẩm
 // ==============================
 export async function GET() {
+  const products = await readProducts();
   return NextResponse.json(products);
 }
 
@@ -25,6 +51,7 @@ export async function POST(req: Request) {
       );
     }
 
+    const products = await readProducts();
     const newProduct = {
       id: Date.now(),
       name,
@@ -35,6 +62,7 @@ export async function POST(req: Request) {
     };
 
     products.unshift(newProduct);
+    await writeProducts(products);
 
     return NextResponse.json({ success: true, product: newProduct });
   } catch (error) {
@@ -61,50 +89,32 @@ export async function PUT(req: Request) {
       );
     }
 
-    const existingIndex = products.findIndex((p) => p.id === id);
-    if (existingIndex === -1) {
+    const products = await readProducts();
+    const index = products.findIndex((p: any) => p.id === id);
+    if (index === -1)
       return NextResponse.json(
         { success: false, message: "Không tìm thấy sản phẩm" },
         { status: 404 }
       );
-    }
 
     const name = formData.get("name") as string;
     const price = formData.get("price") as string;
     const description = formData.get("description") as string;
-    const newImages: File[] = formData.getAll("images") as File[];
+    const imageValues = formData.getAll("images").map((i) => i.toString());
 
-    // 🧩 Nếu có ảnh mới thì upload lên Blob
-    let uploadedUrls: string[] = products[existingIndex].images;
-    if (newImages.length > 0) {
-      uploadedUrls = [];
-      for (const file of newImages) {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/upload`, {
-          method: "POST",
-          headers: {
-            "Content-Type": file.type,
-            "x-filename": file.name,
-          },
-          body: file,
-        });
-        const data = await res.json();
-        if (data?.url) uploadedUrls.push(data.url);
-      }
-    }
-
-    // ✅ Cập nhật thông tin
-    const updatedProduct = {
-      ...products[existingIndex],
+    // ✅ Cập nhật
+    products[index] = {
+      ...products[index],
       name,
       price,
       description,
-      images: uploadedUrls,
+      images: imageValues,
       updatedAt: new Date().toISOString(),
     };
 
-    products[existingIndex] = updatedProduct;
+    await writeProducts(products);
 
-    return NextResponse.json({ success: true, product: updatedProduct });
+    return NextResponse.json({ success: true, product: products[index] });
   } catch (error) {
     console.error("❌ Lỗi PUT:", error);
     return NextResponse.json(
@@ -127,14 +137,9 @@ export async function DELETE(req: Request) {
         { status: 400 }
       );
 
-    const before = products.length;
-    products = products.filter((p) => p.id !== id);
-
-    if (products.length === before)
-      return NextResponse.json(
-        { success: false, message: "Không tìm thấy sản phẩm" },
-        { status: 404 }
-      );
+    const products = await readProducts();
+    const filtered = products.filter((p: any) => p.id !== id);
+    await writeProducts(filtered);
 
     return NextResponse.json({ success: true });
   } catch (error) {
