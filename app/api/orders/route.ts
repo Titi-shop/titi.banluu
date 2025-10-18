@@ -3,7 +3,7 @@ import { list, del, put } from "@vercel/blob";
 
 const FILE_NAME = "orders.json";
 
-// 🧩 Đọc tất cả đơn hàng
+// 🧩 Đọc danh sách đơn hàng
 async function readOrders(): Promise<any[]> {
   try {
     const { blobs } = await list();
@@ -18,14 +18,14 @@ async function readOrders(): Promise<any[]> {
   }
 }
 
-// 🧩 Ghi lại toàn bộ danh sách đơn
+// 🧩 Ghi danh sách đơn
 async function writeOrders(orders: any[]) {
   try {
     const { blobs } = await list();
     const old = blobs.find((b) => b.pathname === FILE_NAME);
     if (old) {
       await del(FILE_NAME);
-      await new Promise((r) => setTimeout(r, 1500)); // đợi xóa hoàn tất
+      await new Promise((r) => setTimeout(r, 500)); // tránh conflict
     }
 
     await put(FILE_NAME, JSON.stringify(orders, null, 2), {
@@ -81,13 +81,12 @@ export async function PUT(req: Request) {
     const { id, status } = await req.json();
     const orders = await readOrders();
 
-    const index = orders.findIndex((o) => o.id === id);
-    if (index === -1) {
+    const index = orders.findIndex((o) => Number(o.id) === Number(id));
+    if (index === -1)
       return NextResponse.json(
         { success: false, message: "Không tìm thấy đơn hàng" },
         { status: 404 }
       );
-    }
 
     orders[index] = {
       ...orders[index],
