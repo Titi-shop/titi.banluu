@@ -23,7 +23,7 @@ export default function HomePage() {
       });
   }, []);
 
-  // ✅ Debug: kiểm tra Pi SDK có load không
+  // ✅ Debug: kiểm tra Pi SDK
   useEffect(() => {
     if (typeof window !== "undefined") {
       console.log("🧩 Kiểm tra Pi SDK:", (window as any).Pi);
@@ -31,16 +31,24 @@ export default function HomePage() {
   }, []);
 
   if (loading) {
-    return <p className="text-center mt-10 text-gray-600">⏳ Đang tải sản phẩm...</p>;
+    return (
+      <p className="text-center mt-10 text-gray-600">
+        ⏳ Đang tải sản phẩm...
+      </p>
+    );
   }
 
   if (products.length === 0) {
-    return <p className="text-center mt-10 text-gray-500">Chưa có sản phẩm nào.</p>;
+    return (
+      <p className="text-center mt-10 text-gray-500">
+        Chưa có sản phẩm nào.
+      </p>
+    );
   }
 
   return (
     <main className="bg-gray-50 min-h-screen pb-20">
-      {/* 🧭 Thanh điều hướng trên */}
+      {/* 🧭 Thanh điều hướng */}
       <Navbar />
 
       {/* 🛍 Tiêu đề */}
@@ -52,19 +60,26 @@ export default function HomePage() {
       <div className="grid gap-4 px-3 sm:px-6 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {products.map((p) => {
           const hasImages = p.images && p.images.length > 0;
-const firstImage = hasImages ? p.images[0] : null;
+          const firstImage = hasImages ? p.images[0] : null;
 
-{firstImage ? (
-  <img
-    src={firstImage}
-    alt={p.name}
-    className="w-full aspect-square object-cover rounded-lg mb-2"
-  />
-) : (
-  <div className="w-full aspect-square bg-gray-100 flex items-center justify-center text-gray-400 rounded-lg mb-2">
-    Không có ảnh
-  </div>
-)}
+          return (
+            <div
+              key={p.id}
+              onClick={() => router.push(`/product/${p.id}`)}
+              className="bg-white rounded-xl shadow hover:shadow-lg transition-all cursor-pointer border border-gray-100 p-3 flex flex-col"
+            >
+              {/* 🖼 Ảnh sản phẩm */}
+              {firstImage ? (
+                <img
+                  src={firstImage}
+                  alt={p.name}
+                  className="w-full aspect-square object-cover rounded-lg mb-2"
+                />
+              ) : (
+                <div className="w-full aspect-square bg-gray-100 flex items-center justify-center text-gray-400 rounded-lg mb-2">
+                  Không có ảnh
+                </div>
+              )}
 
               {/* 📦 Thông tin */}
               <div className="flex-grow flex flex-col justify-between">
@@ -75,7 +90,9 @@ const firstImage = hasImages ? p.images[0] : null;
                   {p.price} Pi
                 </p>
                 {p.description && (
-                  <p className="text-gray-500 text-xs mt-1 line-clamp-2">{p.description}</p>
+                  <p className="text-gray-500 text-xs mt-1 line-clamp-2">
+                    {p.description}
+                  </p>
                 )}
               </div>
             </div>
