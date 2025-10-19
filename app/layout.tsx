@@ -14,21 +14,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi">
       <head>
-        {/* ✅ Giữ nguyên phần meta cũ */}
-
-        {/* ✅ Thêm SDK Pi Network (load trước khi app render) */}
+        {/* ✅ Meta mặc định */}
         <Script
           src="https://sdk.minepi.com/pi-sdk.js"
           strategy="beforeInteractive"
           async={false}
         />
-
-        {/* ✅ Sau khi SDK load xong, khởi tạo Pi SDK */}
         <Script id="pi-init" strategy="afterInteractive">
           {`
             if (window.Pi) {
               console.log("✅ Pi SDK loaded:", window.Pi);
-              // Khởi tạo SDK với version hiện tại
               window.Pi.init({ version: "2.0" });
             } else {
               console.warn("⚠️ Pi SDK chưa load, hãy mở bằng Pi Browser.");
@@ -38,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className="relative pb-16 bg-gray-50">
+        {/* ✅ LanguageProvider phải bao ngoài toàn bộ để ngôn ngữ áp dụng cho toàn site */}
         <LanguageProvider>
           <AuthProvider>
             <CartProvider>
