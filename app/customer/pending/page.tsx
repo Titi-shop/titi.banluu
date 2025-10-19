@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useLanguage } from "../../context/LanguageContext"; // ✅ đảm bảo đường dẫn đúng tới context
+import { useLanguage } from "../context/LanguageContext"; // ✅ đảm bảo đường dẫn đúng tới context
 
 export default function PendingOrdersPage() {
   const { translate } = useLanguage(); // ✅ dùng translate cho đa ngôn ngữ
