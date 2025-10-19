@@ -2,16 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-/**
- * Trang hiển thị đơn hàng "Chờ xác nhận" của khách hàng.
- * Đồng bộ với API /api/orders (dữ liệu lấy từ Vercel Blob)
- */
 export default function PendingOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [username, setUsername] = useState<string>("");
+  const [username, setUsername] = useState<string | null>(null);
 
-  // ✅ Lấy username từ localStorage (nếu có)
+  // 🧩 Lấy username từ localStorage (nếu có)
   useEffect(() => {
     const info = localStorage.getItem("user_info");
     if (info) {
@@ -21,19 +17,29 @@ export default function PendingOrdersPage() {
       } catch {
         setUsername("");
       }
+    } else {
+      setUsername("");
     }
   }, []);
 
-  // ✅ Gọi API lấy đơn hàng (đồng bộ với username)
+  // 🧩 Gọi API lấy đơn hàng (sau khi có username)
   useEffect(() => {
-    if (!username) return; // Chờ có username mới load
+    // Nếu username là null -> vẫn đang load user_info
+    if (username === null) return;
+
+    // Nếu username rỗng -> người dùng chưa đăng nhập
+    if (username === "") {
+      setLoading(false);
+      return;
+    }
+
     const fetchOrders = async () => {
       try {
         const res = await fetch("/api/orders", { cache: "no-store" });
         if (!res.ok) throw new Error("Không thể tải đơn hàng");
         const data = await res.json();
 
-        // 🔍 Lọc các đơn hàng của user và trạng thái "Chờ xác nhận"
+        // 🔍 Lọc các đơn hàng đúng người mua và đúng trạng thái
         const filtered = data.filter(
           (o: any) =>
             o.status === "Chờ xác nhận" &&
@@ -51,17 +57,38 @@ export default function PendingOrdersPage() {
     fetchOrders();
   }, [username]);
 
-  // 🕒 Hiển thị khi đang tải
+  // 🕒 Đang tải
   if (loading)
-    return <p className="text-center mt-6 text-gray-500">⏳ Đang tải đơn hàng...</p>;
+    return (
+      <p className="text-center mt-6 text-gray-500">
+        ⏳ Đang tải đơn hàng...
+      </p>
+    );
 
+  // ⚠️ Nếu chưa đăng nhập
+  if (username === "") {
+    return (
+      <main className="p-6 text-center text-red-600">
+        <p className="text-lg font-medium">
+          ⚠️ Không xác định được tài khoản, vui lòng đăng nhập lại.
+        </p>
+        <a
+          href="/account"
+          className="mt-4 inline-block px-4 py-2 bg-yellow-500 text-white rounded"
+        >
+          🔐 Đăng nhập
+        </a>
+      </main>
+    );
+  }
+
+  // ✅ Nếu có username và đã load xong đơn
   return (
     <main className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4 text-center text-yellow-600">
         ⏳ Đơn hàng đang chờ xác nhận
       </h1>
 
-      {/* Khi không có đơn */}
       {orders.length === 0 ? (
         <p className="text-center text-gray-500">
           Hiện bạn chưa có đơn hàng nào đang chờ xác nhận.
