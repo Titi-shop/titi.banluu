@@ -3,14 +3,28 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-function OrdersContent() {
+export default function CustomerOrdersPage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-center">⏳ Đang tải đơn hàng...</p>}>
+      <OrdersWrapper />
+    </Suspense>
+  );
+}
+
+// ✅ Bọc lại component chính bên ngoài Suspense
+function OrdersWrapper() {
+  const params = useSearchParams();
+  const statusParam = params?.get("status") ?? null;
+  return <OrdersContent statusParam={statusParam} />;
+}
+
+function OrdersContent({ statusParam }: { statusParam: string | null }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const params = useSearchParams();
-  const statusParam = params.get("status"); // "cho-xac-nhan" | "cho-lay-hang" ...
+
   const mapStatus: Record<string, string> = {
     "cho-xac-nhan": "Chờ xác nhận",
-    "cho-lay-hang": "Đang giao",
+    "cho-lay-hang": "Chờ lấy hàng",
     "cho-giao-hang": "Đang giao",
     "danh-gia": "Hoàn tất",
   };
@@ -31,7 +45,7 @@ function OrdersContent() {
 
         setOrders(filtered);
       } catch (err) {
-        console.error("Lỗi khi tải đơn hàng:", err);
+        console.error("❌ Lỗi khi tải đơn hàng:", err);
       } finally {
         setLoading(false);
       }
@@ -59,14 +73,5 @@ function OrdersContent() {
         </div>
       ))}
     </div>
-  );
-}
-
-// ✅ Bọc trong Suspense để build không lỗi
-export default function CustomerOrdersPage() {
-  return (
-    <Suspense fallback={<p className="p-6 text-center">⏳ Đang tải đơn hàng...</p>}>
-      <OrdersContent />
-    </Suspense>
   );
 }
