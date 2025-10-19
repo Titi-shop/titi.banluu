@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLanguage } from "../context/LanguageContext";
 import {
   PackagePlus,   // icon Đăng sản phẩm
   Package,       // icon Kho hàng
