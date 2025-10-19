@@ -9,7 +9,7 @@ import { Clock, Package, Truck, Star, LogOut, User } from "lucide-react";
 
 export default function CustomerDashboard() {
   const { user, logout } = useAuth();
-  const { translate } = useLanguage(); // ✅ lấy hàm translate
+  const { translate } = useLanguage();
   const router = useRouter();
   const [username, setUsername] = useState("guest_user");
 
@@ -67,7 +67,6 @@ export default function CustomerDashboard() {
           <h1 className="text-xl font-semibold">{username}</h1>
           <p className="text-sm opacity-90 mt-1">{translate("customer_title")}</p>
 
-          {/* 🔗 Hồ sơ cá nhân */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -79,3 +78,70 @@ export default function CustomerDashboard() {
             {translate("account")}
           </button>
         </div>
+      </div>
+
+      {/* ===== Thanh công cụ đơn hàng ===== */}
+      <div className="bg-white mt-4 rounded-lg shadow mx-3">
+        <div className="flex items-center justify-between px-6 py-3 border-b">
+          <h2 className="font-semibold text-gray-800 text-lg">{translate("my_orders")}</h2>
+          <button
+            onClick={() => router.push("/customer/orders")}
+            className="text-blue-600 text-sm hover:underline"
+          >
+            {translate("my_orders")} →
+          </button>
+        </div>
+
+        {/* ===== Các trạng thái đơn hàng ===== */}
+        <div className="grid grid-cols-5 text-center py-4">
+          <button
+            onClick={() => goTo("/customer/pending")}
+            className="flex flex-col items-center text-gray-700 hover:text-orange-500"
+          >
+            <Clock size={28} />
+            <span className="text-sm mt-1">{translate("waiting_confirm")}</span>
+          </button>
+
+          <button
+            onClick={() => goTo("/customer/pickup")}
+            className="flex flex-col items-center text-gray-700 hover:text-orange-500"
+          >
+            <Package size={28} />
+            <span className="text-sm mt-1">{translate("waiting_pickup")}</span>
+          </button>
+
+          <button
+            onClick={() => goTo("/customer/shipping")}
+            className="flex flex-col items-center text-gray-700 hover:text-orange-500"
+          >
+            <Truck size={28} />
+            <span className="text-sm mt-1">{translate("delivering")}</span>
+          </button>
+
+          <button
+            onClick={() => goTo("/customer/review")}
+            className="flex flex-col items-center text-gray-700 hover:text-orange-500"
+          >
+            <Star size={28} />
+            <span className="text-sm mt-1">{translate("review")}</span>
+          </button>
+
+          <button
+            onClick={handleLogoutPi}
+            className="flex flex-col items-center text-red-600 hover:text-red-700"
+          >
+            <LogOut size={28} />
+            <span className="text-sm mt-1">{translate("logout")}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ===== Ví người dùng ===== */}
+      <div className="bg-white mx-3 mt-4 p-4 rounded-lg shadow text-center">
+        <p className="text-gray-700">
+          💰 {translate("wallet_label")}: <b>{user?.wallet ?? "CUSTOMER-MOCK"}</b>
+        </p>
+      </div>
+    </div>
+  );
+}
