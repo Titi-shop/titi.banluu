@@ -7,16 +7,13 @@ export default function AccountPage() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem("pi_user");
-    const savedRole = localStorage.getItem("titi_role");
+    const isLoggedIn = localStorage.getItem("titi_is_logged_in");
 
-    if (savedUser && savedRole) {
-      // ✅ Điều hướng đúng trang theo vai trò
-      if (savedRole === "seller") {
-        router.replace("/seller");
-      } else {
-        router.replace("/customer");
-      }
+    // ✅ Nếu đã đăng nhập -> luôn đưa về /customer
+    if (savedUser && isLoggedIn === "true") {
+      router.replace("/customer");
     } else {
+      // ✅ Nếu chưa đăng nhập -> chuyển tới /pilogin
       router.push("/pilogin");
     }
   }, [router]);
