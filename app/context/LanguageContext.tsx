@@ -15,41 +15,10 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-// ✅ Bộ dịch đa ngôn ngữ, mở rộng cho Shop / Customer / Seller
-const translations: Record<
-  Language,
-  Record<
-    | "home"
-    | "category"
-    | "search"
-    | "notifications"
-    | "account"
-    | "select_language"
-    | "current_language"
-    | "seller_dashboard"
-    | "post_product"
-    | "manage_stock"
-    | "process_orders"
-    | "update_status"
-    | "delivery"
-    | "my_orders"
-    | "waiting_confirm"
-    | "waiting_pickup"
-    | "delivering"
-    | "review"
-    | "wallet_label"
-    | "logout"
-    | "customer_title"
-    | "shop_title"
-    | "product_price"
-    | "product_list"
-    | "loading"
-    | "no_products"
-    | "no_image",
-    string
-  >
-> = {
+// ✅ Bộ dịch đa ngôn ngữ mở rộng cho toàn hệ thống TiTi Shop
+const translations: Record<Language, Record<string, string>> = {
   vi: {
+    // ---- NAVIGATION ----
     home: "Trang chủ",
     category: "Danh mục",
     search: "Tìm kiếm",
@@ -58,6 +27,7 @@ const translations: Record<
     select_language: "Chọn ngôn ngữ",
     current_language: "Ngôn ngữ hiện tại",
 
+    // ---- SELLER ----
     seller_dashboard: "Khu vực Quản lý Người Bán - TiTi Shop",
     post_product: "Đăng sản phẩm",
     manage_stock: "Quản lý kho hàng",
@@ -65,6 +35,7 @@ const translations: Record<
     update_status: "Cập nhật trạng thái",
     delivery: "Giao hàng",
 
+    // ---- CUSTOMER ----
     my_orders: "Đơn mua của bạn",
     waiting_confirm: "Chờ xác nhận",
     waiting_pickup: "Chờ lấy hàng",
@@ -77,17 +48,47 @@ const translations: Record<
     no_orders: "Không có đơn hàng nào.",
     status: "Trạng thái",
 
-
+    // ---- SHOP ----
     shop_title: "Danh mục sản phẩm",
     product_price: "Giá",
     product_list: "Danh sách sản phẩm",
 
+    // ---- COMMON ----
     loading: "Đang tải sản phẩm...",
     no_products: "Chưa có sản phẩm nào.",
     no_image: "Không có ảnh",
+
+    // ---- SHIPPING ----
+    shipping_orders_title: "Đơn hàng đang giao",
+    no_shipping_orders: "Bạn chưa có đơn hàng nào đang giao.",
+    confirm_received: "Xác nhận rằng bạn đã nhận được hàng?",
+    confirm_received_button: "Tôi đã nhận hàng",
+    thanks_confirm: "✅ Cảm ơn bạn! Đơn hàng đã được xác nhận hoàn tất.",
+    error_confirm: "Có lỗi xảy ra khi xác nhận đơn hàng.",
+    completed_status: "Hoàn tất",
+    seller_label: "Người bán",
+    created_at: "Ngày tạo",
+    products_label: "Sản phẩm",
+    unknown: "Không xác định",
+
+    // ---- SEARCH ----
+    search_title: "Tìm kiếm sản phẩm",
+    search_placeholder: "Nhập tên sản phẩm...",
+    search_button: "Tìm",
+    searching: "Đang tìm kiếm...",
+    no_results: "Không tìm thấy sản phẩm nào.",
+    search_error: "Lỗi khi tìm kiếm sản phẩm.",
+
+    // ---- REVIEW ----
+    review_title: "Đánh giá đơn hàng",
+    no_review_orders: "Không có đơn hàng nào cần đánh giá.",
+    review_button: "✍️ Đánh giá đơn này",
+    review_thanks: "✅ Đã gửi đánh giá!",
+    review_error: "Không thể gửi đánh giá.",
   },
 
   en: {
+    // ---- NAVIGATION ----
     home: "Home",
     category: "Category",
     search: "Search",
@@ -96,6 +97,7 @@ const translations: Record<
     select_language: "Select Language",
     current_language: "Current language",
 
+    // ---- SELLER ----
     seller_dashboard: "Seller Management - TiTi Shop",
     post_product: "Post Product",
     manage_stock: "Stock Management",
@@ -103,6 +105,7 @@ const translations: Record<
     update_status: "Update Status",
     delivery: "Delivery",
 
+    // ---- CUSTOMER ----
     my_orders: "Your Orders",
     waiting_confirm: "Waiting for confirmation",
     waiting_pickup: "Waiting for pickup",
@@ -115,17 +118,47 @@ const translations: Record<
     no_orders: "No orders found.",
     status: "Status",
 
-
+    // ---- SHOP ----
     shop_title: "Product Categories",
     product_price: "Price",
     product_list: "Product List",
 
+    // ---- COMMON ----
     loading: "Loading products...",
     no_products: "No products available.",
     no_image: "No image",
+
+    // ---- SHIPPING ----
+    shipping_orders_title: "Orders in Delivery",
+    no_shipping_orders: "You have no orders currently being delivered.",
+    confirm_received: "Confirm that you have received the order?",
+    confirm_received_button: "I have received the order",
+    thanks_confirm: "✅ Thank you! Your order has been marked as completed.",
+    error_confirm: "An error occurred while confirming the order.",
+    completed_status: "Completed",
+    seller_label: "Seller",
+    created_at: "Created at",
+    products_label: "Products",
+    unknown: "Unknown",
+
+    // ---- SEARCH ----
+    search_title: "Search Products",
+    search_placeholder: "Enter product name...",
+    search_button: "Search",
+    searching: "Searching...",
+    no_results: "No products found.",
+    search_error: "Error while searching products.",
+
+    // ---- REVIEW ----
+    review_title: "Order Reviews",
+    no_review_orders: "No orders pending review.",
+    review_button: "✍️ Review this order",
+    review_thanks: "✅ Review submitted!",
+    review_error: "Failed to submit review.",
   },
 
   zh: {
+    // ---- NAVIGATION ----
     home: "主页",
     category: "分类",
     search: "搜索",
@@ -134,6 +167,7 @@ const translations: Record<
     select_language: "选择语言",
     current_language: "当前语言",
 
+    // ---- SELLER ----
     seller_dashboard: "卖家管理区域 - TiTi 商店",
     post_product: "发布商品",
     manage_stock: "库存管理",
@@ -141,6 +175,7 @@ const translations: Record<
     update_status: "更新状态",
     delivery: "发货",
 
+    // ---- CUSTOMER ----
     my_orders: "您的订单",
     waiting_confirm: "等待确认",
     waiting_pickup: "等待取货",
@@ -148,19 +183,48 @@ const translations: Record<
     review: "评价",
     wallet_label: "您的钱包",
     logout: "退出登录",
-    customer_title: "TiTi 商店会员", 
+    customer_title: "TiTi 商店会员",
     loading_orders: "正在加载订单...",
     no_orders: "暂无订单。",
     status: "状态",
 
-
+    // ---- SHOP ----
     shop_title: "商品分类",
     product_price: "价格",
     product_list: "产品列表",
 
+    // ---- COMMON ----
     loading: "正在加载商品...",
     no_products: "暂无商品。",
     no_image: "没有图片",
+
+    // ---- SHIPPING ----
+    shipping_orders_title: "配送中的订单",
+    no_shipping_orders: "您暂无正在配送的订单。",
+    confirm_received: "确认您已收到货物？",
+    confirm_received_button: "我已收货",
+    thanks_confirm: "✅ 感谢您！订单已确认完成。",
+    error_confirm: "确认订单时发生错误。",
+    completed_status: "已完成",
+    seller_label: "卖家",
+    created_at: "创建时间",
+    products_label: "商品",
+    unknown: "未知",
+
+    // ---- SEARCH ----
+    search_title: "搜索商品",
+    search_placeholder: "输入商品名称...",
+    search_button: "搜索",
+    searching: "正在搜索...",
+    no_results: "未找到任何商品。",
+    search_error: "搜索商品时出错。",
+
+    // ---- REVIEW ----
+    review_title: "订单评价",
+    no_review_orders: "没有待评价的订单。",
+    review_button: "✍️ 评价此订单",
+    review_thanks: "✅ 已提交评价！",
+    review_error: "提交评价失败。",
   },
 };
 
@@ -181,18 +245,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.setItem("lang", lang);
     }
-    // ✅ Làm mới router khi đổi ngôn ngữ
     router.refresh?.();
   };
 
-  // ✅ Hàm điều hướng nhanh
   const goToShop = () => router.push("/shop");
   const goToCustomer = () => router.push("/customer");
 
-  // ✅ Hàm dịch khóa
   const translate = (key: string): string => {
     const dict = translations[language];
-    return dict[key as keyof typeof dict] || key;
+    return dict[key] || key;
   };
 
   return (
