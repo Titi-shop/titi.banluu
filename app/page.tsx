@@ -7,10 +7,10 @@ import { useLanguage } from "../context/LanguageContext";
 
 export default function HomePage() {
   const router = useRouter();
+  const { translate } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Khi trang load: tải sản phẩm
   useEffect(() => {
     fetch("/api/products")
       .then((res) => res.json())
@@ -24,44 +24,33 @@ export default function HomePage() {
       });
   }, []);
 
-  // ✅ Debug: kiểm tra Pi SDK
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      console.log("🧩 Kiểm tra Pi SDK:", (window as any).Pi);
-    }
-  }, []);
-
-  if (loading) {
+  if (loading)
     return (
       <p className="text-center mt-10 text-gray-600">
-        ⏳ Đang tải sản phẩm...
+        ⏳ {translate("loading") || "Đang tải sản phẩm..."}
       </p>
     );
-  }
 
-  if (products.length === 0) {
+  if (products.length === 0)
     return (
       <p className="text-center mt-10 text-gray-500">
-        Chưa có sản phẩm nào.
+        {translate("no_products") || "Chưa có sản phẩm nào."}
       </p>
     );
-  }
 
   return (
     <main className="bg-gray-50 min-h-screen pb-20">
-      {/* 🧭 Thanh điều hướng */}
       <Navbar />
 
-      {/* 🛍 Tiêu đề */}
+      {/* 🏷 Tiêu đề */}
       <h1 className="text-xl font-bold text-center mt-6 mb-4 text-gray-800">
-        🛍 Danh sách sản phẩm
+        🛍 {translate("product_list")}
       </h1>
 
       {/* 🔳 Lưới sản phẩm */}
       <div className="grid gap-4 px-3 sm:px-6 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {products.map((p) => {
-          const hasImages = p.images && p.images.length > 0;
-          const firstImage = hasImages ? p.images[0] : null;
+          const firstImage = p.images?.[0] || null;
 
           return (
             <div
@@ -69,7 +58,6 @@ export default function HomePage() {
               onClick={() => router.push(`/product/${p.id}`)}
               className="bg-white rounded-xl shadow hover:shadow-lg transition-all cursor-pointer border border-gray-100 p-3 flex flex-col"
             >
-              {/* 🖼 Ảnh sản phẩm */}
               {firstImage ? (
                 <img
                   src={firstImage}
@@ -78,11 +66,10 @@ export default function HomePage() {
                 />
               ) : (
                 <div className="w-full aspect-square bg-gray-100 flex items-center justify-center text-gray-400 rounded-lg mb-2">
-                  Không có ảnh
+                  {translate("no_image") || "Không có ảnh"}
                 </div>
               )}
 
-              {/* 📦 Thông tin */}
               <div className="flex-grow flex flex-col justify-between">
                 <h2 className="font-semibold text-sm sm:text-base text-gray-800 line-clamp-2 leading-tight">
                   {p.name}
@@ -91,9 +78,7 @@ export default function HomePage() {
                   {p.price} Pi
                 </p>
                 {p.description && (
-                  <p className="text-gray-500 text-xs mt-1 line-clamp-2">
-                    {p.description}
-                  </p>
+                  <p className="text-gray-500 text-xs mt-1 line-clamp-2">{p.description}</p>
                 )}
               </div>
             </div>
