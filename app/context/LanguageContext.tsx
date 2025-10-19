@@ -73,6 +73,10 @@ const translations: Record<
     wallet_label: "Ví của bạn",
     logout: "Đăng xuất",
     customer_title: "Thành viên TiTi Shop",
+    loading_orders: "Đang tải đơn hàng...",
+    no_orders: "Không có đơn hàng nào.",
+    status: "Trạng thái",
+
 
     shop_title: "Danh mục sản phẩm",
     product_price: "Giá",
@@ -107,6 +111,10 @@ const translations: Record<
     wallet_label: "Your wallet",
     logout: "Logout",
     customer_title: "TiTi Shop Member",
+    loading_orders: "Loading orders...",
+    no_orders: "No orders found.",
+    status: "Status",
+
 
     shop_title: "Product Categories",
     product_price: "Price",
@@ -140,7 +148,11 @@ const translations: Record<
     review: "评价",
     wallet_label: "您的钱包",
     logout: "退出登录",
-    customer_title: "TiTi 商店会员",
+    customer_title: "TiTi 商店会员", 
+    loading_orders: "正在加载订单...",
+    no_orders: "暂无订单。",
+    status: "状态",
+
 
     shop_title: "商品分类",
     product_price: "价格",
