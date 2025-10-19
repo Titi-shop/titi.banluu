@@ -1,4 +1,36 @@
-const translations = {
+const translations: Record<
+  "vi" | "en" | "zh",
+  Record<
+    | "home"
+    | "category"
+    | "search"
+    | "notifications"
+    | "account"
+    | "select_language"
+    | "current_language"
+    | "seller_dashboard"
+    | "post_product"
+    | "manage_stock"
+    | "process_orders"
+    | "update_status"
+    | "delivery"
+    | "my_orders"
+    | "waiting_confirm"
+    | "waiting_pickup"
+    | "delivering"
+    | "review"
+    | "wallet_label"
+    | "logout"
+    | "customer_title"
+    | "shop_title"
+    | "product_price"
+    | "product_list"
+    | "loading"
+    | "no_products"
+    | "no_image",
+    string
+  >
+> = {
   vi: {
     // ---- NAVIGATION ----
     home: "Trang chủ",
@@ -115,4 +147,4 @@ const translations = {
     no_products: "暂无商品。",
     no_image: "没有图片",
   },
-} as const;
+};
