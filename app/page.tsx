@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function HomePage() {
   const router = useRouter();
