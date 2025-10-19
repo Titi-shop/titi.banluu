@@ -2,72 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useLanguage } from "../app/context/LanguageContext";
 import { ShoppingCart, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// ✅ Dịch vụ lấy giá Pi
-class PiPriceService {
-  static async getPiPrice() {
-    try {
-      // Option 1: GCV Fixed Price (ổn định)
-      const gcvPrice = 314159; // $314,159 USD / 1 Pi
-
-      // Option 2 (tùy chọn): Lấy từ API ngoài nếu muốn realtime
-      // const response = await fetch('https://api.pi-price.com/current');
-      // const data = await response.json();
-      // return data.price;
-
-      return gcvPrice;
-    } catch (error) {
-      console.error("Error fetching Pi price:", error);
-      return 314159; // fallback GCV
-    }
-  }
-
-  static formatPrice(price, currency = "USD") {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price);
-  }
-
-  static formatPriceVND(priceUSD) {
-    const usdToVnd = 23000; // tỷ giá USD → VND
-    const priceVND = priceUSD * usdToVnd;
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(priceVND);
-  }
-}
-
 export default function Navbar() {
-  const { translate } = useLanguage();
+  const [isSeller, setIsSeller] = useState(false);
   const [piPrice, setPiPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSeller, setIsSeller] = useState(false);
   const router = useRouter();
-
-  // 📈 Lấy giá Pi (ổn định bằng PiPriceService)
-  useEffect(() => {
-    const fetchPrice = async () => {
-      try {
-        const price = await PiPriceService.getPiPrice();
-        setPiPrice(price);
-      } catch (err) {
-        console.error("Lỗi khi lấy giá Pi:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPrice();
-  }, []);
 
   // 👤 Kiểm tra tài khoản đăng nhập để hiển thị nút "Đăng hàng"
   useEffect(() => {
@@ -81,8 +23,29 @@ export default function Navbar() {
         }
       }
     } catch (err) {
-      console.error("Lỗi đọc pi_user:", err);
+      console.error("⚠️ Lỗi đọc pi_user:", err);
     }
+  }, []);
+
+  // 💰 Lấy giá Pi từ API /api/pi-price
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch("/api/pi-price");
+        const data = await res.json();
+        if (data?.price_usd) {
+          setPiPrice(parseFloat(data.price_usd));
+        }
+      } catch (error) {
+        console.error("⚠️ Lỗi khi lấy giá Pi:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 5 * 60 * 1000); // cập nhật mỗi 5 phút
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -94,35 +57,34 @@ export default function Navbar() {
             <ShoppingCart size={24} />
           </Link>
 
-          {/* 🟡 Nút Đăng hàng (chỉ hiện khi là seller) */}
+          {/* 🟡 Nút Đăng hàng (chỉ hiện với tài khoản admin/seller) */}
           {isSeller && (
             <button
               onClick={() => router.push("/seller")}
               className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-lg text-sm"
             >
-              🛒 Đăng hàng
+              🔘Đăng hàng
             </button>
           )}
         </div>
 
-        {/* 💰 Giá Pi */}
-        <div className="text-center">
-          <p className="text-sm text-gray-500">
-            {translate("pi_price") ?? "Pi Network"}
-          </p>
-          <p className="text-lg font-semibold text-yellow-600">
-            {loading
-              ? "Đang cập nhật..."
-              : piPrice
-              ? PiPriceService.formatPrice(piPrice, "USD")
-              : "N/A"}
-          </p>
-        </div>
+        <div className="flex items-center gap-4">
+          {/* 💰 Hiển thị giá Pi */}
+          <div className="text-sm text-purple-700 font-semibold bg-purple-50 px-2 py-1 rounded-md">
+            {loading ? (
+              "⏳ Đang tải..."
+            ) : piPrice ? (
+              <>💰 1 PI ≈ {piPrice.toFixed(2)} USDT</>
+            ) : (
+              "⚠️ Không có giá"
+            )}
+          </div>
 
-        {/* 🌐 Ngôn ngữ */}
-        <Link href="/language" className="text-gray-700 hover:text-yellow-500">
-          <Globe size={24} />
-        </Link>
+          {/* 🌐 Ngôn ngữ */}
+          <Link href="/language" className="text-gray-700 hover:text-yellow-500">
+            <Globe size={24} />
+          </Link>
+        </div>
       </div>
     </header>
   );
