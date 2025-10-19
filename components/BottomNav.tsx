@@ -12,7 +12,7 @@ export default function BottomNav() {
   // 🔹 Danh sách 5 mục chính
   const navItems = [
     { href: "/", label: translate("home") || "Trang chủ", icon: Home },
-    { href: "/category", label: translate("mall") || "Danh mục", icon: shop },
+    { href: "/category", label: translate("shop") || "Danh mục", icon: shop },
     { href: "/search", label: translate("search") || "Tìm kiếm", icon: Search },
     { href: "/notifications", label: translate("notifications") || "Thông báo", icon: Bell },
     { href: "/account", label: translate("account") || "Tài khoản", icon: User },
