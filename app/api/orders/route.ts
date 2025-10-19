@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
-import { list, del, put } from "@vercel/blob";
+import { list, put } from "@vercel/blob";
 
 const FILE_NAME = "orders.json";
 
-// 🧩 Đọc danh sách đơn hàng
+// 🧩 Đọc danh sách đơn hàng từ Vercel Blob
 async function readOrders(): Promise<any[]> {
   try {
     const { blobs } = await list();
     const file = blobs.find((b) => b.pathname === FILE_NAME);
     if (!file) return [];
+
     const res = await fetch(file.url, { cache: "no-store" });
     if (!res.ok) return [];
+
     return await res.json();
   } catch (err) {
     console.error("❌ Lỗi đọc orders:", err);
@@ -18,16 +20,9 @@ async function readOrders(): Promise<any[]> {
   }
 }
 
-// 🧩 Ghi danh sách đơn
+// 🧩 Ghi danh sách đơn hàng lên Vercel Blob
 async function writeOrders(orders: any[]) {
   try {
-    const { blobs } = await list();
-    const old = blobs.find((b) => b.pathname === FILE_NAME);
-    if (old) {
-      await del(FILE_NAME);
-      await new Promise((r) => setTimeout(r, 500)); // tránh conflict
-    }
-
     await put(FILE_NAME, JSON.stringify(orders, null, 2), {
       access: "public",
       addRandomSuffix: false,
@@ -63,7 +58,7 @@ export async function POST(req: Request) {
       createdAt: new Date().toISOString(),
     };
 
-    orders.unshift(newOrder);
+    orders.push(newOrder);
     await writeOrders(orders);
 
     return NextResponse.json({ success: true, order: newOrder });
@@ -74,7 +69,7 @@ export async function POST(req: Request) {
 }
 
 // ----------------------------
-// 🔹 PUT: Cập nhật trạng thái
+// 🔹 PUT: Cập nhật trạng thái đơn hàng
 // ----------------------------
 export async function PUT(req: Request) {
   try {
@@ -82,11 +77,12 @@ export async function PUT(req: Request) {
     const orders = await readOrders();
 
     const index = orders.findIndex((o) => Number(o.id) === Number(id));
-    if (index === -1)
+    if (index === -1) {
       return NextResponse.json(
         { success: false, message: "Không tìm thấy đơn hàng" },
         { status: 404 }
       );
+    }
 
     orders[index] = {
       ...orders[index],
@@ -95,6 +91,7 @@ export async function PUT(req: Request) {
     };
 
     await writeOrders(orders);
+
     return NextResponse.json({ success: true, order: orders[index] });
   } catch (err) {
     console.error("❌ PUT /orders:", err);
