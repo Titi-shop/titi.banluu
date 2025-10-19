@@ -13,17 +13,8 @@ export default function SellerDashboard() {
   return (
     <main className="p-6 max-w-6xl mx-auto">
       {/* ===== Thanh tiêu đề ===== */}
-      <div className="bg-yellow-400 text-white text-xl font-bold p-3 rounded-t-lg mb-6 flex justify-between items-center shadow">
+      <div className="bg-yellow-400 text-white text-xl font-bold p-3 rounded-t-lg mb-6 flex justify-center items-center shadow">
         <span>👑 Khu vực Quản lý Người Bán - TiTi Shop</span>
-        <button
-          onClick={() => {
-            localStorage.removeItem("seller_info");
-            location.href = "/account";
-          }}
-          className="bg-red-500 px-4 py-1 rounded hover:bg-red-600"
-        >
-          Đăng xuất
-        </button>
       </div>
 
       {/* ===== Các mục quản lý ===== */}
