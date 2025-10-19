@@ -1,76 +1,98 @@
 "use client";
-
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useLanguage } from "../app/context/LanguageContext";
-import { ShoppingCart, Globe } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function Navbar() {
-  const { translate } = useLanguage();
-  const [piData, setPiData] = useState<{ price: number; change: number } | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // 🔄 Hàm lấy giá Pi trực tiếp (API cập nhật nhanh và ổn định)
-  const fetchPiPrice = async () => {
-    try {
-      const res = await fetch("https://api.coinpaprika.com/v1/tickers/pi-network-pi");
-      if (!res.ok) throw new Error("Không thể kết nối API");
-      const data = await res.json();
-
-      const price = data?.quotes?.USD?.price ?? 0;
-      const change = data?.quotes?.USD?.percent_change_24h ?? 0;
-
-      setPiData({ price, change });
-    } catch (err) {
-      console.error("Lỗi khi lấy giá Pi:", err);
-      // fallback nếu lỗi
-      setPiData({ price: 0.21042, change: -2.6 });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [username, setUsername] = useState<string | null>(null);
+  const [isSeller, setIsSeller] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    fetchPiPrice(); // lần đầu
-    const interval = setInterval(fetchPiPrice, 5 * 60 * 1000); // cập nhật mỗi 5 phút
-    return () => clearInterval(interval);
+    const savedUser = localStorage.getItem("pi_user");
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        const user = parsed?.user?.username || "guest";
+        setUsername(user);
+
+        // ✅ Nếu là tài khoản admin (nguyenminhduc1991111)
+        if (user === "nguyenminhduc1991111") {
+          setIsSeller(true);
+        }
+      } catch (err) {
+        console.error("Lỗi đọc user:", err);
+      }
+    }
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem("pi_user");
+    localStorage.removeItem("titi_is_logged_in");
+    localStorage.removeItem("titi_role");
+    localStorage.removeItem("titi_username");
+    router.push("/pilogin");
+  };
+
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white border-b shadow-sm z-50">
-      <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-2">
-        {/* Giỏ hàng */}
-        <Link href="/cart" className="text-gray-700 hover:text-yellow-500">
-          <ShoppingCart size={24} />
+    <nav className="flex items-center justify-between px-4 py-3 bg-purple-600 text-white shadow-md">
+      <div className="flex items-center gap-4">
+        <Link href="/" className="font-bold text-lg hover:text-yellow-300">
+          TiTi Shop
         </Link>
 
-        {/* Giá Pi Network */}
-        <div className="text-center">
-          <p className="text-sm text-gray-500">Pi Network</p>
-
-          {loading || !piData ? (
-            <p className="text-yellow-600 text-lg">Đang cập nhật...</p>
-          ) : (
-            <>
-              <p className="text-lg font-semibold text-yellow-600">
-                ${piData.price.toFixed(5)}
-              </p>
-              <p
-                className={`text-xs ${
-                  piData.change >= 0 ? "text-green-600" : "text-red-500"
-                }`}
-              >
-                {piData.change.toFixed(1)}% 24hr
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Ngôn ngữ */}
-        <Link href="/language" className="text-gray-700 hover:text-yellow-500">
-          <Globe size={24} />
-        </Link>
+        {/* ✅ Nút "Đăng hàng" chỉ hiện khi là nguyenminhduc1991111 */}
+        {isSeller && (
+          <button
+            onClick={() => router.push("/seller")}
+            className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-lg"
+          >
+            🔘 Đăng hàng
+          </button>
+        )}
       </div>
-    </header>
+
+      <div className="flex items-center gap-4">
+        <Link
+          href="/customer"
+          className={`hover:text-yellow-300 ${
+            pathname.startsWith("/customer") ? "underline" : ""
+          }`}
+        >
+          Khách hàng
+        </Link>
+
+        <Link
+          href="/account"
+          className={`hover:text-yellow-300 ${
+            pathname.startsWith("/account") ? "underline" : ""
+          }`}
+        >
+          Tài khoản
+        </Link>
+
+        {username ? (
+          <>
+            <span className="text-sm text-gray-200">
+              👋 Xin chào, <b>{username}</b>
+            </span>
+            <button
+              onClick={handleLogout}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm"
+            >
+              Đăng xuất
+            </button>
+          </>
+        ) : (
+          <Link
+            href="/pilogin"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-sm"
+          >
+            Đăng nhập
+          </Link>
+        )}
+      </div>
+    </nav>
   );
 }
