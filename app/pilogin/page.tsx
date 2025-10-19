@@ -4,19 +4,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function PiLoginPage() {
+  const [user, setUser] = useState<any>(null);
   const [isPiBrowser, setIsPiBrowser] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    // ✅ Kiểm tra có Pi Browser hay không
     if (typeof window !== "undefined" && window.Pi) {
       window.Pi.init({ version: "2.0", sandbox: false });
       setIsPiBrowser(true);
 
-      // ✅ Nếu người dùng đã đăng nhập trước đó thì chuyển thẳng đến /customer
       const saved = localStorage.getItem("pi_user");
-      if (saved) {
-        router.replace("/customer");
+      const savedRole = localStorage.getItem("titi_role");
+
+      // ✅ Nếu đã đăng nhập từ trước → quay lại đúng trang theo vai trò
+      if (saved && savedRole) {
+        router.replace(savedRole === "seller" ? "/seller" : "/customer");
       }
     }
   }, [router]);
@@ -33,14 +35,20 @@ export default function PiLoginPage() {
 
       const username = auth?.user?.username || "guest_user";
 
-      // ✅ Lưu thông tin người dùng
+      // ✅ Lưu user
       localStorage.setItem("pi_user", JSON.stringify(auth));
       localStorage.setItem("titi_is_logged_in", "true");
-      localStorage.setItem("titi_username", username);
-      localStorage.setItem("titi_role", "customer"); // luôn là customer
 
-      alert(`🎉 Đăng nhập thành công với tài khoản: ${username}`);
-      router.replace("/customer");
+      // ✅ Phân quyền theo username
+      if (username === "nguyenminhduc1991111") {
+        localStorage.setItem("titi_role", "seller");
+        router.replace("/seller");
+      } else {
+        localStorage.setItem("titi_role", "customer");
+        router.replace("/customer");
+      }
+
+      alert(`🎉 Đăng nhập thành công với vai trò ${username === "nguyenminhduc1991111" ? "Seller" : "Khách hàng"}`);
     } catch (err: any) {
       console.error(err);
       alert("❌ Lỗi đăng nhập: " + err.message);
