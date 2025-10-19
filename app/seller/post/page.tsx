@@ -3,9 +3,11 @@
 import { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function SellerPostPage() {
   const router = useRouter();
+  const { translate } = useLanguage();
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -39,7 +41,7 @@ export default function SellerPostPage() {
       body: file,
     });
 
-    if (!res.ok) throw new Error("Upload thất bại");
+    if (!res.ok) throw new Error(translate("upload_failed") || "Upload thất bại");
     const data = await res.json();
     return data.url;
   };
@@ -51,20 +53,18 @@ export default function SellerPostPage() {
     e.preventDefault();
 
     if (!name || !price) {
-      alert("⚠️ Nhập đủ tên và giá sản phẩm!");
+      alert(translate("fill_name_price") || "⚠️ Nhập đủ tên và giá sản phẩm!");
       return;
     }
 
     try {
       setUploading(true);
-      setMessage("📤 Đang tải ảnh lên Vercel Blob...");
+      setMessage(translate("uploading_images") || "📤 Đang tải ảnh lên Vercel Blob...");
 
-      // ✅ Upload ảnh song song
       const uploadedUrls = await Promise.all(images.map(uploadToBlob));
 
-      setMessage("📦 Đang lưu sản phẩm...");
+      setMessage(translate("saving_product") || "📦 Đang lưu sản phẩm...");
 
-      // ✅ Gửi dữ liệu JSON lên /api/products
       const product = {
         name,
         price: Number(price),
@@ -79,23 +79,22 @@ export default function SellerPostPage() {
         body: JSON.stringify(product),
       });
 
-      if (!res.ok) throw new Error("Lỗi khi đăng sản phẩm");
+      if (!res.ok) throw new Error("Error saving product");
 
-      setMessage("✅ Đăng sản phẩm thành công!");
+      setMessage(translate("post_success") || "✅ Đăng sản phẩm thành công!");
       setName("");
       setPrice("");
       setDescription("");
       setImages([]);
       setPreviewUrls([]);
 
-      // ✅ Chuyển sang trang kho sau 1.5 giây
       setTimeout(() => {
         setMessage("");
         router.push("/seller/stock");
       }, 1500);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Đăng sản phẩm thất bại!");
+      setMessage(translate("post_failed") || "❌ Đăng sản phẩm thất bại!");
     } finally {
       setUploading(false);
     }
@@ -107,7 +106,7 @@ export default function SellerPostPage() {
   return (
     <main className="p-6 max-w-lg mx-auto">
       <h1 className="text-2xl font-bold mb-4 text-center">
-        🛒 Đăng sản phẩm mới
+        🛒 {translate("post_product") || "Đăng sản phẩm mới"}
       </h1>
 
       {message && (
@@ -132,7 +131,7 @@ export default function SellerPostPage() {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Tên sản phẩm"
+          placeholder={translate("product_name") || "Tên sản phẩm"}
           className="border p-2 rounded"
           required
         />
@@ -141,7 +140,7 @@ export default function SellerPostPage() {
           type="number"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
-          placeholder="Giá (Pi)"
+          placeholder={translate("product_price") || "Giá (Pi)"}
           className="border p-2 rounded"
           required
         />
@@ -149,7 +148,7 @@ export default function SellerPostPage() {
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Mô tả sản phẩm"
+          placeholder={translate("product_description") || "Mô tả sản phẩm"}
           className="border p-2 rounded h-24"
         />
 
@@ -167,7 +166,7 @@ export default function SellerPostPage() {
               <Image
                 key={i}
                 src={url}
-                alt={`Ảnh ${i + 1}`}
+                alt={`${translate("image") || "Ảnh"} ${i + 1}`}
                 width={120}
                 height={120}
                 className="object-cover rounded border"
@@ -185,7 +184,9 @@ export default function SellerPostPage() {
               : "bg-yellow-500 hover:bg-yellow-600"
           } text-white py-2 rounded mt-4`}
         >
-          {uploading ? "⏳ Đang đăng..." : "📦 Đăng sản phẩm"}
+          {uploading
+            ? `⏳ ${translate("posting") || "Đang đăng..."}`
+            : `📦 ${translate("post_product") || "Đăng sản phẩm"}`}
         </button>
 
         <button
@@ -193,7 +194,7 @@ export default function SellerPostPage() {
           onClick={() => router.push("/seller")}
           className="bg-gray-300 hover:bg-gray-400 text-black py-2 rounded mt-2"
         >
-          ↩️ Quay lại khu vực Người Bán
+          ↩️ {translate("back_seller_area") || "Quay lại khu vực Người Bán"}
         </button>
       </form>
     </main>
