@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useLanguage } from "../context/LanguageContext";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
