@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "../context/LanguageContext";
 import { useEffect, useState } from "react";
 
 export default function PickupOrdersPage() {
