@@ -1,63 +1,62 @@
 "use client";
+
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useLanguage } from "../app/context/LanguageContext";
+import { ShoppingCart, Globe } from "lucide-react"; // Biểu tượng đẹp, dễ dùng
 
-export default function AccountPage() {
-  const router = useRouter();
-  const [username, setUsername] = useState<string | null>(null);
+export default function Navbar() {
+  const { translate } = useLanguage();
+  const [piPrice, setPiPrice] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // 📈 Lấy giá Pi Network từ API (hoặc mô phỏng)
   useEffect(() => {
-    const savedUser = localStorage.getItem("pi_user");
-    const savedRole = localStorage.getItem("titi_role");
-
-    if (savedUser && savedRole) {
+    const fetchPiPrice = async () => {
       try {
-        const parsed = JSON.parse(savedUser);
-        const name = parsed?.user?.username || null;
-        setUsername(name);
-
-        // ✅ Điều hướng đúng trang theo vai trò
-        if (savedRole === "seller") {
-          router.replace("/seller");
-        } else {
-          router.replace("/customer");
-        }
-      } catch (err) {
-        console.error("Lỗi đọc thông tin người dùng:", err);
+        const res = await fetch("https://api.coincap.io/v2/assets/pi-network"); // API công khai
+        const data = await res.json();
+        const price = Number(data.data?.priceUsd ?? 0);
+        setPiPrice(price);
+      } catch (error) {
+        console.error("Không thể lấy giá Pi:", error);
+        // Dữ liệu mô phỏng fallback
+        setPiPrice(32.1);
+      } finally {
+        setLoading(false);
       }
-    } else {
-      router.push("/pilogin");
-    }
-  }, [router]);
+    };
+
+    fetchPiPrice();
+  }, []);
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white shadow-md rounded-2xl p-6 w-[90%] max-w-md text-center">
-        <h1 className="text-2xl font-bold text-purple-700 mb-6">Tài khoản của tôi</h1>
-        <p className="mb-6 text-gray-600">
-          {username ? `Xin chào, ${username}` : "Bạn chưa đăng nhập"}
-        </p>
+    <header className="fixed top-0 left-0 right-0 bg-white border-b shadow-sm z-50">
+      <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-2">
+        {/* Giỏ hàng */}
+        <Link href="/cart" className="text-gray-700 hover:text-yellow-500">
+          <ShoppingCart size={24} />
+        </Link>
 
-        {/* ✅ Nút đăng nhập */}
-        {!username && (
-          <button
-            onClick={() => router.push("/pilogin")}
-            className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg mb-3"
-          >
-            🔑 Đăng nhập
-          </button>
-        )}
+        {/* Giá Pi Network */}
+        <div className="text-center">
+          <p className="text-sm text-gray-500">
+            {translate("pi_price") ?? "Pi Network"}
+          </p>
+          <p className="text-lg font-semibold text-yellow-600">
+            {loading
+              ? "Đang cập nhật..."
+              : piPrice
+              ? `$${piPrice.toFixed(2)} USD`
+              : "N/A"}
+          </p>
+        </div>
 
-        {/* ✅ Nút Đăng hàng — chỉ hiện khi username là nguyenminhduc1991111 */}
-        {username === "nguyenminhduc1991111" && (
-          <button
-            onClick={() => router.push("/seller")}
-            className="w-full bg-yellow-400 hover:bg-yellow-500 text-black py-2 rounded-lg font-semibold"
-          >
-            🛒 Đăng hàng
-          </button>
-        )}
+        {/* Ngôn ngữ */}
+        <Link href="/language" className="text-gray-700 hover:text-yellow-500">
+          <Globe size={24} />
+        </Link>
       </div>
-    </main>
+    </header>
   );
 }
