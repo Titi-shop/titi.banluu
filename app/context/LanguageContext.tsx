@@ -1,21 +1,3 @@
-"use client";
-
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { useRouter } from "next/navigation"; // ✅ thêm import router để điều hướng
-
-type Language = "vi" | "en" | "zh";
-
-interface LanguageContextType {
-  language: Language;
-  setLanguage: (lang: Language) => void;
-  translate: (key: string) => string;
-  goToShop: () => void;
-  goToCustomer: () => void;
-}
-
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
-
-// ✅ Toàn bộ bản dịch mở rộng, tương thích trang Shop / Customer / Seller
 const translations = {
   vi: {
     // ---- NAVIGATION ----
@@ -49,6 +31,11 @@ const translations = {
     shop_title: "Danh mục sản phẩm",
     product_price: "Giá",
     product_list: "Danh sách sản phẩm",
+
+    // ---- COMMON EXTRA ----
+    loading: "Đang tải sản phẩm...",
+    no_products: "Chưa có sản phẩm nào.",
+    no_image: "Không có ảnh",
   },
 
   en: {
@@ -83,6 +70,11 @@ const translations = {
     shop_title: "Product Categories",
     product_price: "Price",
     product_list: "Product List",
+
+    // ---- COMMON EXTRA ----
+    loading: "Loading products...",
+    no_products: "No products available.",
+    no_image: "No image",
   },
 
   zh: {
@@ -117,44 +109,10 @@ const translations = {
     shop_title: "商品分类",
     product_price: "价格",
     product_list: "产品列表",
+
+    // ---- COMMON EXTRA ----
+    loading: "正在加载商品...",
+    no_products: "暂无商品。",
+    no_image: "没有图片",
   },
 } as const;
-
-// ✅ Context Provider
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>("vi");
-  const router = useRouter(); // ✅ dùng router điều hướng
-
-  useEffect(() => {
-    const saved = localStorage.getItem("lang") as Language | null;
-    if (saved) setLanguage(saved);
-  }, []);
-
-  const changeLanguage = (lang: Language) => {
-    setLanguage(lang);
-    localStorage.setItem("lang", lang);
-  };
-
-  // ✅ Hai hàm điều hướng nhanh
-  const goToShop = () => router.push("/shop");
-  const goToCustomer = () => router.push("/customer");
-
-  const translate = (key: string): string => {
-    return translations[language][key as keyof typeof translations["vi"]] || key;
-  };
-
-  return (
-    <LanguageContext.Provider
-      value={{ language, setLanguage: changeLanguage, translate, goToShop, goToCustomer }}
-    >
-      {children}
-    </LanguageContext.Provider>
-  );
-}
-
-// ✅ Custom hook
-export function useLanguage() {
-  const ctx = useContext(LanguageContext);
-  if (!ctx) throw new Error("useLanguage must be used inside LanguageProvider");
-  return ctx;
-}
