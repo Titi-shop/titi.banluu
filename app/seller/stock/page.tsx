@@ -2,6 +2,7 @@
 
 import { useEffect, useState, ChangeEvent } from "react";
 import Image from "next/image";
+import { useLanguage } from "../../context/LanguageContext";
 
 interface Product {
   id: number;
@@ -12,6 +13,7 @@ interface Product {
 }
 
 export default function StockManager() {
+  const { translate } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -31,11 +33,11 @@ export default function StockManager() {
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/products");
-      if (!res.ok) throw new Error("Không thể tải danh sách sản phẩm");
+      if (!res.ok) throw new Error(translate("no_stock"));
       const data: Product[] = await res.json();
       setProducts(data);
     } catch (err) {
-      console.error("❌ Lỗi tải sản phẩm:", err);
+      console.error("❌", err);
     } finally {
       setLoading(false);
     }
@@ -43,19 +45,19 @@ export default function StockManager() {
 
   // ✅ Xóa sản phẩm
   const deleteProduct = async (id: number) => {
-    if (!confirm("Bạn có chắc muốn xóa sản phẩm này không?")) return;
+    if (!confirm(translate("confirm_delete"))) return;
     try {
       const res = await fetch(`/api/products?id=${id}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok && data.success) {
         setProducts((prev) => prev.filter((p) => p.id !== id));
-        alert("✅ Đã xóa sản phẩm!");
+        alert(translate("deleted_success"));
       } else {
-        alert(data.message || "Lỗi khi xóa sản phẩm!");
+        alert(data.message || translate("delete_error"));
       }
     } catch (err) {
-      console.error("❌ Lỗi khi xóa:", err);
-      alert("Không thể xóa sản phẩm!");
+      console.error("❌", err);
+      alert(translate("delete_error"));
     }
   };
 
@@ -76,7 +78,6 @@ export default function StockManager() {
     if (!editingProduct) return;
 
     try {
-      // 🧩 Upload ảnh mới lên Blob (nếu có)
       let uploadedUrls: string[] = [];
       if (form.images.length > 0) {
         const uploadToBlob = async (file: File): Promise<string> => {
@@ -88,7 +89,7 @@ export default function StockManager() {
             },
             body: file,
           });
-          if (!res.ok) throw new Error("Upload thất bại");
+          if (!res.ok) throw new Error(translate("upload_failed"));
           const data = await res.json();
           return data.url;
         };
@@ -101,36 +102,28 @@ export default function StockManager() {
       formData.append("price", form.price);
       formData.append("description", form.description);
 
-      // Nếu có ảnh mới → dùng ảnh mới
       if (uploadedUrls.length > 0) {
         uploadedUrls.forEach((url) => formData.append("images", url));
       } else if (form.previews.length > 0) {
-        // Nếu không upload ảnh mới → giữ ảnh cũ
         form.previews.forEach((url) => formData.append("images", url));
       }
 
-      const res = await fetch("/api/products", {
-        method: "PUT",
-        body: formData,
-      });
-
+      const res = await fetch("/api/products", { method: "PUT", body: formData });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error("Cập nhật thất bại");
 
-      alert("✅ Đã cập nhật sản phẩm thành công!");
+      if (!res.ok || !data.success) throw new Error(translate("update_failed"));
+
+      alert(translate("update_success"));
       setEditingProduct(null);
-
-      // Cập nhật sản phẩm trong danh sách
       setProducts((prev) =>
         prev.map((p) => (p.id === data.product.id ? data.product : p))
       );
     } catch (err) {
-      console.error("❌ Lỗi khi lưu:", err);
-      alert("Không thể cập nhật sản phẩm!");
+      console.error("❌", err);
+      alert(translate("update_failed"));
     }
   };
 
-  // ✅ Chọn ảnh mới để xem trước
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -140,20 +133,17 @@ export default function StockManager() {
   };
 
   // ✅ Giao diện
-  if (loading) {
-    return <p className="text-center mt-6">⏳ Đang tải kho hàng...</p>;
-  }
+  if (loading)
+    return <p className="text-center mt-6">⏳ {translate("loading_stock")}</p>;
 
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-center">
-        📦 Quản lý Kho hàng
+        📦 {translate("stock_manager_title")}
       </h1>
 
       {!products.length ? (
-        <p className="text-center text-gray-500">
-          ❗ Chưa có sản phẩm nào trong kho.
-        </p>
+        <p className="text-center text-gray-500">❗ {translate("no_stock")}</p>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {products.map((p) => (
@@ -180,7 +170,7 @@ export default function StockManager() {
                     ))
                   ) : (
                     <div className="w-full h-40 bg-gray-100 flex items-center justify-center text-gray-400 mb-3">
-                      Không có ảnh
+                      {translate("no_image")}
                     </div>
                   )}
                 </div>
@@ -197,13 +187,13 @@ export default function StockManager() {
                   onClick={() => startEdit(p)}
                   className="bg-blue-500 hover:bg-blue-600 text-white py-1 rounded w-1/2"
                 >
-                  ✏️ Sửa
+                  ✏️ {translate("edit")}
                 </button>
                 <button
                   onClick={() => deleteProduct(p.id)}
                   className="bg-red-500 hover:bg-red-600 text-white py-1 rounded w-1/2"
                 >
-                  ❌ Xóa
+                  ❌ {translate("delete")}
                 </button>
               </div>
             </div>
@@ -211,40 +201,35 @@ export default function StockManager() {
         </div>
       )}
 
-      {/* 🧾 Form chỉnh sửa */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
             <h2 className="text-xl font-bold mb-4 text-center">
-              ✏️ Chỉnh sửa sản phẩm
+              ✏️ {translate("edit_product")}
             </h2>
 
             <label className="block mb-2">
-              Tên sản phẩm:
+              {translate("product_name")}:
               <input
                 type="text"
                 value={form.name}
-                onChange={(e) =>
-                  setForm({ ...form, name: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full border px-2 py-1 rounded mt-1"
               />
             </label>
 
             <label className="block mb-2">
-              Giá (Pi):
+              {translate("product_price")} (Pi):
               <input
                 type="number"
                 value={form.price}
-                onChange={(e) =>
-                  setForm({ ...form, price: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
                 className="w-full border px-2 py-1 rounded mt-1"
               />
             </label>
 
             <label className="block mb-2">
-              Mô tả:
+              {translate("product_description")}:
               <textarea
                 value={form.description}
                 onChange={(e) =>
@@ -255,7 +240,7 @@ export default function StockManager() {
             </label>
 
             <label className="block mb-3">
-              Ảnh sản phẩm (tối đa 6):
+              {translate("image")} (tối đa 6):
               <input
                 type="file"
                 accept="image/*"
@@ -285,13 +270,13 @@ export default function StockManager() {
                 onClick={() => setEditingProduct(null)}
                 className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
               >
-                ❌ Hủy
+                ❌ {translate("cancel")}
               </button>
               <button
                 onClick={saveEdit}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded"
               >
-                💾 Lưu
+                💾 {translate("save")}
               </button>
             </div>
           </div>
