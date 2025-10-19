@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useLanguage } from "../context/LanguageContext"; // ✅ import context
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function PickupOrdersPage() {
   const { translate: t, language } = useLanguage(); // ✅ hook ngôn ngữ
