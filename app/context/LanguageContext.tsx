@@ -42,6 +42,18 @@ const translations: Record<Language, Record<string, string>> = {
     order_completed: "✅ Đơn hàng đã được đánh dấu hoàn tất!",
     update_error: "Có lỗi xảy ra khi cập nhật đơn hàng.",
     mark_done: "Hoàn tất đơn",
+    upload_failed: "Upload thất bại",
+    fill_name_price: "⚠️ Nhập đủ tên và giá sản phẩm!",
+    uploading_images: "📤 Đang tải ảnh lên Vercel Blob...",
+    saving_product: "📦 Đang lưu sản phẩm...",
+    post_success: "✅ Đăng sản phẩm thành công!",
+    post_failed: "❌ Đăng sản phẩm thất bại!",
+    product_name: "Tên sản phẩm",
+    product_description: "Mô tả sản phẩm",
+    posting: "Đang đăng...",
+    back_seller_area: "Quay lại khu vực Người Bán",
+    image: "Ảnh",
+
 
 
     // ---- CUSTOMER ----
@@ -97,6 +109,7 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   en: {
+  
     // ---- NAVIGATION ----
     home: "Home",
     category: "Category",
@@ -121,6 +134,17 @@ const translations: Record<Language, Record<string, string>> = {
     order_completed: "✅ Order has been marked as completed!",
     update_error: "An error occurred while updating the order.",
     mark_done: "Mark as Completed",
+    upload_failed: "Upload failed",
+    fill_name_price: "⚠️ Please enter both product name and price!",
+    uploading_images: "📤 Uploading images to Vercel Blob...",
+    saving_product: "📦 Saving product...",
+    post_success: "✅ Product posted successfully!",
+    post_failed: "❌ Failed to post product!",
+    product_name: "Product name",
+    product_description: "Product description",
+    posting: "Posting...",
+    back_seller_area: "Back to Seller Area",
+    image: "Image",
 
 
     // ---- CUSTOMER ----
@@ -136,16 +160,22 @@ const translations: Record<Language, Record<string, string>> = {
     no_orders: "No orders found.",
     status: "Status",
 
+
+    
     // ---- SHOP ----
     shop_title: "Product Categories",
     product_price: "Price",
     product_list: "Product List",
 
+
+    
     // ---- COMMON ----
     loading: "Loading products...",
     no_products: "No products available.",
     no_image: "No image",
 
+
+    
     // ---- SHIPPING ----
     shipping_orders_title: "Orders in Delivery",
     no_shipping_orders: "You have no orders currently being delivered.",
@@ -159,6 +189,8 @@ const translations: Record<Language, Record<string, string>> = {
     products_label: "Products",
     unknown: "Unknown",
 
+
+    
     // ---- SEARCH ----
     search_title: "Search Products",
     search_placeholder: "Enter product name...",
@@ -167,6 +199,7 @@ const translations: Record<Language, Record<string, string>> = {
     no_results: "No products found.",
     search_error: "Error while searching products.",
 
+    
     // ---- REVIEW ----
     review_title: "Order Reviews",
     no_review_orders: "No orders pending review.",
@@ -176,6 +209,8 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   zh: {
+  
+    
     // ---- NAVIGATION ----
     home: "主页",
     category: "分类",
@@ -185,6 +220,8 @@ const translations: Record<Language, Record<string, string>> = {
     select_language: "选择语言",
     current_language: "当前语言",
 
+
+    
     // ---- SELLER ----
     seller_dashboard: "卖家管理区域 - TiTi 商店",
     post_product: "发布商品",
@@ -200,7 +237,19 @@ const translations: Record<Language, Record<string, string>> = {
     order_completed: "✅ 订单已标记为完成！",
     update_error: "更新订单时发生错误。",
     mark_done: "完成订单",
+    upload_failed: "上传失败",
+    fill_name_price: "⚠️ 请输入商品名称和价格！",
+    uploading_images: "📤 正在上传图片到 Vercel Blob...",
+    saving_product: "📦 正在保存商品...",
+    post_success: "✅ 商品发布成功！",
+    post_failed: "❌ 商品发布失败！",
+    product_name: "商品名称",
+    product_description: "商品描述",
+    posting: "正在发布...",
+    back_seller_area: "返回卖家区域",
+    image: "图片",
 
+    
 
     // ---- CUSTOMER ----
     my_orders: "您的订单",
@@ -215,16 +264,22 @@ const translations: Record<Language, Record<string, string>> = {
     no_orders: "暂无订单。",
     status: "状态",
 
+
+    
     // ---- SHOP ----
     shop_title: "商品分类",
     product_price: "价格",
     product_list: "产品列表",
 
+
+    
     // ---- COMMON ----
     loading: "正在加载商品...",
     no_products: "暂无商品。",
     no_image: "没有图片",
 
+
+    
     // ---- SHIPPING ----
     shipping_orders_title: "配送中的订单",
     no_shipping_orders: "您暂无正在配送的订单。",
@@ -238,6 +293,8 @@ const translations: Record<Language, Record<string, string>> = {
     products_label: "商品",
     unknown: "未知",
 
+
+    
     // ---- SEARCH ----
     search_title: "搜索商品",
     search_placeholder: "输入商品名称...",
@@ -246,6 +303,8 @@ const translations: Record<Language, Record<string, string>> = {
     no_results: "未找到任何商品。",
     search_error: "搜索商品时出错。",
 
+
+    
     // ---- REVIEW ----
     review_title: "订单评价",
     no_review_orders: "没有待评价的订单。",
