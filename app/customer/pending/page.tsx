@@ -1,132 +1,155 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCart } from "../context/CartContext";
+import { useRouter } from "next/navigation";
 
-export default function PendingOrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [username, setUsername] = useState<string | null>(null);
+// 🧩 Khai báo Pi SDK toàn cục
+declare global {
+  interface Window {
+    Pi?: any;
+  }
+}
 
-  // 🧩 Lấy username từ localStorage (nếu có)
+export default function CheckoutPage() {
+  const { cart, clearCart, total } = useCart();
+  const [wallet, setWallet] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState("guest");
+  const router = useRouter();
+
+  // ✅ Lấy ví Pi và thông tin user
   useEffect(() => {
+    const w = Number(localStorage.getItem("pi_wallet") ?? "1000");
+    setWallet(w);
+
     const info = localStorage.getItem("user_info");
     if (info) {
-      try {
-        const parsed = JSON.parse(info);
-        setUsername(parsed.username || "");
-      } catch {
-        setUsername("");
-      }
-    } else {
-      setUsername("");
+      const parsed = JSON.parse(info);
+      setUser(parsed.username || "guest");
     }
   }, []);
 
-  // 🧩 Gọi API lấy đơn hàng (sau khi có username)
-  useEffect(() => {
-    // Nếu username là null -> vẫn đang load user_info
-    if (username === null) return;
-
-    // Nếu username rỗng -> người dùng chưa đăng nhập
-    if (username === "") {
-      setLoading(false);
+  // 💰 Thanh toán bằng Pi Wallet
+  const handlePayWithPi = async () => {
+    if (!window.Pi) {
+      alert("⚠️ Hãy mở trang này trong Pi Browser để thanh toán.");
       return;
     }
 
-    const fetchOrders = async () => {
-      try {
-        const res = await fetch("/api/orders", { cache: "no-store" });
-        if (!res.ok) throw new Error("Không thể tải đơn hàng");
-        const data = await res.json();
+    if (cart.length === 0) {
+      alert("🛒 Giỏ hàng trống.");
+      return;
+    }
 
-        // 🔍 Lọc các đơn hàng đúng người mua và đúng trạng thái
-        const filtered = data.filter(
-          (o: any) =>
-            o.status === "Chờ xác nhận" &&
-            o.buyer?.toLowerCase() === username.toLowerCase()
+    setLoading(true);
+
+    try {
+      // ✅ 1. Xác thực người dùng Pi
+      const scopes = ["payments", "username", "wallet_address"];
+      const auth = await window.Pi.authenticate(scopes, (res: any) => res);
+      console.log("✅ Xác thực Pi:", auth);
+
+      // 🔐 2. Lưu thông tin người dùng vào localStorage
+      if (auth?.user?.username) {
+        localStorage.setItem(
+          "user_info",
+          JSON.stringify({ username: auth.user.username })
         );
-
-        setOrders(filtered);
-      } catch (err) {
-        console.error("❌ Lỗi tải đơn hàng:", err);
-      } finally {
-        setLoading(false);
+        console.log("✅ Đã lưu user_info:", auth.user.username);
       }
-    };
 
-    fetchOrders();
-  }, [username]);
+      // ✅ 3. Tạo thanh toán thật
+      const payment = await window.Pi.createPayment(
+        {
+          amount: total,
+          memo: `Thanh toán đơn hàng #${Date.now()}`,
+          metadata: {
+            orderId: Date.now(),
+            items: cart,
+            buyer: auth.user?.username || user,
+          },
+        },
+        {
+          onReadyForServerApproval: async (paymentId: string) => {
+            console.log("⏳ [APPROVE] ID:", paymentId);
+            await fetch("/api/pi/approve", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentId }),
+            });
+          },
+          onReadyForServerCompletion: async (paymentId: string, txid: string) => {
+            console.log("✅ [COMPLETE] ID:", paymentId, txid);
+            await fetch("/api/pi/complete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentId, txid }),
+            });
+          },
+          onCancel: () => alert("❌ Giao dịch đã bị huỷ."),
+          onError: (err: any) => console.error("💥 Lỗi Pi SDK:", err),
+        }
+      );
 
-  // 🕒 Đang tải
-  if (loading)
-    return (
-      <p className="text-center mt-6 text-gray-500">
-        ⏳ Đang tải đơn hàng...
-      </p>
-    );
+      console.log("💰 Kết quả thanh toán:", payment);
 
-  // ⚠️ Nếu chưa đăng nhập
-  if (username === "") {
-    return (
-      <main className="p-6 text-center text-red-600">
-        <p className="text-lg font-medium">
-          ⚠️ Không xác định được tài khoản, vui lòng đăng nhập lại.
-        </p>
-        <a
-          href="/account"
-          className="mt-4 inline-block px-4 py-2 bg-yellow-500 text-white rounded"
-        >
-          🔐 Đăng nhập
-        </a>
-      </main>
-    );
-  }
+      // ✅ 4. Lưu đơn hàng lên API
+      const order = {
+        id: Date.now(),
+        items: cart,
+        total,
+        createdAt: new Date().toISOString(),
+        buyer: auth.user?.username || user,
+        status: "Chờ xác nhận",
+        note: "Pi đã thanh toán (testnet)",
+      };
 
-  // ✅ Nếu có username và đã load xong đơn
+      await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(order),
+      });
+
+      clearCart();
+      alert("✅ Thanh toán thành công!");
+      router.push("/customer/pending");
+    } catch (err) {
+      console.error("❌ Lỗi thanh toán:", err);
+      alert("❌ Giao dịch thất bại hoặc bị huỷ.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Giao diện thanh toán
   return (
-    <main className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4 text-center text-yellow-600">
-        ⏳ Đơn hàng đang chờ xác nhận
+    <main className="max-w-3xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <h1 className="text-2xl font-bold mb-4 text-center text-orange-600">
+        💳 Thanh toán
       </h1>
 
-      {orders.length === 0 ? (
-        <p className="text-center text-gray-500">
-          Hiện bạn chưa có đơn hàng nào đang chờ xác nhận.
+      <div className="bg-white p-4 rounded shadow mb-4">
+        <p>
+          Người mua: <b>{user}</b>
         </p>
-      ) : (
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              className="border p-4 rounded bg-white shadow hover:shadow-md transition"
-            >
-              <h2 className="font-semibold text-lg">
-                🧾 Mã đơn: <span className="text-gray-700">#{order.id}</span>
-              </h2>
+        <p>
+          Ví Pi hiện tại: <b className="text-yellow-600">{wallet} Pi</b>
+        </p>
+        <p>
+          Tổng đơn hàng: <b className="text-yellow-600">{total} Pi</b>
+        </p>
+      </div>
 
-              <p className="text-gray-600">💰 Tổng tiền: {order.total} Pi</p>
-              <p className="text-gray-600">
-                📅 Ngày tạo:{" "}
-                {order.createdAt
-                  ? new Date(order.createdAt).toLocaleString()
-                  : "Không xác định"}
-              </p>
-
-              <ul className="list-disc ml-6 mt-2 text-gray-700">
-                {order.items?.map((item: any, i: number) => (
-                  <li key={i}>
-                    {item.name} — {item.price} Pi × {item.quantity || 1}
-                  </li>
-                ))}
-              </ul>
-
-              <p className="mt-2 text-yellow-600 font-medium">
-                Trạng thái: {order.status}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+      <button
+        onClick={handlePayWithPi}
+        disabled={loading}
+        className={`w-full py-3 rounded text-white font-semibold ${
+          loading ? "bg-gray-400" : "bg-purple-600 hover:bg-purple-700"
+        }`}
+      >
+        {loading ? "Đang mở Pi Wallet..." : "Thanh toán bằng Pi Wallet (Testnet)"}
+      </button>
     </main>
   );
 }
