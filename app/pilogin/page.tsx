@@ -1,10 +1,8 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function PiLoginPage() {
-  const [user, setUser] = useState<any>(null);
   const [isPiBrowser, setIsPiBrowser] = useState(false);
   const router = useRouter();
 
@@ -14,11 +12,11 @@ export default function PiLoginPage() {
       setIsPiBrowser(true);
 
       const saved = localStorage.getItem("pi_user");
-      const savedRole = localStorage.getItem("titi_role");
+      const isLoggedIn = localStorage.getItem("titi_is_logged_in");
 
-      // ✅ Nếu đã đăng nhập từ trước → quay lại đúng trang theo vai trò
-      if (saved && savedRole) {
-        router.replace(savedRole === "seller" ? "/seller" : "/customer");
+      // ✅ Nếu đã đăng nhập → chuyển thẳng đến /customer
+      if (saved && isLoggedIn === "true") {
+        router.replace("/customer");
       }
     }
   }, [router]);
@@ -32,25 +30,17 @@ export default function PiLoginPage() {
     try {
       const scopes = ["username", "payments", "wallet_address"];
       const auth = await window.Pi.authenticate(scopes, () => {});
-
       const username = auth?.user?.username || "guest_user";
 
-      // ✅ Lưu user
+      // ✅ Lưu user và trạng thái đăng nhập
       localStorage.setItem("pi_user", JSON.stringify(auth));
       localStorage.setItem("titi_is_logged_in", "true");
+      localStorage.setItem("titi_username", username);
 
-      // ✅ Phân quyền theo username
-      if (username === "nguyenminhduc1991111") {
-        localStorage.setItem("titi_role", "seller");
-        router.replace("/seller");
-      } else {
-        localStorage.setItem("titi_role", "customer");
-        router.replace("/customer");
-      }
-
-      alert(`🎉 Đăng nhập thành công với vai trò ${username === "nguyenminhduc1991111" ? "Seller" : "Khách hàng"}`);
+      alert(`🎉 Đăng nhập thành công! Xin chào ${username}`);
+      router.replace("/customer");
     } catch (err: any) {
-      console.error(err);
+      console.error("❌ Lỗi đăng nhập:", err);
       alert("❌ Lỗi đăng nhập: " + err.message);
     }
   };
@@ -73,6 +63,7 @@ export default function PiLoginPage() {
           borderRadius: "8px",
           fontSize: "16px",
           cursor: "pointer",
+          marginTop: "20px",
         }}
       >
         Đăng nhập với Pi
