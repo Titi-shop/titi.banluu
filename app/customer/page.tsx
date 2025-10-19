@@ -9,6 +9,7 @@ import { Clock, Package, Truck, Star, LogOut, User } from "lucide-react";
 
 export default function CustomerDashboard() {
   const { user, logout } = useAuth();
+  const { translate } = useLanguage(); // ✅ lấy hàm translate
   const router = useRouter();
   const [username, setUsername] = useState("guest_user");
 
@@ -32,24 +33,19 @@ export default function CustomerDashboard() {
     router.push(path);
   };
 
-  // 🔹 Hàm đăng xuất khỏi Pi Network
   const handleLogoutPi = async () => {
     try {
-      // 1️⃣ Nếu có window.Pi thì gọi logout() của Pi Browser
       if (typeof window !== "undefined" && window.Pi && typeof window.Pi.logout === "function") {
         await window.Pi.logout();
         console.log("Đã đăng xuất khỏi Pi Network session");
       }
 
-      // 2️⃣ Xóa localStorage
       localStorage.removeItem("pi_user");
       localStorage.removeItem("user_info");
       localStorage.removeItem("titi_is_logged_in");
 
-      // 3️⃣ Gọi logout từ context nếu có
       if (logout) logout();
 
-      // 4️⃣ Điều hướng về trang login
       router.replace("/pilogin");
     } catch (err) {
       console.error("Lỗi đăng xuất:", err);
@@ -69,9 +65,9 @@ export default function CustomerDashboard() {
             {username.charAt(0).toUpperCase()}
           </div>
           <h1 className="text-xl font-semibold">{username}</h1>
-          <p className="text-sm opacity-90 mt-1">Thành viên TiTi Shop</p>
+          <p className="text-sm opacity-90 mt-1">{translate("customer_title")}</p>
 
-          {/* 🔗 Nút Hồ sơ cá nhân */}
+          {/* 🔗 Hồ sơ cá nhân */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -80,74 +76,6 @@ export default function CustomerDashboard() {
             className="mt-3 bg-white text-orange-600 text-sm px-4 py-1 rounded-full flex items-center gap-1 hover:bg-gray-100 transition"
           >
             <User size={16} />
-            Hồ sơ cá nhân
+            {translate("account")}
           </button>
         </div>
-      </div>
-
-      {/* ===== Thanh công cụ đơn hàng ===== */}
-      <div className="bg-white mt-4 rounded-lg shadow mx-3">
-        <div className="flex items-center justify-between px-6 py-3 border-b">
-          <h2 className="font-semibold text-gray-800 text-lg">Đơn mua của bạn</h2>
-          <button
-            onClick={() => router.push("/customer/orders")}
-            className="text-blue-600 text-sm hover:underline"
-          >
-            Xem tất cả đơn →
-          </button>
-        </div>
-
-        {/* ===== Các trạng thái đơn hàng ===== */}
-        <div className="grid grid-cols-5 text-center py-4">
-          <button
-            onClick={() => goTo("/customer/pending")}
-            className="flex flex-col items-center text-gray-700 hover:text-orange-500"
-          >
-            <Clock size={28} />
-            <span className="text-sm mt-1">Chờ xác nhận</span>
-          </button>
-
-          <button
-            onClick={() => goTo("/customer/pickup")}
-            className="flex flex-col items-center text-gray-700 hover:text-orange-500"
-          >
-            <Package size={28} />
-            <span className="text-sm mt-1">Chờ lấy hàng</span>
-          </button>
-
-          <button
-            onClick={() => goTo("/customer/shipping")}
-            className="flex flex-col items-center text-gray-700 hover:text-orange-500"
-          >
-            <Truck size={28} />
-            <span className="text-sm mt-1">Đang giao</span>
-          </button>
-
-          <button
-            onClick={() => goTo("/customer/review")}
-            className="flex flex-col items-center text-gray-700 hover:text-orange-500"
-          >
-            <Star size={28} />
-            <span className="text-sm mt-1">Đánh giá</span>
-          </button>
-
-          {/* 🔹 Nút đăng xuất Pi Network */}
-          <button
-            onClick={handleLogoutPi}
-            className="flex flex-col items-center text-red-600 hover:text-red-700"
-          >
-            <LogOut size={28} />
-            <span className="text-sm mt-1">Đăng xuất</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ===== Ví người dùng ===== */}
-      <div className="bg-white mx-3 mt-4 p-4 rounded-lg shadow text-center">
-        <p className="text-gray-700">
-          💰 Ví của bạn: <b>{user?.wallet ?? "CUSTOMER-MOCK"}</b>
-        </p>
-      </div>
-    </div>
-  );
-}
