@@ -1,5 +1,27 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useLanguage } from "../../context/LanguageContext";
+
+export default function PickupOrdersPage() {
+  const { translate: t, language } = useLanguage(); // ✅ hook ngôn ngữ
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [language]); // ✅ refetch nếu đổi ngôn ngữ
+
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch("/api/orders");
+      const data = await res.json();
+
+      // ✅ Lọc các đơn hàng theo trạng thái có thể dịch
+      const filterByLang = {
+        vi: ["Đang giao", "Chờ lấy hàng"],
+        en: ["Delivering", "Waiting for pickup"],
+        zh: ["配送中", "等待取货"],
+      }[language];
 
 export default function ReviewPage() {
   const [orders, setOrders] = useState<any[]>([]);
