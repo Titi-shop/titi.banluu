@@ -7,16 +7,13 @@ export default function AccountPage() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem("pi_user");
-    const savedRole = localStorage.getItem("titi_role");
+    const isLoggedIn = localStorage.getItem("titi_is_logged_in");
 
-    if (savedUser && savedRole) {
-      // ✅ Điều hướng đúng trang theo vai trò
-      if (savedRole === "seller") {
-        router.replace("/seller");
-      } else {
-        router.replace("/customer");
-      }
+    // ✅ Nếu đã đăng nhập thì luôn chuyển sang /customer
+    if (savedUser && isLoggedIn === "true") {
+      router.replace("/customer");
     } else {
+      // ✅ Nếu chưa đăng nhập thì về trang đăng nhập
       router.push("/pilogin");
     }
   }, [router]);
@@ -24,7 +21,9 @@ export default function AccountPage() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white shadow-md rounded-2xl p-6 w-[90%] max-w-md text-center">
-        <h1 className="text-2xl font-bold text-purple-700 mb-6">Tài khoản của tôi</h1>
+        <h1 className="text-2xl font-bold text-purple-700 mb-6">
+          Tài khoản của tôi
+        </h1>
         <p className="mb-6 text-gray-600">Bạn chưa đăng nhập</p>
         <button
           onClick={() => router.push("/pilogin")}
