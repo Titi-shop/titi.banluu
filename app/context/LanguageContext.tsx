@@ -29,7 +29,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // ---- SELLER ----
     seller_dashboard: "Khu vực Quản lý Người Bán - TiTi Shop",
-    post_product: "Đăng sản phẩm",
+    post_product: "Đăng sản phẩm mới",
     manage_stock: "Quản lý kho hàng",
     process_orders: "Xử lý đơn hàng",
     update_status: "Cập nhật trạng thái",
@@ -49,12 +49,13 @@ const translations: Record<Language, Record<string, string>> = {
     post_success: "✅ Đăng sản phẩm thành công!",
     post_failed: "❌ Đăng sản phẩm thất bại!",
     product_name: "Tên sản phẩm",
+    product_price: "Giá (Pi)",
     product_description: "Mô tả sản phẩm",
     posting: "Đang đăng...",
     back_seller_area: "Quay lại khu vực Người Bán",
     image: "Ảnh",
-
-
+    upload_complete: "Upload hoàn tất",
+    upload_in_progress: "Đang tải ảnh...",
 
     // ---- CUSTOMER ----
     my_orders: "Đơn mua của bạn",
@@ -71,13 +72,13 @@ const translations: Record<Language, Record<string, string>> = {
 
     // ---- SHOP ----
     shop_title: "Danh mục sản phẩm",
-    product_price: "Giá",
     product_list: "Danh sách sản phẩm",
 
     // ---- COMMON ----
     loading: "Đang tải sản phẩm...",
     no_products: "Chưa có sản phẩm nào.",
     no_image: "Không có ảnh",
+    no_notifications: "Không có thông báo mới.",
 
     // ---- SHIPPING ----
     shipping_orders_title: "Đơn hàng đang giao",
@@ -87,8 +88,9 @@ const translations: Record<Language, Record<string, string>> = {
     thanks_confirm: "✅ Cảm ơn bạn! Đơn hàng đã được xác nhận hoàn tất.",
     error_confirm: "Có lỗi xảy ra khi xác nhận đơn hàng.",
     completed_status: "Hoàn tất",
+    canceled: "Đã huỷ",
+    total_orders: "Tổng số đơn",
     seller_label: "Người bán",
-    created_at: "Ngày tạo",
     products_label: "Sản phẩm",
     unknown: "Không xác định",
 
@@ -109,7 +111,6 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   en: {
-  
     // ---- NAVIGATION ----
     home: "Home",
     category: "Category",
@@ -121,7 +122,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // ---- SELLER ----
     seller_dashboard: "Seller Management - TiTi Shop",
-    post_product: "Post Product",
+    post_product: "Post New Product",
     manage_stock: "Stock Management",
     process_orders: "Process Orders",
     update_status: "Update Status",
@@ -141,11 +142,13 @@ const translations: Record<Language, Record<string, string>> = {
     post_success: "✅ Product posted successfully!",
     post_failed: "❌ Failed to post product!",
     product_name: "Product name",
+    product_price: "Price (Pi)",
     product_description: "Product description",
     posting: "Posting...",
     back_seller_area: "Back to Seller Area",
     image: "Image",
-
+    upload_complete: "Upload complete",
+    upload_in_progress: "Uploading...",
 
     // ---- CUSTOMER ----
     my_orders: "Your Orders",
@@ -160,22 +163,16 @@ const translations: Record<Language, Record<string, string>> = {
     no_orders: "No orders found.",
     status: "Status",
 
-
-    
     // ---- SHOP ----
     shop_title: "Product Categories",
-    product_price: "Price",
     product_list: "Product List",
 
-
-    
     // ---- COMMON ----
     loading: "Loading products...",
     no_products: "No products available.",
     no_image: "No image",
+    no_notifications: "No new notifications.",
 
-
-    
     // ---- SHIPPING ----
     shipping_orders_title: "Orders in Delivery",
     no_shipping_orders: "You have no orders currently being delivered.",
@@ -184,13 +181,12 @@ const translations: Record<Language, Record<string, string>> = {
     thanks_confirm: "✅ Thank you! Your order has been marked as completed.",
     error_confirm: "An error occurred while confirming the order.",
     completed_status: "Completed",
+    canceled: "Canceled",
+    total_orders: "Total Orders",
     seller_label: "Seller",
-    created_at: "Created at",
     products_label: "Products",
     unknown: "Unknown",
 
-
-    
     // ---- SEARCH ----
     search_title: "Search Products",
     search_placeholder: "Enter product name...",
@@ -199,7 +195,6 @@ const translations: Record<Language, Record<string, string>> = {
     no_results: "No products found.",
     search_error: "Error while searching products.",
 
-    
     // ---- REVIEW ----
     review_title: "Order Reviews",
     no_review_orders: "No orders pending review.",
@@ -209,8 +204,6 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   zh: {
-  
-    
     // ---- NAVIGATION ----
     home: "主页",
     category: "分类",
@@ -220,11 +213,9 @@ const translations: Record<Language, Record<string, string>> = {
     select_language: "选择语言",
     current_language: "当前语言",
 
-
-    
     // ---- SELLER ----
     seller_dashboard: "卖家管理区域 - TiTi 商店",
-    post_product: "发布商品",
+    post_product: "发布新商品",
     manage_stock: "库存管理",
     process_orders: "处理订单",
     update_status: "更新状态",
@@ -244,12 +235,13 @@ const translations: Record<Language, Record<string, string>> = {
     post_success: "✅ 商品发布成功！",
     post_failed: "❌ 商品发布失败！",
     product_name: "商品名称",
+    product_price: "价格 (Pi)",
     product_description: "商品描述",
     posting: "正在发布...",
     back_seller_area: "返回卖家区域",
     image: "图片",
-
-    
+    upload_complete: "上传完成",
+    upload_in_progress: "正在上传...",
 
     // ---- CUSTOMER ----
     my_orders: "您的订单",
@@ -264,22 +256,16 @@ const translations: Record<Language, Record<string, string>> = {
     no_orders: "暂无订单。",
     status: "状态",
 
-
-    
     // ---- SHOP ----
     shop_title: "商品分类",
-    product_price: "价格",
     product_list: "产品列表",
 
-
-    
     // ---- COMMON ----
     loading: "正在加载商品...",
     no_products: "暂无商品。",
     no_image: "没有图片",
+    no_notifications: "暂无新通知。",
 
-
-    
     // ---- SHIPPING ----
     shipping_orders_title: "配送中的订单",
     no_shipping_orders: "您暂无正在配送的订单。",
@@ -288,13 +274,12 @@ const translations: Record<Language, Record<string, string>> = {
     thanks_confirm: "✅ 感谢您！订单已确认完成。",
     error_confirm: "确认订单时发生错误。",
     completed_status: "已完成",
+    canceled: "已取消",
+    total_orders: "订单总数",
     seller_label: "卖家",
-    created_at: "创建时间",
     products_label: "商品",
     unknown: "未知",
 
-
-    
     // ---- SEARCH ----
     search_title: "搜索商品",
     search_placeholder: "输入商品名称...",
@@ -303,8 +288,6 @@ const translations: Record<Language, Record<string, string>> = {
     no_results: "未找到任何商品。",
     search_error: "搜索商品时出错。",
 
-
-    
     // ---- REVIEW ----
     review_title: "订单评价",
     no_review_orders: "没有待评价的订单。",
