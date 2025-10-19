@@ -34,6 +34,15 @@ const translations: Record<Language, Record<string, string>> = {
     process_orders: "Xử lý đơn hàng",
     update_status: "Cập nhật trạng thái",
     delivery: "Giao hàng",
+    order_code: "Mã đơn",
+    buyer: "Người mua",
+    total: "Tổng tiền",
+    created_at: "Ngày tạo",
+    confirm_done: "Xác nhận hoàn tất đơn này?",
+    order_completed: "✅ Đơn hàng đã được đánh dấu hoàn tất!",
+    update_error: "Có lỗi xảy ra khi cập nhật đơn hàng.",
+    mark_done: "Hoàn tất đơn",
+
 
     // ---- CUSTOMER ----
     my_orders: "Đơn mua của bạn",
@@ -104,6 +113,15 @@ const translations: Record<Language, Record<string, string>> = {
     process_orders: "Process Orders",
     update_status: "Update Status",
     delivery: "Delivery",
+    order_code: "Order Code",
+    buyer: "Buyer",
+    total: "Total",
+    created_at: "Created At",
+    confirm_done: "Confirm to mark this order as completed?",
+    order_completed: "✅ Order has been marked as completed!",
+    update_error: "An error occurred while updating the order.",
+    mark_done: "Mark as Completed",
+
 
     // ---- CUSTOMER ----
     my_orders: "Your Orders",
@@ -174,6 +192,15 @@ const translations: Record<Language, Record<string, string>> = {
     process_orders: "处理订单",
     update_status: "更新状态",
     delivery: "发货",
+    order_code: "订单编号",
+    buyer: "买家",
+    total: "总金额",
+    created_at: "创建时间",
+    confirm_done: "确认完成此订单？",
+    order_completed: "✅ 订单已标记为完成！",
+    update_error: "更新订单时发生错误。",
+    mark_done: "完成订单",
+
 
     // ---- CUSTOMER ----
     my_orders: "您的订单",
