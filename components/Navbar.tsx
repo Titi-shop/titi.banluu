@@ -6,6 +6,46 @@ import { useLanguage } from "../app/context/LanguageContext";
 import { ShoppingCart, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+// ✅ Dịch vụ lấy giá Pi
+class PiPriceService {
+  static async getPiPrice() {
+    try {
+      // Option 1: GCV Fixed Price (ổn định)
+      const gcvPrice = 314159; // $314,159 USD / 1 Pi
+
+      // Option 2 (tùy chọn): Lấy từ API ngoài nếu muốn realtime
+      // const response = await fetch('https://api.pi-price.com/current');
+      // const data = await response.json();
+      // return data.price;
+
+      return gcvPrice;
+    } catch (error) {
+      console.error("Error fetching Pi price:", error);
+      return 314159; // fallback GCV
+    }
+  }
+
+  static formatPrice(price, currency = "USD") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  }
+
+  static formatPriceVND(priceUSD) {
+    const usdToVnd = 23000; // tỷ giá USD → VND
+    const priceVND = priceUSD * usdToVnd;
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(priceVND);
+  }
+}
+
 export default function Navbar() {
   const { translate } = useLanguage();
   const [piPrice, setPiPrice] = useState<number | null>(null);
@@ -13,23 +53,20 @@ export default function Navbar() {
   const [isSeller, setIsSeller] = useState(false);
   const router = useRouter();
 
-  // 📈 Lấy giá Pi Network từ API
+  // 📈 Lấy giá Pi (ổn định bằng PiPriceService)
   useEffect(() => {
-    const fetchPiPrice = async () => {
+    const fetchPrice = async () => {
       try {
-        const res = await fetch("https://api.coincap.io/v2/assets/pi-network");
-        const data = await res.json();
-        const price = Number(data.data?.priceUsd ?? 0);
+        const price = await PiPriceService.getPiPrice();
         setPiPrice(price);
-      } catch (error) {
-        console.error("Không thể lấy giá Pi:", error);
-        setPiPrice(32.1); // fallback
+      } catch (err) {
+        console.error("Lỗi khi lấy giá Pi:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPiPrice();
+    fetchPrice();
   }, []);
 
   // 👤 Kiểm tra tài khoản đăng nhập để hiển thị nút "Đăng hàng"
@@ -57,7 +94,7 @@ export default function Navbar() {
             <ShoppingCart size={24} />
           </Link>
 
-          {/* 🟡 Nút Đăng hàng (chỉ hiện khi là admin nguyenminhduc1991111) */}
+          {/* 🟡 Nút Đăng hàng (chỉ hiện khi là seller) */}
           {isSeller && (
             <button
               onClick={() => router.push("/seller")}
@@ -68,7 +105,7 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* 💰 Giá Pi Network */}
+        {/* 💰 Giá Pi */}
         <div className="text-center">
           <p className="text-sm text-gray-500">
             {translate("pi_price") ?? "Pi Network"}
@@ -77,7 +114,7 @@ export default function Navbar() {
             {loading
               ? "Đang cập nhật..."
               : piPrice
-              ? `$${piPrice.toFixed(2)} USD`
+              ? PiPriceService.formatPrice(piPrice, "USD")
               : "N/A"}
           </p>
         </div>
