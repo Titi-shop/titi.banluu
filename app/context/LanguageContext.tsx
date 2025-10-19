@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { useRouter } from "next/navigation"; // ✅ thêm import router để điều hướng
 
 type Language = "vi" | "en" | "zh";
 
@@ -8,6 +9,8 @@ interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   translate: (key: string) => string;
+  goToShop: () => void;
+  goToCustomer: () => void;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -120,6 +123,7 @@ const translations = {
 // ✅ Context Provider
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>("vi");
+  const router = useRouter(); // ✅ dùng router điều hướng
 
   useEffect(() => {
     const saved = localStorage.getItem("lang") as Language | null;
@@ -131,13 +135,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("lang", lang);
   };
 
+  // ✅ Hai hàm điều hướng nhanh
+  const goToShop = () => router.push("/shop");
+  const goToCustomer = () => router.push("/customer");
+
   const translate = (key: string): string => {
     return translations[language][key as keyof typeof translations["vi"]] || key;
   };
 
   return (
     <LanguageContext.Provider
-      value={{ language, setLanguage: changeLanguage, translate }}
+      value={{ language, setLanguage: changeLanguage, translate, goToShop, goToCustomer }}
     >
       {children}
     </LanguageContext.Provider>
