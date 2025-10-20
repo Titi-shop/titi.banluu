@@ -4,22 +4,24 @@ import React from "react";
 import Link from "next/link";
 import { useCart } from "../context/CartContext";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQty, clearCart } = useCart();
   const router = useRouter();
+  const { translate } = useLanguage();
 
   // ✅ Thanh toán 1 sản phẩm qua Pi Testnet
   const handlePayOne = async (item: any) => {
     try {
       if (!window.Pi) {
-        alert("⚠️ Hãy mở trang này trong Pi Browser để thanh toán bằng Pi.");
+        alert("⚠️ " + translate("please_open_in_pi_browser"));
         return;
       }
 
       const userInfo = JSON.parse(localStorage.getItem("user_info") || "{}");
       const buyer = userInfo.username || "guest_user";
-      const orderId = Date.now(); // dùng làm metadata
+      const orderId = Date.now();
 
       const scopes = ["payments", "username", "wallet_address"];
       const auth = await window.Pi.authenticate(scopes, (res) => res);
@@ -29,7 +31,7 @@ export default function CartPage() {
       const payment = await window.Pi.createPayment(
         {
           amount: item.price * (item.quantity || 1),
-          memo: `Thanh toán sản phẩm ${item.name}`,
+          memo: `${translate("paying_product")} ${item.name}`,
           metadata: {
             orderId,
             buyer,
@@ -38,7 +40,6 @@ export default function CartPage() {
         },
         {
           onReadyForServerApproval: async (paymentId) => {
-            console.log("⏳ Approval:", paymentId);
             await fetch("/api/pi/approve", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -46,15 +47,14 @@ export default function CartPage() {
             });
           },
           onReadyForServerCompletion: async (paymentId, txid) => {
-            console.log("✅ Completed:", paymentId, txid);
             await fetch("/api/pi/complete", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ paymentId, txid, metadata: { orderId } }),
             });
           },
-          onCancel: () => alert("❌ Bạn đã huỷ giao dịch."),
-          onError: (err) => console.error("💥 Lỗi SDK:", err),
+          onCancel: () => alert("❌ " + translate("payment_cancelled")),
+          onError: (err) => console.error("💥 " + translate("payment_error"), err),
         }
       );
 
@@ -67,7 +67,7 @@ export default function CartPage() {
         total: item.price * (item.quantity || 1),
         items: [item],
         createdAt: new Date().toISOString(),
-        status: "Chờ xác nhận (Pi đã thanh toán)",
+        status: translate("waiting_confirm"),
       };
 
       await fetch("/api/orders", {
@@ -77,23 +77,23 @@ export default function CartPage() {
       });
 
       removeFromCart(item.id);
-      alert(`🎉 Thanh toán thành công sản phẩm: ${item.name}`);
+      alert(`🎉 ${translate("payment_success")}: ${item.name}`);
       router.push("/customer/pending");
     } catch (error) {
-      console.error("❌ Lỗi khi thanh toán:", error);
-      alert("💥 Lỗi khi thực hiện thanh toán Pi Testnet!");
+      console.error("❌ " + translate("payment_error"), error);
+      alert("💥 " + translate("payment_failed"));
     }
   };
 
   return (
     <main className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">🛒 Giỏ hàng</h1>
+      <h1 className="text-2xl font-bold mb-4">🛒 {translate("cart_title")}</h1>
 
       {cart.length === 0 ? (
         <div className="text-center">
-          <p>Giỏ hàng trống.</p>
+          <p>{translate("empty_cart")}</p>
           <Link href="/" className="text-blue-600 hover:underline">
-            Quay lại mua sắm
+            {translate("back_to_shop")}
           </Link>
         </div>
       ) : (
@@ -114,7 +114,9 @@ export default function CartPage() {
                         alt={it.name}
                       />
                     ) : (
-                      <span className="text-gray-400 text-sm">No image</span>
+                      <span className="text-gray-400 text-sm">
+                        {translate("no_image")}
+                      </span>
                     )}
                   </div>
 
@@ -143,7 +145,7 @@ export default function CartPage() {
                     onClick={() => removeFromCart(it.id)}
                     className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
                   >
-                    Xóa
+                    {translate("delete")}
                   </button>
 
                   {/* 🔥 Thanh toán thật qua Pi Testnet */}
@@ -151,7 +153,7 @@ export default function CartPage() {
                     onClick={() => handlePayOne(it)}
                     className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 flex items-center gap-1"
                   >
-                    💳 Thanh toán (Pi)
+                    💳 {translate("pay_with_pi")}
                   </button>
                 </div>
               </div>
@@ -163,11 +165,11 @@ export default function CartPage() {
             <button
               onClick={() => {
                 clearCart();
-                alert("🗑️ Đã xoá toàn bộ giỏ hàng!");
+                alert("🗑️ " + translate("cart_cleared"));
               }}
               className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
             >
-              Xoá tất cả
+              {translate("clear_all")}
             </button>
           </div>
         </div>
