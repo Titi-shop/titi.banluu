@@ -4,12 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ShoppingCart, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 export default function Navbar() {
   const [isSeller, setIsSeller] = useState(false);
   const [piPrice, setPiPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // 🈶 Ngôn ngữ hiện tại
+  const { translate } = useLanguage();
 
   // 👤 Kiểm tra tài khoản đăng nhập để hiển thị nút "Đăng hàng"
   useEffect(() => {
@@ -63,7 +67,7 @@ export default function Navbar() {
               onClick={() => router.push("/seller")}
               className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-lg text-sm"
             >
-              🔘Đăng hàng
+              🔘 {translate("post_product")}
             </button>
           )}
         </div>
@@ -72,11 +76,11 @@ export default function Navbar() {
           {/* 💰 Hiển thị giá Pi */}
           <div className="text-sm text-purple-700 font-semibold bg-purple-50 px-2 py-1 rounded-md">
             {loading ? (
-              "⏳ Đang tải..."
+              "⏳ " + translate("loading")
             ) : piPrice ? (
               <>💰 1 PI ≈ {piPrice.toFixed(2)} USDT</>
             ) : (
-              "⚠️ Không có giá"
+              "⚠️ " + translate("no_products")
             )}
           </div>
 
