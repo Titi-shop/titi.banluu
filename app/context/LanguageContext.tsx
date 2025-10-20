@@ -57,6 +57,27 @@ const translations: Record<Language, Record<string, string>> = {
     upload_complete: "Upload hoàn tất",
     upload_in_progress: "Đang tải ảnh...",
 
+    // ---- STOCK ----
+    stock_manager_title: "Quản lý kho hàng",
+    loading_products: "Đang tải sản phẩm...",
+    no_products: "Không có sản phẩm nào.",
+    edit: "Sửa",
+    delete: "Xóa",
+    confirm_delete: "Bạn có chắc muốn xóa sản phẩm này?",
+    delete_success: "Đã xóa sản phẩm.",
+    delete_error: "Lỗi khi xóa sản phẩm.",
+
+    // ---- ORDERS ----
+    order_manager_title: "Quản lý đơn hàng",
+    order_id: "Mã đơn hàng",
+    total_amount: "Tổng tiền",
+    items: "Sản phẩm",
+    all: "Tất cả",
+    pending: "Chờ xử lý",
+    shipping: "Đang giao",
+    completed: "Hoàn tất",
+    cancelled: "Đã hủy",
+
     // ---- CUSTOMER ----
     my_orders: "Đơn mua của bạn",
     waiting_confirm: "Chờ xác nhận",
@@ -76,9 +97,9 @@ const translations: Record<Language, Record<string, string>> = {
 
     // ---- COMMON ----
     loading: "Đang tải sản phẩm...",
-    no_products: "Chưa có sản phẩm nào.",
     no_image: "Không có ảnh",
     no_notifications: "Không có thông báo mới.",
+    choose_file: "Chọn tệp",
 
     // ---- SHIPPING ----
     shipping_orders_title: "Đơn hàng đang giao",
@@ -150,6 +171,27 @@ const translations: Record<Language, Record<string, string>> = {
     upload_complete: "Upload complete",
     upload_in_progress: "Uploading...",
 
+    // ---- STOCK ----
+    stock_manager_title: "Stock Manager",
+    loading_products: "Loading products...",
+    no_products: "No products found.",
+    edit: "Edit",
+    delete: "Delete",
+    confirm_delete: "Are you sure you want to delete this product?",
+    delete_success: "Product deleted successfully.",
+    delete_error: "Error deleting product.",
+
+    // ---- ORDERS ----
+    order_manager_title: "Order Manager",
+    order_id: "Order ID",
+    total_amount: "Total Amount",
+    items: "Items",
+    all: "All",
+    pending: "Pending",
+    shipping: "Shipping",
+    completed: "Completed",
+    cancelled: "Cancelled",
+
     // ---- CUSTOMER ----
     my_orders: "Your Orders",
     waiting_confirm: "Waiting for confirmation",
@@ -169,9 +211,9 @@ const translations: Record<Language, Record<string, string>> = {
 
     // ---- COMMON ----
     loading: "Loading products...",
-    no_products: "No products available.",
     no_image: "No image",
     no_notifications: "No new notifications.",
+    choose_file: "Choose File",
 
     // ---- SHIPPING ----
     shipping_orders_title: "Orders in Delivery",
@@ -243,6 +285,27 @@ const translations: Record<Language, Record<string, string>> = {
     upload_complete: "上传完成",
     upload_in_progress: "正在上传...",
 
+    // ---- STOCK ----
+    stock_manager_title: "库存管理",
+    loading_products: "正在加载商品...",
+    no_products: "暂无商品。",
+    edit: "编辑",
+    delete: "删除",
+    confirm_delete: "确定要删除此商品吗？",
+    delete_success: "商品已删除。",
+    delete_error: "删除商品时出错。",
+
+    // ---- ORDERS ----
+    order_manager_title: "订单管理",
+    order_id: "订单编号",
+    total_amount: "总金额",
+    items: "商品",
+    all: "全部",
+    pending: "待处理",
+    shipping: "配送中",
+    completed: "已完成",
+    cancelled: "已取消",
+
     // ---- CUSTOMER ----
     my_orders: "您的订单",
     waiting_confirm: "等待确认",
@@ -262,9 +325,9 @@ const translations: Record<Language, Record<string, string>> = {
 
     // ---- COMMON ----
     loading: "正在加载商品...",
-    no_products: "暂无商品。",
     no_image: "没有图片",
     no_notifications: "暂无新通知。",
+    choose_file: "选择文件",
 
     // ---- SHIPPING ----
     shipping_orders_title: "配送中的订单",
