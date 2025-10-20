@@ -17,9 +17,7 @@ export default function SellerPostPage() {
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // ===============================
   // 🖼 Xử lý chọn ảnh
-  // ===============================
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -28,9 +26,7 @@ export default function SellerPostPage() {
     setPreviewUrls(selected.map((f) => URL.createObjectURL(f)));
   };
 
-  // ===============================
   // ☁️ Upload ảnh lên Vercel Blob
-  // ===============================
   const uploadToBlob = async (file: File): Promise<string> => {
     const res = await fetch("/api/upload", {
       method: "POST",
@@ -46,9 +42,7 @@ export default function SellerPostPage() {
     return data.url;
   };
 
-  // ===============================
   // 🧾 Gửi dữ liệu sản phẩm
-  // ===============================
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -59,7 +53,7 @@ export default function SellerPostPage() {
 
     try {
       setUploading(true);
-      setMessage(translate("uploading_images") || "📤 Đang tải ảnh lên Vercel Blob...");
+      setMessage(translate("uploading_images") || "📤 Đang tải ảnh lên...");
 
       const uploadedUrls = await Promise.all(images.map(uploadToBlob));
 
@@ -100,9 +94,6 @@ export default function SellerPostPage() {
     }
   };
 
-  // ===============================
-  // 📱 Giao diện form
-  // ===============================
   return (
     <main className="p-6 max-w-lg mx-auto">
       <h1 className="text-2xl font-bold mb-4 text-center">
@@ -152,16 +143,23 @@ export default function SellerPostPage() {
           className="border p-2 rounded h-24"
         />
 
-        <label className="text-sm text-gray-600 font-medium">
-          {translate("image") || "Ảnh"} (tối đa 6):
-        </label>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleImageChange}
-          className="border p-2 rounded"
-        />
+        {/* ✅ Nút chọn tệp có hỗ trợ đa ngôn ngữ */}
+        <div>
+          <input
+            id="file-upload"
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleImageChange}
+            className="hidden"
+          />
+          <label
+            htmlFor="file-upload"
+            className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded inline-block text-center"
+          >
+            📁 {translate("choose_file") || "Chọn tệp"}
+          </label>
+        </div>
 
         {previewUrls.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mt-3">
