@@ -15,7 +15,7 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-// ✅ Bộ dịch đa ngôn ngữ mở rộng cho toàn hệ thống TiTi Shop
+// 🌐 Bộ dịch đa ngôn ngữ hoàn chỉnh cho toàn hệ thống TiTi Shop
 const translations: Record<Language, Record<string, string>> = {
   vi: {
     // ---- NAVIGATION ----
@@ -95,9 +95,30 @@ const translations: Record<Language, Record<string, string>> = {
     shop_title: "Danh mục sản phẩm",
     product_list: "Danh sách sản phẩm",
 
+    // ---- CART ----
+    cart_title: "Giỏ hàng",
+    empty_cart: "Giỏ hàng trống.",
+    back_to_shop: "Quay lại mua sắm",
+    delete: "Xóa",
+    clear_all: "Xoá tất cả",
+    cart_cleared: "Đã xoá toàn bộ giỏ hàng!",
+    pay_with_pi: "Thanh toán (Pi)",
+    paying_product: "Thanh toán sản phẩm",
+    payment_success: "Thanh toán thành công",
+    payment_failed: "Lỗi khi thanh toán Pi Testnet!",
+    payment_cancelled: "Bạn đã huỷ giao dịch.",
+    payment_error: "Lỗi SDK Pi",
+    please_open_in_pi_browser: "Hãy mở trang này trong Pi Browser để thanh toán bằng Pi.",
+
+    // ---- PRODUCT DETAIL ----
+    no_description: "Không có mô tả.",
+    add_to_cart: "Thêm vào giỏ hàng",
+    added_to_cart: "Đã thêm vào giỏ hàng!",
+    checkout_now: "Thanh toán ngay",
+
     // ---- COMMON ----
     loading: "Đang tải sản phẩm...",
-    no_image: "Không có ảnh",
+    no_image: "Không có ảnh sản phẩm",
     no_notifications: "Không có thông báo mới.",
     choose_file: "Chọn tệp",
 
@@ -209,9 +230,30 @@ const translations: Record<Language, Record<string, string>> = {
     shop_title: "Product Categories",
     product_list: "Product List",
 
+    // ---- CART ----
+    cart_title: "Cart",
+    empty_cart: "Your cart is empty.",
+    back_to_shop: "Back to Shopping",
+    delete: "Delete",
+    clear_all: "Clear All",
+    cart_cleared: "Cart cleared!",
+    pay_with_pi: "Pay with Pi",
+    paying_product: "Paying for product",
+    payment_success: "Payment successful",
+    payment_failed: "Payment failed!",
+    payment_cancelled: "Payment cancelled.",
+    payment_error: "Pi SDK error",
+    please_open_in_pi_browser: "Please open this page in Pi Browser to make a payment.",
+
+    // ---- PRODUCT DETAIL ----
+    no_description: "No description available.",
+    add_to_cart: "Add to Cart",
+    added_to_cart: "Added to Cart!",
+    checkout_now: "Checkout Now",
+
     // ---- COMMON ----
     loading: "Loading products...",
-    no_image: "No image",
+    no_image: "No product image",
     no_notifications: "No new notifications.",
     choose_file: "Choose File",
 
@@ -323,15 +365,36 @@ const translations: Record<Language, Record<string, string>> = {
     shop_title: "商品分类",
     product_list: "产品列表",
 
+    // ---- CART ----
+    cart_title: "购物车",
+    empty_cart: "购物车为空。",
+    back_to_shop: "返回商店",
+    delete: "删除",
+    clear_all: "清空全部",
+    cart_cleared: "购物车已清空！",
+    pay_with_pi: "使用 Pi 支付",
+    paying_product: "正在支付商品",
+    payment_success: "支付成功",
+    payment_failed: "支付失败！",
+    payment_cancelled: "您已取消交易。",
+    payment_error: "Pi SDK 错误",
+    please_open_in_pi_browser: "请在 Pi 浏览器中打开此页面以进行支付。",
+
+    // ---- PRODUCT DETAIL ----
+    no_description: "暂无商品描述。",
+    add_to_cart: "加入购物车",
+    added_to_cart: "已加入购物车！",
+    checkout_now: "立即结账",
+
     // ---- COMMON ----
     loading: "正在加载商品...",
-    no_image: "没有图片",
+    no_image: "暂无商品图片",
     no_notifications: "暂无新通知。",
     choose_file: "选择文件",
 
     // ---- SHIPPING ----
     shipping_orders_title: "配送中的订单",
-    no_shipping_orders: "您暂无正在配送的订单。",
+    no_shipping_orders: "暂无正在配送的订单。",
     confirm_received: "确认您已收到货物？",
     confirm_received_button: "我已收货",
     thanks_confirm: "✅ 感谢您！订单已确认完成。",
@@ -360,7 +423,6 @@ const translations: Record<Language, Record<string, string>> = {
   },
 };
 
-// ✅ Provider chính
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>("vi");
   const router = useRouter();
@@ -374,30 +436,22 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const changeLanguage = (lang: Language) => {
     setLanguage(lang);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("lang", lang);
-    }
+    if (typeof window !== "undefined") localStorage.setItem("lang", lang);
     router.refresh?.();
   };
 
   const goToShop = () => router.push("/shop");
   const goToCustomer = () => router.push("/customer");
 
-  const translate = (key: string): string => {
-    const dict = translations[language];
-    return dict[key] || key;
-  };
+  const translate = (key: string): string => translations[language][key] || key;
 
   return (
-    <LanguageContext.Provider
-      value={{ language, setLanguage: changeLanguage, translate, goToShop, goToCustomer }}
-    >
+    <LanguageContext.Provider value={{ language, setLanguage: changeLanguage, translate, goToShop, goToCustomer }}>
       {children}
     </LanguageContext.Provider>
   );
 }
 
-// ✅ Hook tiện dụng
 export function useLanguage() {
   const ctx = useContext(LanguageContext);
   if (!ctx) throw new Error("useLanguage must be used inside LanguageProvider");
