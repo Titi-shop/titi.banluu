@@ -33,11 +33,12 @@ export default function StockManager() {
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/products");
-      if (!res.ok) throw new Error(translate("no_stock"));
+      if (!res.ok) throw new Error(translate("load_error") || "Không thể tải sản phẩm");
       const data: Product[] = await res.json();
       setProducts(data);
     } catch (err) {
       console.error("❌", err);
+      alert(translate("load_error") || "Lỗi khi tải sản phẩm");
     } finally {
       setLoading(false);
     }
@@ -45,19 +46,19 @@ export default function StockManager() {
 
   // ✅ Xóa sản phẩm
   const deleteProduct = async (id: number) => {
-    if (!confirm(translate("confirm_delete"))) return;
+    if (!confirm(translate("confirm_delete") || "Bạn có chắc muốn xóa sản phẩm này?")) return;
     try {
       const res = await fetch(`/api/products?id=${id}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok && data.success) {
         setProducts((prev) => prev.filter((p) => p.id !== id));
-        alert(translate("deleted_success"));
+        alert(translate("deleted_success") || "Đã xóa sản phẩm thành công!");
       } else {
-        alert(data.message || translate("delete_error"));
+        alert(data.message || translate("delete_error") || "Lỗi khi xóa sản phẩm!");
       }
     } catch (err) {
       console.error("❌", err);
-      alert(translate("delete_error"));
+      alert(translate("delete_error") || "Không thể xóa sản phẩm!");
     }
   };
 
@@ -89,7 +90,7 @@ export default function StockManager() {
             },
             body: file,
           });
-          if (!res.ok) throw new Error(translate("upload_failed"));
+          if (!res.ok) throw new Error(translate("upload_failed") || "Upload thất bại");
           const data = await res.json();
           return data.url;
         };
@@ -111,19 +112,21 @@ export default function StockManager() {
       const res = await fetch("/api/products", { method: "PUT", body: formData });
       const data = await res.json();
 
-      if (!res.ok || !data.success) throw new Error(translate("update_failed"));
+      if (!res.ok || !data.success)
+        throw new Error(translate("update_failed") || "Cập nhật thất bại");
 
-      alert(translate("update_success"));
+      alert(translate("update_success") || "✅ Cập nhật sản phẩm thành công!");
       setEditingProduct(null);
       setProducts((prev) =>
         prev.map((p) => (p.id === data.product.id ? data.product : p))
       );
     } catch (err) {
       console.error("❌", err);
-      alert(translate("update_failed"));
+      alert(translate("update_failed") || "Không thể cập nhật sản phẩm!");
     }
   };
 
+  // ✅ Xử lý chọn ảnh mới
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -134,16 +137,16 @@ export default function StockManager() {
 
   // ✅ Giao diện
   if (loading)
-    return <p className="text-center mt-6">⏳ {translate("loading_stock")}</p>;
+    return <p className="text-center mt-6">⏳ {translate("loading_stock") || "Đang tải kho hàng..."}</p>;
 
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-center">
-        📦 {translate("stock_manager_title")}
+        📦 {translate("stock_manager_title") || "Quản lý Kho hàng"}
       </h1>
 
       {!products.length ? (
-        <p className="text-center text-gray-500">❗ {translate("no_stock")}</p>
+        <p className="text-center text-gray-500">❗ {translate("no_stock") || "Chưa có sản phẩm nào trong kho."}</p>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {products.map((p) => (
@@ -170,7 +173,7 @@ export default function StockManager() {
                     ))
                   ) : (
                     <div className="w-full h-40 bg-gray-100 flex items-center justify-center text-gray-400 mb-3">
-                      {translate("no_image")}
+                      {translate("no_image") || "Không có ảnh"}
                     </div>
                   )}
                 </div>
@@ -187,13 +190,13 @@ export default function StockManager() {
                   onClick={() => startEdit(p)}
                   className="bg-blue-500 hover:bg-blue-600 text-white py-1 rounded w-1/2"
                 >
-                  ✏️ {translate("edit")}
+                  ✏️ {translate("edit") || "Sửa"}
                 </button>
                 <button
                   onClick={() => deleteProduct(p.id)}
                   className="bg-red-500 hover:bg-red-600 text-white py-1 rounded w-1/2"
                 >
-                  ❌ {translate("delete")}
+                  ❌ {translate("delete") || "Xóa"}
                 </button>
               </div>
             </div>
@@ -205,11 +208,11 @@ export default function StockManager() {
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
             <h2 className="text-xl font-bold mb-4 text-center">
-              ✏️ {translate("edit_product")}
+              ✏️ {translate("edit_product") || "Chỉnh sửa sản phẩm"}
             </h2>
 
             <label className="block mb-2">
-              {translate("product_name")}:
+              {translate("product_name") || "Tên sản phẩm"}:
               <input
                 type="text"
                 value={form.name}
@@ -219,7 +222,7 @@ export default function StockManager() {
             </label>
 
             <label className="block mb-2">
-              {translate("product_price")} (Pi):
+              {translate("product_price") || "Giá (Pi)"}:
               <input
                 type="number"
                 value={form.price}
@@ -229,7 +232,7 @@ export default function StockManager() {
             </label>
 
             <label className="block mb-2">
-              {translate("product_description")}:
+              {translate("product_description") || "Mô tả"}:
               <textarea
                 value={form.description}
                 onChange={(e) =>
@@ -240,7 +243,7 @@ export default function StockManager() {
             </label>
 
             <label className="block mb-3">
-              {translate("image")} (tối đa 6):
+              {translate("image") || "Ảnh"} (tối đa 6):
               <input
                 type="file"
                 accept="image/*"
@@ -270,13 +273,13 @@ export default function StockManager() {
                 onClick={() => setEditingProduct(null)}
                 className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
               >
-                ❌ {translate("cancel")}
+                ❌ {translate("cancel") || "Hủy"}
               </button>
               <button
                 onClick={saveEdit}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded"
               >
-                💾 {translate("save")}
+                💾 {translate("save") || "Lưu"}
               </button>
             </div>
           </div>
