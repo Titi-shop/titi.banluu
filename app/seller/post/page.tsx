@@ -152,6 +152,9 @@ export default function SellerPostPage() {
           className="border p-2 rounded h-24"
         />
 
+        <label className="text-sm text-gray-600 font-medium">
+          {translate("image") || "Ảnh"} (tối đa 6):
+        </label>
         <input
           type="file"
           accept="image/*"
