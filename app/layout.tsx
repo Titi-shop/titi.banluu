@@ -10,19 +10,22 @@ export const metadata = {
   description: "Ứng dụng thương mại điện tử Pi Network",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="vi">
       <head>
-        {/* ✅ Meta mặc định */}
+        {/* ✅ Pi SDK - chỉ hoạt động trong Pi Browser */}
         <Script
           src="https://sdk.minepi.com/pi-sdk.js"
           strategy="beforeInteractive"
-          async={false}
         />
         <Script id="pi-init" strategy="afterInteractive">
           {`
-            if (window.Pi) {
+            if (typeof window !== "undefined" && window.Pi) {
               console.log("✅ Pi SDK loaded:", window.Pi);
               window.Pi.init({ version: "2.0" });
             } else {
@@ -33,11 +36,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className="relative pb-16 bg-gray-50">
-        {/* ✅ LanguageProvider phải bao ngoài toàn bộ để ngôn ngữ áp dụng cho toàn site */}
+        {/* ✅ Bao toàn bộ ứng dụng trong LanguageProvider */}
         <LanguageProvider>
+          {/* ✅ Bao Auth và Giỏ hàng bên trong để chúng cũng đọc được ngôn ngữ */}
           <AuthProvider>
             <CartProvider>
+              {/* ✅ Nội dung chính */}
               {children}
+
+              {/* ✅ Thanh điều hướng cố định dưới màn hình */}
               <BottomNav />
             </CartProvider>
           </AuthProvider>
