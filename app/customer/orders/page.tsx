@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useLanguage } from "../../context/LanguageContext"; // ✅ dùng ngôn ngữ đồng bộ
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function CustomerOrdersPage() {
   const { translate } = useLanguage();
@@ -13,7 +13,6 @@ export default function CustomerOrdersPage() {
   );
 }
 
-// ✅ Bọc lại component chính bên ngoài Suspense
 function OrdersWrapper() {
   const params = useSearchParams();
   const statusParam = params?.get("status") ?? null;
@@ -24,26 +23,52 @@ function OrdersContent({ statusParam }: { statusParam: string | null }) {
   const { translate, language } = useLanguage();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<string>("");
 
-  // ✅ Map trạng thái nội bộ tương ứng ngôn ngữ hiện tại
+  // ✅ Lấy username từ Pi login (đồng bộ với pilogin/page.tsx)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("pi_user");
+      const isLoggedIn = localStorage.getItem("titi_is_logged_in");
+
+      if (stored && isLoggedIn === "true") {
+        const parsed = JSON.parse(stored);
+        const username = parsed?.user?.username || parsed?.username || "guest_user";
+        setCurrentUser(username);
+      } else {
+        setCurrentUser("guest_user");
+      }
+    } catch (err) {
+      console.error("❌ Lỗi đọc pi_user:", err);
+      setCurrentUser("guest_user");
+    }
+  }, []);
+
+  // ✅ Map trạng thái nội bộ theo ngôn ngữ
   const mapStatus: Record<string, string> = {
     "cho-xac-nhan": translate("waiting_confirm") || "Chờ xác nhận",
     "cho-lay-hang": translate("waiting_pickup") || "Chờ lấy hàng",
     "cho-giao-hang": translate("delivering") || "Đang giao",
-    "danh-gia": "Hoàn tất",
+    "danh-gia": translate("review") || "Đánh giá",
   };
 
+  // ✅ Tải đơn hàng theo username + trạng thái
   useEffect(() => {
     const loadOrders = async () => {
+      if (!currentUser || currentUser === "guest_user") {
+        console.warn("⚠️ Người dùng chưa đăng nhập — bỏ qua tải đơn hàng.");
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch("/api/orders");
-        const data = await res.json();
-        const userInfo = JSON.parse(localStorage.getItem("user_info") || "{}");
-        const buyer = userInfo.username || "guest_user";
+        if (!res.ok) throw new Error("Không thể tải đơn hàng.");
 
+        const data = await res.json();
         const filtered = data.filter(
           (o: any) =>
-            o.buyer === buyer &&
+            o.buyer?.toLowerCase() === currentUser.toLowerCase() &&
             (statusParam ? o.status === mapStatus[statusParam] : true)
         );
 
@@ -56,11 +81,18 @@ function OrdersContent({ statusParam }: { statusParam: string | null }) {
     };
 
     loadOrders();
-  }, [statusParam, language]); // ✅ reload khi đổi ngôn ngữ
+  }, [statusParam, language, currentUser]);
 
-  if (loading) return <p className="p-6 text-center">{translate("loading") || "⏳ Đang tải..."}</p>;
+  if (loading)
+    return <p className="p-6 text-center">{translate("loading") || "⏳ Đang tải..."}</p>;
+
   if (!orders.length)
-    return <p className="p-6 text-center text-gray-500">{translate("no_orders") || "❗ Không có đơn hàng nào."}</p>;
+    return (
+      <p className="p-6 text-center text-gray-500">
+        {translate("no_orders") || "❗ Không có đơn hàng nào."} <br />
+        👤 {translate("current_user") || "Người dùng"}: <b>{currentUser}</b>
+      </p>
+    );
 
   return (
     <div className="p-6 space-y-4 max-w-4xl mx-auto">
@@ -68,13 +100,24 @@ function OrdersContent({ statusParam }: { statusParam: string | null }) {
         📦 {translate("my_orders") || "Đơn hàng của bạn"}
       </h1>
       {orders.map((o) => (
-        <div key={o.id} className="border rounded p-4 bg-white shadow hover:shadow-md transition">
-          <p><b>{translate("order_code") || "Mã đơn"}:</b> {o.id}</p>
-          <p><b>{translate("status") || "Trạng thái"}:</b> {o.status}</p>
-          <p><b>{translate("total_amount") || "Tổng tiền"}:</b> {o.total} Pi</p>
+        <div
+          key={o.id}
+          className="border rounded p-4 bg-white shadow hover:shadow-md transition"
+        >
+          <p>
+            <b>{translate("order_code") || "Mã đơn"}:</b> {o.id}
+          </p>
+          <p>
+            <b>{translate("status") || "Trạng thái"}:</b> {o.status}
+          </p>
+          <p>
+            <b>{translate("total_amount") || "Tổng tiền"}:</b> {o.total} Pi
+          </p>
           <ul className="ml-5 list-disc">
             {o.items.map((it: any, i: number) => (
-              <li key={i}>{it.name} — {it.price} Pi × {it.quantity || 1}</li>
+              <li key={i}>
+                {it.name} — {it.price} Pi × {it.quantity || 1}
+              </li>
             ))}
           </ul>
         </div>
