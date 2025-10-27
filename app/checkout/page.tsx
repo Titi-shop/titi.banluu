@@ -72,7 +72,7 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      window.Pi.init({ version: "2.0", sandbox: false });
+      window.Pi.init({ version: "2.0", sandbox: true });
       const scopes = ["payments", "username", "wallet_address"];
       const auth = await window.Pi.authenticate(scopes, (res: any) => res);
       console.log("✅ Xác thực Pi:", auth);
