@@ -2,125 +2,170 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 
-// 🧩 Kiểu dữ liệu người dùng Pi
+// 🔹 Interface chứa thông tin người dùng Pi
 interface PiUser {
   username: string;
-  uid?: string;
   accessToken: string;
+  uid?: string;
 }
 
-// 🧩 Interface cho Context
+// 🔹 Interface cho payment của PiSDK
+interface PiPayment {
+  identifier: string;
+  paymentId: string;
+  txid?: string;
+  amount: number;
+}
+
+// 🔹 Interface cho Pi SDK trên trình duyệt
+interface PiSDK {
+  init: (config: { version: string; sandbox: boolean }) => void;
+  authenticate: (
+    scopes: string[],
+    onIncompletePaymentFound: (payment: PiPayment) => void
+  ) => Promise<{ user: { username: string }; accessToken: string }>;
+  logout?: () => void;
+}
+
+declare global {
+  interface Window {
+    Pi?: PiSDK;
+  }
+}
+
+// 🔹 Interface Context chính
 interface AuthContextType {
   user: PiUser | null;
   piReady: boolean;
+  loading: boolean;
   pilogin: () => Promise<void>;
   logout: () => void;
 }
 
-// 🧠 Tạo context mặc định
 const AuthContext = createContext<AuthContextType>({
   user: null,
   piReady: false,
+  loading: true,
   pilogin: async () => {},
   logout: () => {},
 });
 
-// 🧩 Provider bao quanh toàn bộ app
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<PiUser | null>(null);
   const [piReady, setPiReady] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // ✅ Kiểm tra Pi SDK đã load chưa
+  // 🟢 Kiểm tra môi trường Pi SDK thật hay mock
+  const checkPiSDK = () => {
+    return (
+      typeof window !== "undefined" &&
+      navigator.userAgent.includes("PiBrowser") &&
+      window.Pi &&
+      typeof window.Pi.authenticate === "function"
+    );
+  };
+
+  // 🛠 Kiểm tra SDK & khởi tạo
   useEffect(() => {
-    const timer = setInterval(() => {
-      if (typeof window !== "undefined" && window.Pi) {
+    if (typeof window !== "undefined" && window.Pi && checkPiSDK()) {
+      try {
+        window.Pi.init({ version: "2.0", sandbox: true });
+        console.log("🚀 Pi SDK initialized");
         setPiReady(true);
-        clearInterval(timer);
+      } catch (err) {
+        console.error("❌ Lỗi khởi tạo Pi SDK:", err);
+        setPiReady(true);
       }
-    }, 500);
-    return () => clearInterval(timer);
+    } else {
+      // Chế độ mock
+      console.warn("⚠️ Pi SDK không có — bật mock mode");
+      setPiReady(true);
+    }
   }, []);
 
-  // ✅ Load user từ localStorage khi reload trang
+  // 🔁 Khôi phục session
   useEffect(() => {
     try {
       const saved = localStorage.getItem("pi_user");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        const username = parsed?.user?.username || parsed?.username || null;
-        const accessToken = parsed?.accessToken || "";
-        if (username && accessToken) {
-          setUser({ username, accessToken });
-
-          // 🔹 Đồng bộ lại username cho toàn hệ thống (checkout, address...)
-          localStorage.setItem("titi_username", username);
+        const parsed: PiUser = JSON.parse(saved);
+        if (parsed?.username && parsed?.accessToken) {
+          setUser(parsed);
+          localStorage.setItem("titi_username", parsed.username);
           localStorage.setItem("titi_is_logged_in", "true");
         }
       }
     } catch (err) {
       console.error("❌ Lỗi đọc pi_user:", err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // ✅ Hàm pilogin - phiên bản ổn định SDK Pi mới (Promise)
+  // 🎭 Mock login
+  const mockLogin = () => {
+    const mockUser: PiUser = {
+      username: "mock_user",
+      accessToken: "mock_token_123",
+    };
+    setUser(mockUser);
+    localStorage.setItem("pi_user", JSON.stringify(mockUser));
+    localStorage.setItem("titi_is_logged_in", "true");
+    localStorage.setItem("titi_username", mockUser.username);
+    alert("🤖 Đăng nhập mock thành công!");
+  };
+
+  // 🔐 Đăng nhập bằng Pi Network hoặc Mock
   const pilogin = async () => {
-    if (typeof window === "undefined" || !window.Pi) {
-      console.warn("⚠️ Vui lòng mở trong Pi Browser");
-      return;
-    }
+    const hasRealPi = checkPiSDK();
 
-    try {
-      const scopes = ["username", "payments"];
-      const onIncompletePayment = (payment: any) => {
-        console.log("⚠️ Payment chưa hoàn tất:", payment);
-      };
+    if (hasRealPi) {
+      try {
+        const auth = await window.Pi!.authenticate(["username", "payments"], (payment) =>
+          console.log("⚠ Payment chưa hoàn tất:", payment)
+        );
 
-      // 🧩 SDK mới trả về Promise (không còn callback thứ 3)
-      const authResult = await window.Pi.authenticate(scopes, onIncompletePayment);
+        const piUser: PiUser = {
+          username: auth.user.username,
+          accessToken: auth.accessToken,
+        };
 
-      if (!authResult) {
-        console.error("❌ Không nhận được phản hồi từ Pi Network");
-        return;
+        setUser(piUser);
+        localStorage.setItem("pi_user", JSON.stringify(piUser));
+        localStorage.setItem("titi_username", piUser.username);
+        localStorage.setItem("titi_is_logged_in", "true");
+        alert("🔐 Đăng nhập Pi thành công!");
+      } catch (err) {
+        console.error("❌ Lỗi đăng nhập Pi:", err);
+        alert("⚠ Pi Login thất bại — dùng mock login");
+        mockLogin();
       }
-
-      const username = authResult.user?.username || "guest";
-      const accessToken = authResult.accessToken || "";
-
-      const piUser: PiUser = { username, accessToken };
-      setUser(piUser);
-
-      // ✅ Lưu thông tin vào localStorage cho toàn hệ thống
-      localStorage.setItem("pi_user", JSON.stringify(authResult));
-      localStorage.setItem("titi_is_logged_in", "true");
-      localStorage.setItem("titi_username", username); // 🔹 thêm dòng này
-
-      console.log("✅ Đăng nhập thành công:", piUser);
-    } catch (err: any) {
-      console.error("❌ Lỗi đăng nhập:", err);
+    } else {
+      mockLogin();
     }
   };
 
-  // ✅ Hàm logout
+  // 🚪 Đăng xuất
   const logout = () => {
-    try {
-      if (typeof window !== "undefined" && window.Pi?.logout) {
-        window.Pi.logout();
-      }
-    } catch (err) {
-      console.warn("⚠️ Lỗi logout Pi:", err);
-    }
     setUser(null);
     localStorage.removeItem("pi_user");
     localStorage.removeItem("titi_is_logged_in");
-    localStorage.removeItem("titi_username"); // 🔹 thêm dòng này
+    localStorage.removeItem("titi_username");
+
+    if (typeof window !== "undefined" && window.Pi?.logout) {
+      try {
+        window.Pi.logout();
+      } catch {
+        console.warn("⚠️ Pi SDK không hỗ trợ logout");
+      }
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, piReady, pilogin, logout }}>
+    <AuthContext.Provider value={{ user, piReady, loading, pilogin, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// ✅ Hook tiện dụng để dùng trong các trang
 export const useAuth = () => useContext(AuthContext);
