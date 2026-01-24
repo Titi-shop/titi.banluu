@@ -109,21 +109,23 @@ if (user.role !== "seller") {
         (form.elements.namedItem("saleEnd") as HTMLInputElement).value || null,
     };
 
-    if (!payload.name || !payload.price) {
-      setMessage({
-        text: t.enter_valid_name_price || "⚠️ Nhập tên & giá hợp lệ!",
-        type: "error",
-      });
-      setSaving(false);
-      return;
-    }
+    if (!user.accessToken) {
+  setMessage({
+    text: "❌ Mất Pi accessToken, vui lòng đăng nhập lại",
+    type: "error",
+  });
+  setSaving(false);
+  return;
+}
 
-    try {
-      const res = await apiFetch("/api/products", {
+const res = await fetch("/api/products", {
   method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${user.accessToken}`,
+  },
   body: JSON.stringify(payload),
 });
-
       const result = await res.json();
 
       if (res.ok) {
