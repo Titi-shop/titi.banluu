@@ -15,63 +15,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-/* ============================================================
-   🔹 HELPER: BUILD COOKIE (PI BROWSER SAFE)
-============================================================ */
-function buildCookie(value: string, maxAge = COOKIE_MAX_AGE) {
-  return [
-    `pi_user=${value}`,
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",   // 🔥 QUAN TRỌNG
-    // ❌ KHÔNG set Domain
-    // ❌ KHÔNG cần Secure khi Lax
-    `Max-Age=${maxAge}`,
-  ].join("; ");
-}
-
-/* ============================================================
-   🔹 GET — FETCH SESSION (DEBUG / CLIENT CHECK)
-============================================================ */
-export function GET(req: NextRequest) {
-  const raw = req.cookies.get(COOKIE_NAME)?.value;
-
-  let user = null;
-  if (raw) {
-    try {
-      user = JSON.parse(Buffer.from(raw, "base64").toString("utf8"));
-    } catch {
-      user = null;
-    }
-  }
-
-  return NextResponse.json(
-    {
-      success: !!user,
-      user,
-    },
-    {
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    }
-  );
-}
-
-/* ============================================================
-   🔹 POST — LOGIN WITH PI TOKEN (MAIN FLOW)
-============================================================ */
-export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as { accessToken?: string };
-
-    if (!body.accessToken) {
-      return NextResponse.json(
-        { success: false, error: "missing_access_token" },
-        { status: 400 }
-      );
-    }
-
     // 🔐 Verify with Pi Network
     const piRes = await fetch("https://api.minepi.com/v2/me", {
       headers: {
@@ -96,19 +39,8 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
-    /* ======================================================
-       ✅ AUTH USER (PI = IDENTITY PROVIDER)
-    ====================================================== */
-    const user = {
-      uid: data.uid,
-      username: data.username,
-      wallet_address: data.wallet_address ?? null,
-    };
 
-    /* ======================================================
-       ✅ DB SOURCE OF TRUTH — USERS (BẮT BUỘC)
-       Pi UID = PRIMARY KEY
-    ====================================================== */
+    // ✅ DB = source of truth
     await query(
       `
       insert into users (pi_uid, username, role)
@@ -119,25 +51,6 @@ export async function POST(req: NextRequest) {
       [data.uid, data.username]
     );
 
-    /* ======================================================
-       (OPTIONAL) BOOTSTRAP PROFILE — KHÔNG ẢNH HƯỞNG FLOW
-    ====================================================== */
-    try {
-      await query(
-        `
-        INSERT INTO user_profile (uid, username, created_at, updated_at)
-        VALUES ($1, $2, NOW(), NOW())
-        ON CONFLICT (uid) DO NOTHING
-        `,
-        [user.uid, user.username]
-      );
-    } catch {
-      // nếu bảng chưa tồn tại cũng không sao
-    }
-
-    /* ======================================================
-       🍪 SET COOKIE (SESSION)
-    ====================================================== */
     // ❌ KHÔNG SET COOKIE
     return NextResponse.json({
       success: true,
@@ -154,13 +67,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-/* ============================================================
-   🔹 DELETE — LOGOUT
-============================================================ */
-export function DELETE() {
-  const res = NextResponse.json({ success: true });
-  res.headers.set("Set-Cookie", buildCookie("deleted", 0));
-  return res;
 }
