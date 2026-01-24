@@ -46,24 +46,21 @@ export default function ProfilePage() {
 
     const loadProfile = async () => {
       try {
-        const res = await fetch("/api/profile", {
-          credentials: "include",
-          cache: "no-store",
-        });
+        const loadProfile = async () => {
+  try {
+    const res = await apiFetch("/api/profile");
 
-        if (!res.ok) {
-          throw new Error("unauthorized");
-        }
+    if (!res.ok) throw new Error("unauthorized");
 
-        const data = await res.json();
-        setProfile(data.profile ?? data);
-      } catch (err) {
-        console.error(err);
-        setError(t.profile_error_loading);
-      } finally {
-        setLoading(false);
-      }
-    };
+    const data = await res.json();
+    setProfile(data.profile);
+  } catch (err) {
+    console.error(err);
+    setError(t.profile_error_loading);
+  } finally {
+    setLoading(false);
+  }
+};
 
     loadProfile();
   }, [authLoading, user, t]);
