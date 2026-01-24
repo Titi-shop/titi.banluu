@@ -1,49 +1,19 @@
+// app/api/profile/route.ts
+
 import { NextResponse } from "next/server";
-import { cookies, headers } from "next/headers";
 import { query } from "@/lib/db";
+import { verifyPiTokenFromRequest } from "@/lib/auth/verifyPiToken";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type AuthUser = {
-  uid: string;
-  username: string;
-};
-
-async function getAuthUser(): Promise<AuthUser | null> {
-  // Cookie FIRST
-  const raw = cookies().get("pi_user")?.value;
-  if (raw) {
-    try {
-      return JSON.parse(Buffer.from(raw, "base64").toString("utf8"));
-    } catch {}
-  }
-
-  // Bearer fallback (PI-NETWORK–FIRST)
-  const auth = headers().get("authorization");
-  if (auth?.startsWith("Bearer ")) {
-    const token = auth.slice(7);
-    const res = await fetch("https://api.minepi.com/v2/me", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.uid && data?.username) {
-        return { uid: data.uid, username: data.username };
-      }
-    }
-  }
-
-  return null;
-}
-
-/* GET /api/profile */
+/* =========================
+   GET /api/profile
+========================= */
 export async function GET() {
-  const auth = await getAuthUser();
+  const user = await verifyPiTokenFromRequest();
 
-  if (!auth) {
+  if (!user) {
     return NextResponse.json(
       { success: false, error: "unauthorized" },
       { status: 401 }
@@ -52,28 +22,31 @@ export async function GET() {
 
   const { rows } = await query(
     `SELECT * FROM user_profile WHERE uid = $1 LIMIT 1`,
-    [auth.uid]
+    [user.pi_uid]
   );
 
   return NextResponse.json({
     success: true,
-    profile: rows[0] ?? {
-      display_name: "",
-      avatar: null,
-      email: "",
-      phone: "",
-      address: "",
-      province: "",
-      country: "",
-    },
+    profile:
+      rows[0] ?? {
+        display_name: "",
+        avatar: null,
+        email: "",
+        phone: "",
+        address: "",
+        province: "",
+        country: "",
+      },
   });
 }
 
-/* POST /api/profile */
+/* =========================
+   POST /api/profile
+========================= */
 export async function POST(req: Request) {
-  const auth = await getAuthUser(); // ✅ FIX
+  const user = await verifyPiTokenFromRequest();
 
-  if (!auth) {
+  if (!user) {
     return NextResponse.json(
       { success: false, error: "unauthorized" },
       { status: 401 }
@@ -81,16 +54,6 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
-
-  const profile = {
-    display_name: body.display_name ?? "",
-    avatar: body.avatar ?? null,
-    email: body.email ?? "",
-    phone: body.phone ?? "",
-    address: body.address ?? "",
-    province: body.province ?? "",
-    country: body.country ?? "",
-  };
 
   await query(
     `
@@ -111,17 +74,17 @@ export async function POST(req: Request) {
       updated_at = NOW()
     `,
     [
-      auth.uid,
-      auth.username,
-      profile.display_name,
-      profile.avatar,
-      profile.email,
-      profile.phone,
-      profile.address,
-      profile.province,
-      profile.country,
+      user.pi_uid,
+      user.username,
+      body.display_name ?? "",
+      body.avatar ?? null,
+      body.email ?? "",
+      body.phone ?? "",
+      body.address ?? "",
+      body.province ?? "",
+      body.country ?? "",
     ]
   );
 
-  return NextResponse.json({ success: true, profile });
+  return NextResponse.json({ success: true });
 }
