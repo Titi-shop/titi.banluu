@@ -1,12 +1,20 @@
+// app/api/pi/verify/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type PiMeResponse = {
+  uid?: string;
+  username?: string;
+  wallet_address?: string;
+};
+
 export async function POST(req: NextRequest) {
   try {
-    const { accessToken } = await req.json();
+    const { accessToken } = (await req.json()) as { accessToken?: string };
 
     if (!accessToken) {
       return NextResponse.json(
@@ -15,7 +23,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 🔐 Verify with Pi Network
+    /* =====================================================
+       1️⃣ VERIFY TOKEN WITH PI NETWORK
+    ===================================================== */
     const piRes = await fetch("https://api.minepi.com/v2/me", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -31,33 +41,62 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data = await piRes.json();
+    const data = (await piRes.json()) as PiMeResponse;
 
-    if (!data?.uid || !data?.username) {
+    if (!data.uid || !data.username) {
       return NextResponse.json(
         { success: false, error: "invalid_pi_user" },
         { status: 401 }
       );
     }
 
-    // ✅ DB = source of truth
+    const pi_uid = String(data.uid);
+    const username = String(data.username);
+    const wallet_address = data.wallet_address ?? null;
+
+    /* =====================================================
+       2️⃣ UPSERT USER (DB = SOURCE OF TRUTH)
+    ===================================================== */
     await query(
       `
-      insert into users (pi_uid, username, role)
-      values ($1, $2, 'seller')
-      on conflict (pi_uid)
-      do update set username = excluded.username
+      INSERT INTO public.users (pi_uid, username)
+      VALUES ($1, $2)
+      ON CONFLICT (pi_uid)
+      DO UPDATE SET username = EXCLUDED.username
       `,
-      [data.uid, data.username]
+      [pi_uid, username]
     );
 
-    // ❌ KHÔNG SET COOKIE
+    /* =====================================================
+       3️⃣ RESOLVE ROLE FROM DB
+    ===================================================== */
+    const { rows } = await query(
+      `
+      SELECT role
+      FROM public.users
+      WHERE pi_uid = $1
+      LIMIT 1
+      `,
+      [pi_uid]
+    );
+
+    const role =
+      rows?.[0]?.role === "seller" ||
+      rows?.[0]?.role === "admin" ||
+      rows?.[0]?.role === "customer"
+        ? rows[0].role
+        : "customer";
+
+    /* =====================================================
+       4️⃣ RETURN AUTH RESULT (NO COOKIE)
+    ===================================================== */
     return NextResponse.json({
       success: true,
       user: {
-        uid: data.uid,
-        username: data.username,
-        wallet_address: data.wallet_address ?? null,
+        pi_uid,
+        username,
+        wallet_address,
+        role, // 🔥 QUAN TRỌNG
       },
     });
   } catch (err) {
