@@ -4,8 +4,16 @@ import { query } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const COOKIE_NAME = "pi_user";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 ngày
+export async function POST(req: NextRequest) {
+  try {
+    const { accessToken } = await req.json();
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { success: false, error: "missing_access_token" },
+        { status: 400 }
+      );
+    }
 
 /* ============================================================
    🔹 HELPER: BUILD COOKIE (PI BROWSER SAFE)
@@ -64,10 +72,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* 🔐 VERIFY TOKEN WITH PI NETWORK */
+    // 🔐 Verify with Pi Network
     const piRes = await fetch("https://api.minepi.com/v2/me", {
       headers: {
-        Authorization: `Bearer ${body.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
       cache: "no-store",
@@ -80,19 +88,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data = (await piRes.json()) as {
-      uid?: string;
-      username?: string;
-      wallet_address?: string;
-    };
+    const data = await piRes.json();
 
-    if (!data.uid || !data.username) {
+    if (!data?.uid || !data?.username) {
       return NextResponse.json(
         { success: false, error: "invalid_pi_user" },
         { status: 401 }
       );
     }
-
     /* ======================================================
        ✅ AUTH USER (PI = IDENTITY PROVIDER)
     ====================================================== */
@@ -107,15 +110,14 @@ export async function POST(req: NextRequest) {
        Pi UID = PRIMARY KEY
     ====================================================== */
     await query(
-  `
-  insert into users (pi_uid, username, role)
-  values ($1, $2, 'seller')
-  on conflict (pi_uid)
-  do update set
-    username = excluded.username
-  `,
-  [data.uid, data.username]
-);
+      `
+      insert into users (pi_uid, username, role)
+      values ($1, $2, 'seller')
+      on conflict (pi_uid)
+      do update set username = excluded.username
+      `,
+      [data.uid, data.username]
+    );
 
     /* ======================================================
        (OPTIONAL) BOOTSTRAP PROFILE — KHÔNG ẢNH HƯỞNG FLOW
@@ -136,19 +138,15 @@ export async function POST(req: NextRequest) {
     /* ======================================================
        🍪 SET COOKIE (SESSION)
     ====================================================== */
-    const cookieValue = Buffer.from(
-      JSON.stringify(user),
-      "utf8"
-    ).toString("base64");
-
-    const res = NextResponse.json({
+    // ❌ KHÔNG SET COOKIE
+    return NextResponse.json({
       success: true,
-      user,
+      user: {
+        uid: data.uid,
+        username: data.username,
+        wallet_address: data.wallet_address ?? null,
+      },
     });
-
-    res.headers.set("Set-Cookie", buildCookie(cookieValue));
-
-    return res;
   } catch (err) {
     console.error("❌ PI VERIFY ERROR:", err);
     return NextResponse.json(
