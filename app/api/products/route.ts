@@ -50,11 +50,22 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    if (
+      !body?.name ||
+      typeof body.price !== "number" ||
+      body.price <= 0
+    ) {
+      return NextResponse.json(
+        { error: "INVALID_PAYLOAD" },
+        { status: 400 }
+      );
+    }
+
     const product = await createProduct(auth.user.pi_uid, {
-      name: body.name,
+      name: body.name.trim(),
       price: body.price,
       description: body.description ?? "",
-      images: body.images ?? [],
+      images: Array.isArray(body.images) ? body.images : [],
       category_id: body.categoryId ?? null,
       sale_price: body.salePrice ?? null,
       sale_start: body.saleStart ?? null,
@@ -65,7 +76,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, product });
   } catch (e) {
-    console.error("CREATE PRODUCT ERROR", e);
+    console.error("❌ CREATE PRODUCT ERROR:", e);
     return NextResponse.json(
       { error: "FAILED_TO_CREATE_PRODUCT" },
       { status: 500 }
