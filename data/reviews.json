@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1760464144282,
+    "orderId": 1760413588289,
+    "rating": 5,
+    "comment": "Hàng rất tốt!",
+    "createdAt": "2025-10-14T17:49:04.283Z"
+  },
+  {
+    "id": 1760464240924,
+    "orderId": 1760418540161,
+    "rating": 5,
+    "comment": "Hàng rất tốt!",
+    "createdAt": "2025-10-14T17:50:40.924Z"
+  },
+  {
+    "id": 1760471354524,
+    "orderId": 1760413588289,
+    "rating": 5,
+    "comment": "Hàng rất tốt!",
+    "createdAt": "2025-10-14T19:49:14.524Z"
+  }
+]
