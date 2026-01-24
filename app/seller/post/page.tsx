@@ -25,7 +25,7 @@ interface MessageState {
 export default function SellerPostPage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, piToken, loading } = useAuth();
+  const { user, loading } = useAuth();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving] = useState(false);
@@ -60,20 +60,20 @@ export default function SellerPostPage() {
     e.preventDefault();
 
     if (!user) {
-  setMessage({
-    text: "⚠️ Bạn chưa đăng nhập Pi Network",
-    type: "error",
-  });
-  return;
-}
+      setMessage({
+        text: "⚠️ Bạn chưa đăng nhập Pi Network",
+        type: "error",
+      });
+      return;
+    }
 
-if (user.role !== "seller") {
-  setMessage({
-    text: "⛔ Chỉ seller mới được đăng sản phẩm",
-    type: "error",
-  });
-  return;
-}
+    if (user.role !== "seller") {
+      setMessage({
+        text: "⛔ Chỉ seller mới được đăng sản phẩm",
+        type: "error",
+      });
+      return;
+    }
 
     setSaving(true);
     setMessage({ text: "", type: "" });
@@ -109,23 +109,21 @@ if (user.role !== "seller") {
         (form.elements.namedItem("saleEnd") as HTMLInputElement).value || null,
     };
 
-    if (!user.accessToken) {
-  setMessage({
-    text: "❌ Mất Pi accessToken, vui lòng đăng nhập lại",
-    type: "error",
-  });
-  setSaving(false);
-  return;
-}
+    if (!payload.name || !payload.price) {
+      setMessage({
+        text: t.enter_valid_name_price || "⚠️ Nhập tên & giá hợp lệ!",
+        type: "error",
+      });
+      setSaving(false);
+      return;
+    }
 
-const res = await fetch("/api/products", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${user.accessToken}`,
-  },
-  body: JSON.stringify(payload),
-});
+    try {
+      const res = await apiFetch("/api/products", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
       const result = await res.json();
 
       if (res.ok) {
@@ -143,14 +141,15 @@ const res = await fetch("/api/products", {
           type: "error",
         });
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       setMessage({
         text: t.post_failed || "❌ Đăng thất bại",
         type: "error",
       });
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   }
 
   /* =========================
@@ -206,10 +205,7 @@ const res = await fetch("/api/products", {
           className="w-full border p-2 rounded"
         />
 
-        <select
-          name="categoryId"
-          className="w-full border p-2 rounded"
-        >
+        <select name="categoryId" className="w-full border p-2 rounded">
           <option value="">{t.select_category}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
