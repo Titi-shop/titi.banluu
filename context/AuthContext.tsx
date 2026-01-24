@@ -12,20 +12,19 @@ import {
    TYPES
 ========================= */
 export type PiUser = {
-  uid: string;
+  pi_uid: string;
   username: string;
   wallet_address?: string | null;
   role: "customer" | "seller" | "admin";
-  accessToken?: string; // ✅ FIX GỐC
 };
 
 type AuthContextType = {
   user: PiUser | null;
-  piToken: string | null;
+  accessToken: string | null;
   loading: boolean;
   piReady: boolean;
   pilogin: () => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
 };
 
 type PiAuthResult = {
@@ -47,31 +46,30 @@ declare global {
 ========================= */
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  piToken: null,
+  accessToken: null,
   loading: true,
   piReady: false,
   pilogin: async () => {},
-  logout: async () => {},
+  logout: () => {},
 });
 
 /* =========================
-   AUTH PROVIDER
+   PROVIDER
 ========================= */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PiUser | null>(null);
-  const [piToken, setPiToken] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [piReady, setPiReady] = useState(false);
+
   const TOKEN_KEY = "pi_access_token";
+  const USER_KEY = "pi_user";
+
   /* -------------------------
-     INIT PI SDK (1 LẦN)
+     INIT PI SDK
   ------------------------- */
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      window.Pi &&
-      !window.__pi_inited
-    ) {
+    if (window.Pi && !window.__pi_inited) {
       window.Pi.init({
         version: "2.0",
         sandbox: process.env.NEXT_PUBLIC_PI_ENV === "testnet",
@@ -90,139 +88,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /* -------------------------
-     LOAD ME (AUTH-CENTRIC)
-  ------------------------- */
-  async function loadMe(token?: string): Promise<PiUser | null> {
-    try {
-      const res = await fetch("/api/users/me", {
-        headers: token
-          ? { Authorization: `Bearer ${token}` }
-          : {},
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      if (!res.ok) return null;
-
-      const data = await res.json();
-      return data.user as PiUser;
-    } catch {
-      return null;
-    }
-  }
-
-  /* -------------------------
-     LOAD SESSION (COOKIE)
+     LOAD LOCAL SESSION (NO COOKIE)
   ------------------------- */
   useEffect(() => {
-  const loadSession = async () => {
     try {
-      const savedToken =
-        typeof window !== "undefined"
-          ? localStorage.getItem(TOKEN_KEY)
-          : null;
+      const token = localStorage.getItem(TOKEN_KEY);
+      const rawUser = localStorage.getItem(USER_KEY);
 
-      if (savedToken) setPiToken(savedToken);
-
-      const me = await loadMe(savedToken ?? undefined);
-      if (me) {
-        setUser({
-          ...me,
-          accessToken: savedToken ?? undefined, // ✅ FIX GỐC
-        });
-      } else {
-        setUser(null);
+      if (token && rawUser) {
+        setAccessToken(token);
+        setUser(JSON.parse(rawUser));
       }
+    } catch {
+      setUser(null);
+      setAccessToken(null);
     } finally {
       setLoading(false);
     }
-  };
-
-  loadSession();
-}, []);
+  }, []);
 
   /* -------------------------
      LOGIN WITH PI
   ------------------------- */
   const pilogin = async () => {
     if (!window.Pi) {
-      alert("⚠️ Vui lòng mở ứng dụng trong Pi Browser");
+      alert("⚠️ Vui lòng mở app trong Pi Browser");
       return;
     }
 
     try {
-      let token: string | undefined;
-
-      // retry lấy token
-      for (let i = 0; i < 3; i++) {
-        const res = await window.Pi.authenticate(["username"]);
-        if (res?.accessToken) {
-          token = res.accessToken;
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 400));
-      }
-
-      if (!token) {
-        alert("❌ Không lấy được accessToken từ Pi");
+      const auth = await window.Pi.authenticate(["username"]);
+      if (!auth?.accessToken) {
+        alert("❌ Không lấy được accessToken");
         return;
       }
 
-      setPiToken(token);
-      localStorage.setItem(TOKEN_KEY, token);
+      const token = auth.accessToken;
 
-      // verify + set cookie
-      const verify = await fetch("/api/pi/verify", {
+      // Verify + bootstrap DB
+      const res = await fetch("/api/pi/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accessToken: token }),
-        credentials: "include",
       });
 
-      const data = await verify.json();
-
+      const data = await res.json();
       if (!data.success) {
-        alert("❌ Đăng nhập thất bại");
+        alert("❌ Pi verify thất bại");
         return;
       }
 
-      // 🔑 LẤY USER CHUẨN (CÓ ROLE)
-      const me = await loadMe(token);
-if (me) {
-  setUser({
-    ...me,
-    accessToken: token, // ✅ FIX GỐC
-  });
-}
+      const newUser: PiUser = {
+        pi_uid: data.user.pi_uid,
+        username: data.user.username,
+        wallet_address: data.user.wallet_address ?? null,
+        role: "customer", // role thực sẽ resolve ở backend
+      };
+
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+
+      setAccessToken(token);
+      setUser(newUser);
     } catch (err) {
       console.error("❌ Pi login error:", err);
-      alert("❌ Có lỗi khi đăng nhập");
+      alert("❌ Lỗi đăng nhập Pi");
     }
   };
 
   /* -------------------------
      LOGOUT
   ------------------------- */
-  const logout = async () => {
-    try {
-      await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-    } finally {
-  setUser(null);
-  setPiToken(null);
-  if (typeof window !== "undefined") {
+  const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
-  }
-}
+    localStorage.removeItem(USER_KEY);
+    setUser(null);
+    setAccessToken(null);
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        piToken,
+        accessToken,
         loading,
         piReady,
         pilogin,
