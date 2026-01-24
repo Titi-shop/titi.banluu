@@ -1,3 +1,5 @@
+// context/AuthContext.tsx
+
 "use client";
 
 import {
@@ -88,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /* -------------------------
-     LOAD LOCAL SESSION (NO COOKIE)
+     LOAD LOCAL SESSION
   ------------------------- */
   useEffect(() => {
     try {
@@ -112,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ------------------------- */
   const pilogin = async () => {
     if (!window.Pi) {
-      alert("⚠️ Vui lòng mở app trong Pi Browser");
+      alert("⚠️ Vui lòng mở ứng dụng trong Pi Browser");
       return;
     }
 
@@ -125,7 +127,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const token = auth.accessToken;
 
-      // Verify + bootstrap DB
       const res = await fetch("/api/pi/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -133,23 +134,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = await res.json();
+
       if (!data.success) {
         alert("❌ Pi verify thất bại");
         return;
       }
 
-      const newUser: PiUser = {
-        pi_uid: data.user.pi_uid,
-        username: data.user.username,
-        wallet_address: data.user.wallet_address ?? null,
-        role: "customer", // role thực sẽ resolve ở backend
-      };
+      const verifiedUser: PiUser = data.user;
 
       localStorage.setItem(TOKEN_KEY, token);
-      localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+      localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
 
       setAccessToken(token);
-      setUser(newUser);
+      setUser(verifiedUser);
     } catch (err) {
       console.error("❌ Pi login error:", err);
       alert("❌ Lỗi đăng nhập Pi");
