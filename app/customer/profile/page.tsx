@@ -35,35 +35,34 @@ export default function ProfilePage() {
   /* =======================
      LOAD PROFILE (COOKIE-BASED)
   ======================= */
-  useEffect(() => {
-    if (authLoading) return;
+useEffect(() => {
+  if (authLoading) return;
 
-    // ❗ KHÔNG dùng accessToken nữa
-    if (!user) {
-  setLoading(false);
-  return;
-}
-
-    const loadProfile = async () => {
-      try {
-        const loadProfile = async () => {
-  try {
-    const res = await apiFetch("/api/profile");
-
-    if (!res.ok) throw new Error("unauthorized");
-
-    const data = await res.json();
-    setProfile(data.profile);
-  } catch (err) {
-    console.error(err);
-    setError(t.profile_error_loading);
-  } finally {
+  if (!user) {
     setLoading(false);
+    return;
   }
-};
 
-    loadProfile();
-  }, [authLoading, user, t]);
+  const loadProfile = async () => {
+    try {
+      const res = await apiFetch("/api/profile");
+
+      if (!res.ok) {
+        throw new Error("unauthorized");
+      }
+
+      const data = await res.json();
+      setProfile(data.profile ?? data);
+    } catch (err) {
+      console.error(err);
+      setError(t.profile_error_loading);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadProfile();
+}, [authLoading, user, t]);
 
   /* =======================
      UPLOAD AVATAR (COOKIE-BASED)
