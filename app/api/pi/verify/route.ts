@@ -1,30 +1,52 @@
 // app/api/pi/verify/route.ts
+/* =========================================================
+   PI TOKEN VERIFY API
+   - Identity Provider: Pi Network
+   - NETWORK–FIRST
+   - AUTH-CENTRIC
+   - NO COOKIE
+   - BOOTSTRAP MODE (Phase 1)
+========================================================= */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/* =========================================================
+   TYPES
+========================================================= */
 type PiMeResponse = {
   uid?: string;
   username?: string;
-  wallet_address?: string;
+  wallet_address?: string | null;
 };
 
-export async function POST(req: NextRequest) {
+/* =========================================================
+   BLOCK UNSUPPORTED METHODS (avoid noisy logs)
+========================================================= */
+export async function GET() {
+  return new Response("Method Not Allowed", { status: 405 });
+}
+
+/* =========================================================
+   POST /api/pi/verify
+========================================================= */
+export async function POST(req: Request) {
   try {
-    const { accessToken } = (await req.json()) as { accessToken?: string };
+    const body = await req.json().catch(() => ({}));
+    const accessToken = body?.accessToken as string | undefined;
 
     if (!accessToken) {
       return NextResponse.json(
-        { success: false, error: "missing_access_token" },
+        { success: false, error: "MISSING_ACCESS_TOKEN" },
         { status: 400 }
       );
     }
 
     /* =====================================================
-       1️⃣ VERIFY TOKEN WITH PI NETWORK
+       1️⃣ VERIFY TOKEN WITH PI NETWORK (NETWORK-FIRST)
     ===================================================== */
     const piRes = await fetch("https://api.minepi.com/v2/me", {
       headers: {
@@ -36,16 +58,16 @@ export async function POST(req: NextRequest) {
 
     if (!piRes.ok) {
       return NextResponse.json(
-        { success: false, error: "invalid_access_token" },
+        { success: false, error: "INVALID_ACCESS_TOKEN" },
         { status: 401 }
       );
     }
 
     const data = (await piRes.json()) as PiMeResponse;
 
-    if (!data.uid || !data.username) {
+    if (!data?.uid || !data?.username) {
       return NextResponse.json(
-        { success: false, error: "invalid_pi_user" },
+        { success: false, error: "INVALID_PI_USER" },
         { status: 401 }
       );
     }
@@ -56,6 +78,7 @@ export async function POST(req: NextRequest) {
 
     /* =====================================================
        2️⃣ UPSERT USER (DB = SOURCE OF TRUTH)
+       - Bootstrap: only ensure existence
     ===================================================== */
     await query(
       `
@@ -68,7 +91,8 @@ export async function POST(req: NextRequest) {
     );
 
     /* =====================================================
-       3️⃣ RESOLVE ROLE FROM DB
+       3️⃣ RESOLVE ROLE (DB FIRST)
+       - Bootstrap default = customer
     ===================================================== */
     const { rows } = await query(
       `
@@ -80,15 +104,14 @@ export async function POST(req: NextRequest) {
       [pi_uid]
     );
 
+    const dbRole = rows?.[0]?.role;
     const role =
-      rows?.[0]?.role === "seller" ||
-      rows?.[0]?.role === "admin" ||
-      rows?.[0]?.role === "customer"
-        ? rows[0].role
+      dbRole === "seller" || dbRole === "admin" || dbRole === "customer"
+        ? dbRole
         : "customer";
 
     /* =====================================================
-       4️⃣ RETURN AUTH RESULT (NO COOKIE)
+       4️⃣ RETURN VERIFIED SESSION (NO COOKIE)
     ===================================================== */
     return NextResponse.json({
       success: true,
@@ -96,13 +119,13 @@ export async function POST(req: NextRequest) {
         pi_uid,
         username,
         wallet_address,
-        role, // 🔥 QUAN TRỌNG
+        role,
       },
     });
   } catch (err) {
     console.error("❌ PI VERIFY ERROR:", err);
     return NextResponse.json(
-      { success: false, error: "server_error" },
+      { success: false, error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
