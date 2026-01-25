@@ -1,58 +1,80 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/apiFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useAuth } from "@/context/AuthContext";
 
+/* =========================
+   TYPES
+========================= */
 interface Order {
-  orderId: string;
-  total: number;
+  id: string;
+  total: number | null;
   status: string;
+  created_at: string;
 }
 
-export default function PendingOrders() {
+/* =========================
+   PAGE
+========================= */
+export default function PendingOrdersPage() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { loading: authLoading } = useAuth();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
+  /* =========================
+     LOAD ORDERS (NETWORK–FIRST)
+  ========================= */
   const fetchOrders = async () => {
     try {
-      const res = await fetch(
-        "/api/seller/orders?status=Chờ xác nhận",
-        {
-          cache: "no-store",
-          credentials: "include",
-        }
+      const res = await apiFetch(
+        "/api/seller/orders?status=Chờ xác nhận"
       );
 
       if (!res.ok) {
-        throw new Error("Unauthorized");
+        const err = await res.json();
+        throw new Error(err?.error || "FAILED_TO_LOAD_ORDERS");
       }
 
-      const data = await res.json();
-      setOrders(data || []);
+      const data: Order[] = await res.json();
+      setOrders(data);
     } catch (err) {
-      alert(t.error_load_orders || "❌ Lỗi tải đơn hàng");
+      console.error(err);
+      alert(
+        t.error_load_orders ||
+          "❌ Không thể tải danh sách đơn chờ xác nhận"
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  /* =========================
+     EFFECT
+  ========================= */
+  useEffect(() => {
+    if (authLoading) return;
+    fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  /* =========================
+     STATS
+  ========================= */
   const totalPi = orders.reduce(
     (sum, o) => sum + (Number(o.total) || 0),
     0
   );
 
-  const handleConfirm = async (orderId: string) => {
-    // TODO: sau này gọi API update status
-    alert(`${t.confirm_order || "✅ Xác nhận đơn"} #${orderId}`);
-  };
-
-  if (loading) {
+  /* =========================
+     LOADING
+  ========================= */
+  if (loading || authLoading) {
     return (
       <p className="text-center mt-10 text-gray-500">
         ⏳ {t.loading || "Đang tải..."}
@@ -60,9 +82,12 @@ export default function PendingOrders() {
     );
   }
 
+  /* =========================
+     UI
+  ========================= */
   return (
     <main className="min-h-screen max-w-4xl mx-auto p-4 pb-24 bg-gray-50">
-      {/* ===== Thanh tiêu đề ===== */}
+      {/* HEADER */}
       <div className="flex items-center mb-4">
         <button
           onClick={() => router.back()}
@@ -75,7 +100,7 @@ export default function PendingOrders() {
         </h1>
       </div>
 
-      {/* ===== Thống kê nhanh ===== */}
+      {/* STATS */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="card text-center">
           <p className="text-gray-500 text-sm">
@@ -83,6 +108,7 @@ export default function PendingOrders() {
           </p>
           <p className="text-xl font-bold">{orders.length}</p>
         </div>
+
         <div className="card text-center">
           <p className="text-gray-500 text-sm">
             {t.total_pi || "Tổng Pi"}
@@ -93,28 +119,41 @@ export default function PendingOrders() {
         </div>
       </div>
 
-      {/* ===== Danh sách đơn ===== */}
+      {/* ORDERS LIST */}
       {orders.length === 0 ? (
         <p className="text-center text-gray-500">
-          {t.no_pending_orders || "Không có đơn chờ xác nhận."}
+          {t.no_pending_orders ||
+            "Không có đơn hàng chờ xác nhận."}
         </p>
       ) : (
         <div className="space-y-3">
-          {orders.map((o) => (
+          {orders.map((order) => (
             <div
-              key={o.orderId}
+              key={order.id}
               className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition"
             >
               <p>
-                🧾 <b>{t.order_id || "Mã đơn"}:</b> #{o.orderId}
-              </p>
-              <p>
-                💰 <b>{t.total || "Tổng"}:</b>{" "}
-                {Number(o.total).toFixed(2)} Pi
+                🧾 <b>{t.order_id || "Mã đơn"}:</b> #
+                {order.id}
               </p>
 
+              <p>
+                💰 <b>{t.total || "Tổng"}:</b>{" "}
+                {Number(order.total || 0).toFixed(2)} Pi
+              </p>
+
+              <p className="text-sm text-gray-500">
+                📅{" "}
+                {new Date(order.created_at).toLocaleString()}
+              </p>
+
+              {/* CONFIRM BUTTON (placeholder) */}
               <button
-                onClick={() => handleConfirm(o.orderId)}
+                onClick={() =>
+                  alert(
+                    `${t.confirm_order || "Xác nhận đơn"} #${order.id}`
+                  )
+                }
                 className="btn-orange mt-3 w-full"
               >
                 {t.confirm_order || "✅ Xác nhận đơn"}
@@ -124,7 +163,7 @@ export default function PendingOrders() {
         </div>
       )}
 
-      <div className="h-20"></div>
+      <div className="h-20" />
     </main>
   );
 }
