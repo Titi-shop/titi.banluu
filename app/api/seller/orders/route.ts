@@ -1,12 +1,14 @@
 /* =========================================================
    app/api/seller/orders/route.ts
-   - NETWORK-FIRST Pi Auth
-   - Seller RBAC
-   - Stable on Pi Browser (iOS)
+   - NETWORK–FIRST Pi Auth
+   - AUTH-CENTRIC + RBAC
+   - BOOTSTRAP MODE (Phase 1)
+   - Bearer ONLY (NO cookie)
+   - Stable on Pi Browser (iOS + Android)
 ========================================================= */
 
 import { NextResponse } from "next/server";
-import { headers, cookies } from "next/headers";
+import { headers } from "next/headers";
 import { resolveRole } from "@/lib/auth/resolveRole";
 import { getOrdersBySeller } from "@/lib/db/orders";
 
@@ -14,23 +16,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
-   PI AUTH — NETWORK FIRST + COOKIE FALLBACK
+   PI AUTH — BEARER ONLY (NETWORK-FIRST)
 ========================================================= */
 async function getUserFromPi() {
-  let token: string | null = null;
-
-  /* 1️⃣ Authorization header */
   const authHeader = headers().get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    token = authHeader.slice(7).trim();
-  }
+  if (!authHeader?.startsWith("Bearer ")) return null;
 
-  /* 2️⃣ Cookie fallback (Pi Browser hay dùng) */
-  if (!token) {
-    token = cookies().get("pi_access_token")?.value ?? null;
-  }
-
-  if (!token) return null;
+  const token = authHeader.slice(7).trim();
 
   const res = await fetch("https://api.minepi.com/v2/me", {
     headers: {
@@ -54,6 +46,8 @@ async function getUserFromPi() {
 
 /* =========================================================
    GET /api/seller/orders
+   BOOTSTRAP RULE:
+   - Seller chưa tồn tại => 200 []
 ========================================================= */
 export async function GET(req: Request) {
   try {
@@ -66,13 +60,12 @@ export async function GET(req: Request) {
       );
     }
 
-    /* 2️⃣ ROLE CHECK */
+    /* 2️⃣ RBAC */
     const role = await resolveRole(user);
+
+    // BOOTSTRAP: chưa là seller => chưa có đơn
     if (role !== "seller") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
+      return NextResponse.json([], { status: 200 });
     }
 
     /* 3️⃣ QUERY PARAMS */
@@ -80,17 +73,12 @@ export async function GET(req: Request) {
     const status = searchParams.get("status") ?? undefined;
 
     /* 4️⃣ DB */
-    const orders = await getOrdersBySeller(
-      user.pi_uid,
-      status
-    );
+    const orders = await getOrdersBySeller(user.pi_uid, status);
 
     return NextResponse.json(orders);
   } catch (err) {
-    console.error("SELLER ORDERS ERROR:", err);
-    return NextResponse.json(
-      { error: "FAILED_TO_LOAD_ORDERS" },
-      { status: 500 }
-    );
+    // BOOTSTRAP: không để lỗi nghiệp vụ làm crash
+    console.warn("SELLER ORDERS BOOTSTRAP WARN:", err);
+    return NextResponse.json([], { status: 200 });
   }
 }
