@@ -1,13 +1,18 @@
-/* lib/db/orders.ts */
+/* =========================================================
+   lib/db/orders.ts
+   - Supabase REST
+   - seller_id / buyer_id = users.id
+   - Public API dùng pi_uid làm identity
+========================================================= */
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-/* =========================
+/* =========================================================
    TYPES
-========================= */
+========================================================= */
 export type OrderBuyer = {
   pi_uid: string;
 };
@@ -17,10 +22,15 @@ export type OrderSeller = {
 };
 
 export type OrderItemProduct = {
+  id: string;
+  name: string;
+  price: number;
   seller: OrderSeller;
 };
 
 export type OrderItem = {
+  quantity: number;
+  price: number;
   product: OrderItemProduct;
 };
 
@@ -40,15 +50,22 @@ export type BuyerOrderListItem = {
   created_at: string;
 };
 
+export type SellerOrderListItem = {
+  id: string;
+  status: string;
+  total: number | null;
+  created_at: string;
+};
+
 export type CreateOrderItem = {
   product_id: string;
   quantity: number;
   price: number;
 };
 
-/* =========================
+/* =========================================================
    GET ORDER BY ID
-========================= */
+========================================================= */
 export async function getOrderById(
   id: string
 ): Promise<OrderRecord | null> {
@@ -62,7 +79,12 @@ export async function getOrderById(
         pi_uid
       ),
       items:order_items(
+        quantity,
+        price,
         product:products(
+          id,
+          name,
+          price,
           seller:users!products_seller_id_fkey(
             pi_uid
           )
@@ -86,9 +108,9 @@ export async function getOrderById(
   return data[0] ?? null;
 }
 
-/* =========================
+/* =========================================================
    UPDATE ORDER STATUS
-========================= */
+========================================================= */
 export async function updateOrderStatus(
   id: string,
   status: string
@@ -113,9 +135,9 @@ export async function updateOrderStatus(
   return true;
 }
 
-/* =========================
-   GET ORDERS BY BUYER
-========================= */
+/* =========================================================
+   GET ORDERS BY BUYER (pi_uid)
+========================================================= */
 export async function getOrdersByBuyer(
   buyerPiUid: string
 ): Promise<BuyerOrderListItem[]> {
@@ -141,7 +163,7 @@ export async function getOrdersByBuyer(
   );
 
   if (!res.ok) {
-    throw new Error("FAILED_TO_FETCH_ORDERS");
+    throw new Error("FAILED_TO_FETCH_BUYER_ORDERS");
   }
 
   const data = (await res.json()) as Array<
@@ -151,15 +173,64 @@ export async function getOrdersByBuyer(
   return data.map(({ buyer: _b, ...order }) => order);
 }
 
-/* =========================
+/* =========================================================
+   ✅ GET ORDERS BY SELLER (pi_uid) — QUAN TRỌNG
+========================================================= */
+export async function getOrdersBySeller(
+  sellerPiUid: string,
+  status?: string
+): Promise<SellerOrderListItem[]> {
+  const statusFilter = status ? `&status=eq.${status}` : "";
+
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/orders?select=
+      id,
+      status,
+      total,
+      created_at,
+      items:order_items(
+        product:products(
+          seller:users!products_seller_id_fkey(
+            pi_uid
+          )
+        )
+      )
+    &items.product.seller.pi_uid=eq.${sellerPiUid}
+    ${statusFilter}
+    &order=created_at.desc
+    `,
+    {
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("FAILED_TO_FETCH_SELLER_ORDERS");
+  }
+
+  const orders = (await res.json()) as Array<
+    SellerOrderListItem & { items: unknown[] }
+  >;
+
+  // loại bỏ items khỏi response (seller chỉ cần order list)
+  return orders.map(({ items: _i, ...o }) => o);
+}
+
+/* =========================================================
    CREATE ORDER
-========================= */
+========================================================= */
 export async function createOrder(
   buyerPiUid: string,
   items: CreateOrderItem[],
   total: number
 ) {
-  // 1️⃣ Lấy buyer_id
+  /* -------------------------
+     1️⃣ Resolve buyer_id
+  ------------------------- */
   const userRes = await fetch(
     `${SUPABASE_URL}/rest/v1/users?pi_uid=eq.${buyerPiUid}&select=id`,
     {
@@ -180,7 +251,9 @@ export async function createOrder(
     throw new Error("BUYER_NOT_FOUND");
   }
 
-  // 2️⃣ Tạo order
+  /* -------------------------
+     2️⃣ Create order
+  ------------------------- */
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders`,
     {
@@ -205,7 +278,9 @@ export async function createOrder(
 
   const [order] = await orderRes.json();
 
-  // 3️⃣ Tạo order_items
+  /* -------------------------
+     3️⃣ Create order items
+  ------------------------- */
   const orderItems = items.map((i) => ({
     order_id: order.id,
     product_id: i.product_id,
