@@ -1,8 +1,9 @@
 /* =========================================================
    lib/db/orders.ts
    - Supabase REST API
-   - Identity: pi_uid
-   - seller_id / buyer_id = users.id
+   - Identity: pi_uid (Pi Network)
+   - BOOTSTRAP MODE (Phase 1)
+   - DB layer ONLY returns data, never RBAC decisions
    - SAFE QUERY (NO PGRST100)
 ========================================================= */
 
@@ -60,6 +61,16 @@ export type CreateOrderItem = {
 };
 
 /* =========================================================
+   INTERNAL HELPER
+========================================================= */
+function supabaseHeaders() {
+  return {
+    apikey: SERVICE_KEY,
+    Authorization: `Bearer ${SERVICE_KEY}`,
+  };
+}
+
+/* =========================================================
    GET ORDER BY ID
 ========================================================= */
 export async function getOrderById(
@@ -85,10 +96,7 @@ export async function getOrderById(
       )
     `,
     {
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-      },
+      headers: supabaseHeaders(),
       cache: "no-store",
     }
   );
@@ -113,8 +121,7 @@ export async function updateOrderStatus(
     {
       method: "PATCH",
       headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
+        ...supabaseHeaders(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ status }),
@@ -147,10 +154,7 @@ export async function getOrdersByBuyer(
     &order=created_at.desc
     `,
     {
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-      },
+      headers: supabaseHeaders(),
       cache: "no-store",
     }
   );
@@ -167,7 +171,11 @@ export async function getOrdersByBuyer(
 }
 
 /* =========================================================
-   ✅ GET ORDERS BY SELLER (pi_uid) — FINAL & SAFE
+   GET ORDERS BY SELLER (pi_uid)
+   BOOTSTRAP RULE:
+   - Seller chưa tồn tại => []
+   - Seller chưa có đơn => []
+   - KHÔNG throw SELLER_NOT_FOUND
 ========================================================= */
 export async function getOrdersBySeller(
   sellerPiUid: string,
@@ -175,31 +183,32 @@ export async function getOrdersBySeller(
 ): Promise<SellerOrderListItem[]> {
   /* ----------------------------------
      1️⃣ Resolve seller_id từ pi_uid
+     (BOOTSTRAP: không throw)
   ---------------------------------- */
   const sellerRes = await fetch(
     `${SUPABASE_URL}/rest/v1/users?pi_uid=eq.${sellerPiUid}&select=id`,
     {
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-      },
+      headers: supabaseHeaders(),
       cache: "no-store",
     }
   );
 
   if (!sellerRes.ok) {
-    throw new Error("SELLER_NOT_FOUND");
+    // Bootstrap: coi như chưa có seller
+    return [];
   }
 
   const sellers = await sellerRes.json();
   const sellerId = sellers[0]?.id;
+
   if (!sellerId) {
-    throw new Error("SELLER_NOT_FOUND");
+    // Bootstrap: user chưa đăng ký seller
+    return [];
   }
 
   /* ----------------------------------
      2️⃣ Query orders qua order_items
-     (KHÔNG join lồng → tránh PGRST100)
+     (SAFE – tránh join lồng PGRST100)
   ---------------------------------- */
   const statusFilter = status
     ? `&status=eq.${encodeURIComponent(status)}`
@@ -224,10 +233,7 @@ export async function getOrdersBySeller(
     &order=created_at.desc
     `,
     {
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-      },
+      headers: supabaseHeaders(),
       cache: "no-store",
     }
   );
@@ -245,9 +251,6 @@ export async function getOrdersBySeller(
     created_at: string;
   }>;
 
-  /* ----------------------------------
-     3️⃣ Map CHUẨN cho UI
-  ---------------------------------- */
   return rows.map((o) => ({
     orderId: o.id,
     status: o.status,
@@ -264,16 +267,14 @@ export async function createOrder(
   items: CreateOrderItem[],
   total: number
 ) {
-  /* -------------------------
+  /* ----------------------------------
      1️⃣ Resolve buyer_id
-  ------------------------- */
+  ---------------------------------- */
   const userRes = await fetch(
     `${SUPABASE_URL}/rest/v1/users?pi_uid=eq.${buyerPiUid}&select=id`,
     {
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-      },
+      headers: supabaseHeaders(),
+      cache: "no-store",
     }
   );
 
@@ -283,20 +284,20 @@ export async function createOrder(
 
   const users = await userRes.json();
   const buyerId = users[0]?.id;
+
   if (!buyerId) {
     throw new Error("BUYER_NOT_FOUND");
   }
 
-  /* -------------------------
+  /* ----------------------------------
      2️⃣ Create order
-  ------------------------- */
+  ---------------------------------- */
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders`,
     {
       method: "POST",
       headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
+        ...supabaseHeaders(),
         "Content-Type": "application/json",
         Prefer: "return=representation",
       },
@@ -314,9 +315,9 @@ export async function createOrder(
 
   const [order] = await orderRes.json();
 
-  /* -------------------------
+  /* ----------------------------------
      3️⃣ Create order items
-  ------------------------- */
+  ---------------------------------- */
   const orderItems = items.map((i) => ({
     order_id: order.id,
     product_id: i.product_id,
@@ -329,8 +330,7 @@ export async function createOrder(
     {
       method: "POST",
       headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
+        ...supabaseHeaders(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(orderItems),
