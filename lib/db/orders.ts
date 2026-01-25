@@ -176,10 +176,20 @@ export async function getOrdersByBuyer(
 /* =========================================================
    ✅ GET ORDERS BY SELLER (pi_uid) — QUAN TRỌNG
 ========================================================= */
+/* =========================================================
+   ✅ GET ORDERS BY SELLER (FINAL)
+========================================================= */
 export async function getOrdersBySeller(
   sellerPiUid: string,
   status?: string
-): Promise<SellerOrderListItem[]> {
+): Promise<
+  {
+    orderId: string;
+    status: string;
+    total: number | null;
+    createdAt: string;
+  }[]
+> {
   const statusFilter = status ? `&status=eq.${status}` : "";
 
   const res = await fetch(
@@ -209,17 +219,27 @@ export async function getOrdersBySeller(
   );
 
   if (!res.ok) {
+    const text = await res.text();
+    console.error("SUPABASE SELLER ORDERS ERROR:", text);
     throw new Error("FAILED_TO_FETCH_SELLER_ORDERS");
   }
 
-  const orders = (await res.json()) as Array<
-    SellerOrderListItem & { items: unknown[] }
-  >;
+  const rows = (await res.json()) as Array<{
+    id: string;
+    status: string;
+    total: number | null;
+    created_at: string;
+    items: unknown[];
+  }>;
 
-  // loại bỏ items khỏi response (seller chỉ cần order list)
-  return orders.map(({ items: _i, ...o }) => o);
+  /* 🔥 MAP CHUẨN CHO UI */
+  return rows.map((o) => ({
+    orderId: o.id,
+    status: o.status,
+    total: o.total,
+    createdAt: o.created_at,
+  }));
 }
-
 /* =========================================================
    CREATE ORDER
 ========================================================= */
