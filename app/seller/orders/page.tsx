@@ -1,6 +1,6 @@
 "use client";
-
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
@@ -29,29 +29,22 @@ export default function OrdersTabs() {
      LOAD ORDERS (AUTH-CENTRIC)
   ========================= */
   const fetchOrders = async () => {
-    try {
-      const res = await fetch("/api/seller/orders", {
-        cache: "no-store",
-        credentials: "include", // fallback cookie
-        headers: piToken
-          ? {
-              Authorization: `Bearer ${piToken}`, // ⭐ BẮT BUỘC
-            }
-          : undefined,
-      });
+  try {
+    const res = await apiFetch("/api/seller/orders");
 
-      if (!res.ok) {
-        throw new Error("forbidden");
-      }
-
-      const data = await res.json();
-      setOrders(data || []);
-    } catch {
-      alert(t.error_load_orders || "❌ Không thể tải dữ liệu đơn hàng!");
-    } finally {
-      setLoadingOrders(false);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "FAILED");
     }
-  };
+
+    const data = await res.json();
+    setOrders(data || []);
+  } catch (err) {
+    alert("❌ Không thể tải đơn hàng");
+  } finally {
+    setLoading(false);
+  }
+};
 
   /* =========================
      EFFECT
