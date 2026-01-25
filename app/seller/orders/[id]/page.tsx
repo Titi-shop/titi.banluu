@@ -2,81 +2,102 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/apiFetch";
+import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
+/* =========================
+   TYPES
+========================= */
 interface Order {
-  id: number;
-  buyerName: string;
-  email: string;
-  phone: string;
-  address: string;
-  country: string;
-  province: string;
-  total: number;
+  id: string;
   status: string;
-  createdAt: string;
+  total: number | null;
+  created_at: string;
+  buyer: {
+    username: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    country?: string;
+    province?: string;
+  };
 }
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
+/* =========================
+   PAGE
+========================= */
+export default function SellerOrderDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const router = useRouter();
-  const { id } = params;
   const { t } = useTranslation();
+  const { loading: authLoading } = useAuth();
+  const { id } = params;
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch(`/api/orders/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.error) {
-          setOrder(null);
-        } else {
-          setOrder(data);
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        setOrder(null);
-        setLoading(false);
-      });
-  }, [id]);
+  /* =========================
+     LOAD ORDER (AUTH–CENTRIC)
+  ========================= */
+  const loadOrder = async () => {
+    try {
+      const res = await apiFetch(
+        `/api/seller/orders/${id}`
+      );
 
-  const printOrder = () => window.print();
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err?.error || "NOT_FOUND");
+      }
 
-  const downloadJSON = () => {
-    if (!order) return;
-
-    const blob = new Blob([JSON.stringify(order, null, 2)], {
-      type: "application/json",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-
-    // SAFE template string
-    a.download = `order_${id}.json`;
-
-    a.click();
+      const data: Order = await res.json();
+      setOrder(data);
+    } catch (err) {
+      console.error(err);
+      setOrder(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ⏳ LOADING
-  if (loading)
+  /* =========================
+     EFFECT
+  ========================= */
+  useEffect(() => {
+    if (authLoading) return;
+    loadOrder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  /* =========================
+     LOADING
+  ========================= */
+  if (loading || authLoading) {
     return (
       <p className="text-center mt-10 text-gray-500">
-        ⏳ {t.loading_initial}
+        ⏳ {t.loading || "Đang tải..."}
       </p>
     );
+  }
 
-  // ❌ ORDER NOT FOUND
-  if (!order)
+  /* =========================
+     NOT FOUND
+  ========================= */
+  if (!order) {
     return (
       <p className="text-center mt-10 text-red-500">
-        ❌ {t.product_not_found}
+        ❌ {t.order_not_found || "Không tìm thấy đơn hàng"}
       </p>
     );
+  }
 
+  /* =========================
+     UI
+  ========================= */
   return (
     <main className="min-h-screen p-5 max-w-2xl mx-auto bg-white">
       {/* BACK */}
@@ -89,57 +110,86 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
       {/* TITLE */}
       <h1 className="text-2xl font-bold text-gray-800 mb-3">
-        🧾 {t.order_details} #{id}
+        🧾 {t.order_details || "Chi tiết đơn"} #{order.id}
       </h1>
 
       {/* ORDER INFO */}
       <div className="border p-4 rounded-lg shadow-sm space-y-2">
         <p>
-          <b>👤 {t.buyer}:</b> {order.buyerName}
+          <b>👤 {t.buyer || "Người mua"}:</b>{" "}
+          {order.buyer.username}
         </p>
-        <p>
-          <b>📧 {t.email}:</b> {order.email}
-        </p>
-        <p>
-          <b>📞 {t.phone_number}:</b> {order.phone}
-        </p>
-        <p>
-          <b>🏠 {t.address}:</b> {order.address}
-        </p>
-        <p>
-          <b>🌍 {t.country}:</b> {order.country}
-        </p>
-        <p>
-          <b>🏙 {t.province}:</b> {order.province}
-        </p>
+
+        {order.buyer.email && (
+          <p>
+            <b>📧 {t.email}:</b> {order.buyer.email}
+          </p>
+        )}
+
+        {order.buyer.phone && (
+          <p>
+            <b>📞 {t.phone_number}:</b>{" "}
+            {order.buyer.phone}
+          </p>
+        )}
+
+        {order.buyer.address && (
+          <p>
+            <b>🏠 {t.address}:</b>{" "}
+            {order.buyer.address}
+          </p>
+        )}
+
+        {order.buyer.country && (
+          <p>
+            <b>🌍 {t.country}:</b>{" "}
+            {order.buyer.country}
+          </p>
+        )}
+
+        {order.buyer.province && (
+          <p>
+            <b>🏙 {t.province}:</b>{" "}
+            {order.buyer.province}
+          </p>
+        )}
 
         <hr className="my-3" />
 
         <p>
-          <b>💰 {t.total_pi}:</b> {order.total} Pi
+          <b>💰 {t.total_pi || "Tổng"}:</b>{" "}
+          {Number(order.total || 0).toFixed(2)} Pi
         </p>
+
         <p>
-          <b>📦 {t.status}:</b> {order.status}
+          <b>📦 {t.status || "Trạng thái"}:</b>{" "}
+          {order.status}
         </p>
-        <p>
-          <b>📅 {t.created_at}:</b> {order.createdAt}
+
+        <p className="text-sm text-gray-500">
+          📅{" "}
+          {new Date(order.created_at).toLocaleString()}
         </p>
       </div>
 
-      {/* Buttons */}
+      {/* ACTIONS */}
       <div className="mt-6 flex gap-3">
         <button
-          onClick={downloadJSON}
+          onClick={() =>
+            navigator.clipboard.writeText(
+              JSON.stringify(order, null, 2)
+            )
+          }
           className="px-4 py-2 bg-blue-600 text-white rounded"
         >
-          ⬇ {t.download}
+          ⬇ {t.download || "Tải JSON"}
         </button>
 
         <button
-          onClick={printOrder}
+          onClick={() => window.print()}
           className="px-4 py-2 bg-green-600 text-white rounded"
         >
-          🖨 {t.print}
+          🖨 {t.print || "In"}
         </button>
       </div>
     </main>
