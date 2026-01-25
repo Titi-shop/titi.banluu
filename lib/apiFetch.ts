@@ -1,16 +1,27 @@
 // lib/apiFetch.ts
-import { Pi } from "@pi-network/pi-sdk";
+"use client";
+
+declare global {
+  interface Window {
+    Pi?: any;
+  }
+}
 
 export async function apiFetch(
   url: string,
   options: RequestInit = {}
 ) {
-  const auth = await Pi.authenticate(
+  if (typeof window === "undefined" || !window.Pi) {
+    throw new Error("PI_SDK_NOT_AVAILABLE");
+  }
+
+  // ⚠️ Authenticate chỉ chạy trong Pi Browser
+  const auth = await window.Pi.authenticate(
     ["username"],
     { onIncompletePaymentFound: () => {} }
   );
 
-  const token = auth.accessToken;
+  const token = auth?.accessToken;
   if (!token) {
     throw new Error("NO_PI_TOKEN");
   }
