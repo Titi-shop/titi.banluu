@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { useRouter } from "next/navigation";
@@ -20,39 +21,38 @@ interface Order {
 export default function OrdersTabs() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { piToken, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
   /* =========================
-     LOAD ORDERS (AUTH-CENTRIC)
+     LOAD ORDERS (NETWORK–FIRST)
   ========================= */
   const fetchOrders = async () => {
-  try {
-    const res = await apiFetch("/api/seller/orders");
+    try {
+      const res = await apiFetch("/api/seller/orders");
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "FAILED");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "FAILED_TO_LOAD_ORDERS");
+      }
+
+      const data = await res.json();
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("❌ Load orders failed:", err);
+      alert(t.error_load_orders || "❌ Không thể tải đơn hàng");
+    } finally {
+      setLoadingOrders(false); // ✅ FIX
     }
-
-    const data = await res.json();
-    setOrders(data || []);
-  } catch (err) {
-    alert("❌ Không thể tải đơn hàng");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   /* =========================
      EFFECT
   ========================= */
   useEffect(() => {
-    // ⛔ chờ AuthContext load xong
     if (authLoading) return;
-
     fetchOrders();
   }, [authLoading]);
 
