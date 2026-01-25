@@ -1,8 +1,9 @@
 /* =========================================================
    lib/db/orders.ts
-   - Supabase REST
+   - Supabase REST API
+   - Identity: pi_uid
    - seller_id / buyer_id = users.id
-   - Public API dùng pi_uid làm identity
+   - SAFE QUERY (NO PGRST100)
 ========================================================= */
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -17,15 +18,10 @@ export type OrderBuyer = {
   pi_uid: string;
 };
 
-export type OrderSeller = {
-  pi_uid: string;
-};
-
 export type OrderItemProduct = {
   id: string;
   name: string;
   price: number;
-  seller: OrderSeller;
 };
 
 export type OrderItem = {
@@ -51,10 +47,10 @@ export type BuyerOrderListItem = {
 };
 
 export type SellerOrderListItem = {
-  id: string;
+  orderId: string;
   status: string;
   total: number | null;
-  created_at: string;
+  createdAt: string;
 };
 
 export type CreateOrderItem = {
@@ -84,10 +80,7 @@ export async function getOrderById(
         product:products(
           id,
           name,
-          price,
-          seller:users!products_seller_id_fkey(
-            pi_uid
-          )
+          price
         )
       )
     `,
@@ -174,38 +167,59 @@ export async function getOrdersByBuyer(
 }
 
 /* =========================================================
-   ✅ GET ORDERS BY SELLER (pi_uid) — QUAN TRỌNG
-========================================================= */
-/* =========================================================
-   ✅ GET ORDERS BY SELLER (FINAL)
+   ✅ GET ORDERS BY SELLER (pi_uid) — FINAL & SAFE
 ========================================================= */
 export async function getOrdersBySeller(
   sellerPiUid: string,
   status?: string
-): Promise<
-  {
-    orderId: string;
-    status: string;
-    total: number | null;
-    createdAt: string;
-  }[]
-> {
-  const statusFilter = status ? `&status=eq.${status}` : "";
+): Promise<SellerOrderListItem[]> {
+  /* ----------------------------------
+     1️⃣ Resolve seller_id từ pi_uid
+  ---------------------------------- */
+  const sellerRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/users?pi_uid=eq.${sellerPiUid}&select=id`,
+    {
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!sellerRes.ok) {
+    throw new Error("SELLER_NOT_FOUND");
+  }
+
+  const sellers = await sellerRes.json();
+  const sellerId = sellers[0]?.id;
+  if (!sellerId) {
+    throw new Error("SELLER_NOT_FOUND");
+  }
+
+  /* ----------------------------------
+     2️⃣ Query orders qua order_items
+     (KHÔNG join lồng → tránh PGRST100)
+  ---------------------------------- */
+  const statusFilter = status
+    ? `&status=eq.${encodeURIComponent(status)}`
+    : "";
 
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/orders?select=
       id,
       status,
       total,
-      created_at,
-      items:order_items(
-        product:products(
-          seller:users!products_seller_id_fkey(
-            pi_uid
-          )
-        )
+      created_at
+    &id=in.(
+      select order_id
+      from order_items
+      where product_id in (
+        select id
+        from products
+        where seller_id=eq.${sellerId}
       )
-    &items.product.seller.pi_uid=eq.${sellerPiUid}
+    )
     ${statusFilter}
     &order=created_at.desc
     `,
@@ -229,10 +243,11 @@ export async function getOrdersBySeller(
     status: string;
     total: number | null;
     created_at: string;
-    items: unknown[];
   }>;
 
-  /* 🔥 MAP CHUẨN CHO UI */
+  /* ----------------------------------
+     3️⃣ Map CHUẨN cho UI
+  ---------------------------------- */
   return rows.map((o) => ({
     orderId: o.id,
     status: o.status,
@@ -240,6 +255,7 @@ export async function getOrdersBySeller(
     createdAt: o.created_at,
   }));
 }
+
 /* =========================================================
    CREATE ORDER
 ========================================================= */
