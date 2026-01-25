@@ -1,23 +1,35 @@
-/* app/api/seller/orders/route.ts */
+/* =========================================================
+   app/api/seller/orders/route.ts
+   - NETWORK-FIRST Pi Auth
+   - Seller RBAC
+   - Stable on Pi Browser (iOS)
+========================================================= */
 
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { resolveRole } from "@/lib/auth/resolveRole";
 import { getOrdersBySeller } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================
-   PI AUTH (NETWORK–FIRST)
-========================= */
+/* =========================================================
+   PI AUTH — NETWORK FIRST + COOKIE FALLBACK
+========================================================= */
 async function getUserFromPi() {
-  const auth = headers().get("authorization");
-  if (!auth || !auth.startsWith("Bearer ")) {
-    return null;
+  let token: string | null = null;
+
+  /* 1️⃣ Authorization header */
+  const authHeader = headers().get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    token = authHeader.slice(7).trim();
   }
 
-  const token = auth.slice(7).trim();
+  /* 2️⃣ Cookie fallback (Pi Browser hay dùng) */
+  if (!token) {
+    token = cookies().get("pi_access_token")?.value ?? null;
+  }
+
   if (!token) return null;
 
   const res = await fetch("https://api.minepi.com/v2/me", {
@@ -40,9 +52,9 @@ async function getUserFromPi() {
   };
 }
 
-/* =========================
+/* =========================================================
    GET /api/seller/orders
-========================= */
+========================================================= */
 export async function GET(req: Request) {
   try {
     /* 1️⃣ AUTH */
@@ -54,7 +66,7 @@ export async function GET(req: Request) {
       );
     }
 
-    /* 2️⃣ RBAC */
+    /* 2️⃣ ROLE CHECK */
     const role = await resolveRole(user);
     if (role !== "seller") {
       return NextResponse.json(
