@@ -1,24 +1,27 @@
-export async function apiFetch(url: string, options?: RequestInit) {
-  // Client-side helper: attach Pi accessToken if present.
-  // This avoids relying on cookies (often flaky on iOS Pi Browser).
-  let token: string | null = null;
-  if (typeof window !== "undefined") {
-    token = localStorage.getItem("pi_access_token");
-  }
+// lib/apiFetch.ts
+import { Pi } from "@pi-network/pi-sdk";
 
-  const baseHeaders: Record<string, string> = {
-    ...(options?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-    ...(options?.headers as any),
-  };
+export async function apiFetch(
+  url: string,
+  options: RequestInit = {}
+) {
+  const auth = await Pi.authenticate(
+    ["username"],
+    { onIncompletePaymentFound: () => {} }
+  );
 
-  if (token && !("Authorization" in baseHeaders)) {
-    baseHeaders["Authorization"] = `Bearer ${token}`;
+  const token = auth.accessToken;
+  if (!token) {
+    throw new Error("NO_PI_TOKEN");
   }
 
   return fetch(url, {
     ...options,
-    // Keep cookies as fallback, but don't depend on them.
-    credentials: "include",
-    headers: baseHeaders,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
   });
 }
