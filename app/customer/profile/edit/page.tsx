@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import { useRouter } from "next/navigation";
 import { countries } from "@/data/countries";
 import { provincesByCountry } from "@/data/provinces";
@@ -39,7 +40,7 @@ export default function EditProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   /* =========================
-     LOAD PROFILE (COOKIE-BASED)
+     LOAD PROFILE (BEARER AUTH)
   ========================= */
   useEffect(() => {
     if (authLoading) return;
@@ -51,10 +52,7 @@ export default function EditProfilePage() {
 
     const loadProfile = async () => {
       try {
-        const res = await fetch("/api/profile", {
-          credentials: "include", // 🔥 BẮT BUỘC
-          cache: "no-store",
-        });
+        const res = await apiFetch("/api/profile");
 
         if (!res.ok) {
           throw new Error("unauthorized");
@@ -83,22 +81,17 @@ export default function EditProfilePage() {
   }, [authLoading, user, router, t]);
 
   /* =========================
-     SAVE PROFILE (COOKIE-BASED)
+     SAVE PROFILE (BEARER AUTH)
   ========================= */
   const handleSave = async () => {
     if (!user) return;
 
     setSaving(true);
     try {
-      const res = await fetch("/api/profile", {
-        method: "POST",
-        credentials: "include", // 🔥 KHÔNG Bearer
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(info),
-      });
-
+      const res = await apiFetch("/api/profile", {
+    method: "POST",
+    body: JSON.stringify(info),
+    });
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error("save_failed");
