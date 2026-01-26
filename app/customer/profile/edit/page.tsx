@@ -10,7 +10,7 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface ProfileInfo {
   display_name: string;
@@ -53,21 +53,22 @@ export default function EditProfilePage() {
     const loadProfile = async () => {
       try {
         const res = await apiFetch("/api/profile");
+        if (!res.ok) throw new Error("UNAUTHORIZED");
 
-        if (!res.ok) {
-          throw new Error("unauthorized");
-        }
+        const raw: unknown = await res.json();
+        const profile =
+          typeof raw === "object" && raw !== null && "profile" in raw
+            ? (raw as { profile: ProfileInfo }).profile
+            : (raw as ProfileInfo);
 
-        const data = await res.json();
-        const profile = data.profile ?? data;
-
+        // ✅ NORMALIZE DATA
         setInfo({
-          display_name: profile.display_name || "",
-          email: profile.email || "",
-          phone: profile.phone || "",
-          address: profile.address || "",
-          province: profile.province || "",
-          country: profile.country || "VN",
+          display_name: profile.display_name ?? "",
+          email: profile.email ?? "",
+          phone: profile.phone ?? "",
+          address: profile.address ?? "",
+          province: profile.province ?? "",
+          country: profile.country ?? "VN",
         });
       } catch (err) {
         console.error(err);
@@ -89,12 +90,18 @@ export default function EditProfilePage() {
     setSaving(true);
     try {
       const res = await apiFetch("/api/profile", {
-    method: "POST",
-    body: JSON.stringify(info),
-    });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error("save_failed");
+        method: "POST",
+        body: JSON.stringify(info),
+      });
+
+      const data: unknown = await res.json();
+      if (
+        !res.ok ||
+        typeof data !== "object" ||
+        data === null ||
+        !("success" in data)
+      ) {
+        throw new Error("SAVE_FAILED");
       }
 
       router.push("/customer/profile");
@@ -131,30 +138,41 @@ export default function EditProfilePage() {
         ←
       </button>
 
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg mt-12 p-6">
+      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg mt-12 p-6 space-y-3">
         <input
-          className="w-full border px-3 py-2 rounded mb-3"
+          className="w-full border px-3 py-2 rounded"
           value={info.display_name}
-          onChange={e => setInfo({ ...info, display_name: e.target.value })}
+          onChange={e =>
+            setInfo({ ...info, display_name: e.target.value })
+          }
           placeholder={t.app_name}
         />
 
         <input
-          className="w-full border px-3 py-2 rounded mb-3"
+          className="w-full border px-3 py-2 rounded"
           value={info.email}
           onChange={e => setInfo({ ...info, email: e.target.value })}
           placeholder={t.email}
         />
 
+        {/* ✅ PHONE — ĐÃ BỔ SUNG */}
+        <input
+          className="w-full border px-3 py-2 rounded"
+          value={info.phone}
+          onChange={e => setInfo({ ...info, phone: e.target.value })}
+          placeholder={t.phone}
+          inputMode="tel"
+        />
+
         <textarea
-          className="w-full border px-3 py-2 rounded mb-3"
+          className="w-full border px-3 py-2 rounded"
           value={info.address}
           onChange={e => setInfo({ ...info, address: e.target.value })}
           placeholder={t.address}
         />
 
         <select
-          className="w-full border px-3 py-2 rounded mb-3"
+          className="w-full border px-3 py-2 rounded"
           value={info.country}
           onChange={e =>
             setInfo({ ...info, country: e.target.value, province: "" })
@@ -170,7 +188,9 @@ export default function EditProfilePage() {
         <select
           className="w-full border px-3 py-2 rounded"
           value={info.province}
-          onChange={e => setInfo({ ...info, province: e.target.value })}
+          onChange={e =>
+            setInfo({ ...info, province: e.target.value })
+          }
         >
           <option value="">{t.select_option}</option>
           {provinceList.map(p => (
@@ -183,7 +203,7 @@ export default function EditProfilePage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="mt-6 w-full bg-green-500 text-white py-2 rounded"
+          className="mt-4 w-full bg-green-500 text-white py-2 rounded"
         >
           {saving ? t.saving : t.save_changes}
         </button>
