@@ -28,7 +28,7 @@ export default function CustomerShippingPage() {
   const [loading, setLoading] = useState(true);
 
   /* =========================
-     LOAD ORDERS (COOKIE AUTH)
+     LOAD ORDERS (BEARER AUTH)
   ========================= */
   useEffect(() => {
     fetchOrders();
