@@ -1,4 +1,5 @@
-import { Pool } from "pg";
+// lib/db.ts
+import { Pool, type QueryResult } from "pg";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -7,11 +8,19 @@ const pool = new Pool({
   },
 });
 
-export async function query(text: string, params?: any[]) {
+/**
+ * Safe DB query helper
+ * - NO any
+ * - NO schema coupling
+ * - Caller decides row typing
+ */
+export async function query<T = unknown>(
+  text: string,
+  params?: readonly unknown[]
+): Promise<QueryResult<T>> {
   const client = await pool.connect();
   try {
-    const res = await client.query(text, params);
-    return res;
+    return await client.query<T>(text, params);
   } finally {
     client.release();
   }
