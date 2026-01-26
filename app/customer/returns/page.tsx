@@ -2,6 +2,8 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { apiFetchForm } from "@/lib/apiFetchForm";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Upload, Send } from "lucide-react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -27,22 +29,19 @@ export default function ReturnPage() {
      LOAD ORDERS (NO AUTH)
   ======================= */
   useEffect(() => {
-    fetch("/api/orders", {
-      credentials: "include",
-      cache: "no-store",
+  apiFetch("/api/orders")
+    .then((res) => {
+      if (!res.ok) throw new Error("unauthorized");
+      return res.json();
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("unauthorized");
-        return res.json();
-      })
-      .then((data) => {
-        setOrders(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        console.warn(t.load_orders_failed);
-      })
-      .finally(() => setLoading(false));
-  }, [t]);
+    .then((data) => {
+      setOrders(Array.isArray(data) ? data : []);
+    })
+    .catch(() => {
+      console.warn(t.load_orders_failed);
+    })
+    .finally(() => setLoading(false));
+}, [t]);
 
   /* =======================
      UPLOAD IMAGE
