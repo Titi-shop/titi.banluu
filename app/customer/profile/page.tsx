@@ -1,7 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { apiFetchForm } from "@/lib/apiFetchForm";
@@ -12,15 +11,15 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface ProfileData {
-  display_name: string;
-  email: string;
-  phone: string;
-  address: string;
-  province: string;
-  country: string;
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  province: string | null;
+  country: string | null;
   avatar: string | null;
 }
 
@@ -36,73 +35,91 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   /* =======================
-   LOAD PROFILE (BEARER AUTH)
-======================= */
-useEffect(() => {
-  if (authLoading) return;
+     LOAD PROFILE (BEARER AUTH)
+  ======================= */
+  useEffect(() => {
+    if (authLoading) return;
 
-  if (!user) {
-    setLoading(false);
-    return;
-  }
-
-  const loadProfile = async () => {
-    try {
-      const res = await apiFetch("/api/profile");
-
-      if (!res.ok) {
-        throw new Error("unauthorized");
-      }
-
-      const data = await res.json();
-      setProfile(data.profile ?? data);
-    } catch (err) {
-      console.error(err);
-      setError(t.profile_error_loading);
-    } finally {
+    if (!user) {
       setLoading(false);
+      return;
     }
-  };
 
-  loadProfile();
-}, [authLoading, user, t]);
+    const loadProfile = async () => {
+      try {
+        const res = await apiFetch("/api/profile");
+        if (!res.ok) throw new Error("UNAUTHORIZED");
+
+        const raw: unknown = await res.json();
+        const data =
+          typeof raw === "object" && raw !== null && "profile" in raw
+            ? (raw as { profile: ProfileData }).profile
+            : (raw as ProfileData);
+
+        // ✅ NORMALIZE (QUAN TRỌNG – FIX PHONE)
+        setProfile({
+          display_name: data.display_name ?? null,
+          email: data.email ?? null,
+          phone: data.phone ?? null,
+          address: data.address ?? null,
+          province: data.province ?? null,
+          country: data.country ?? null,
+          avatar: data.avatar ?? null,
+        });
+      } catch (err) {
+        console.error(err);
+        setError(t.profile_error_loading);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [authLoading, user, t]);
 
   /* =======================
-   UPLOAD AVATAR (BEARER + FORM DATA)
-======================= */
+     UPLOAD AVATAR (BEARER + FORM DATA)
+  ======================= */
   const handleFileChange = async (
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
-  const file = e.target.files?.[0];
-  if (!file || !user) return;
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
 
-  setPreview(URL.createObjectURL(file));
-  setUploading(true);
+    setPreview(URL.createObjectURL(file));
+    setUploading(true);
 
-  try {
-    const form = new FormData();
-    form.append("file", file);
+    try {
+      const form = new FormData();
+      form.append("file", file);
 
-    const res = await apiFetchForm("/api/uploadAvatar", {
-      method: "POST",
-      body: form,
-    });
+      const res = await apiFetchForm("/api/uploadAvatar", {
+        method: "POST",
+        body: form,
+      });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error("UPLOAD_FAILED");
 
-    setProfile(prev =>
-      prev ? { ...prev, avatar: data.avatar } : prev
-    );
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "avatar" in data &&
+        typeof (data as { avatar: unknown }).avatar === "string"
+      ) {
+        setProfile(prev =>
+          prev ? { ...prev, avatar: (data as { avatar: string }).avatar } : prev
+        );
+      }
 
-    alert(t.profile_avatar_updated);
-  } catch (err) {
-    console.error(err);
-    alert(t.upload_failed);
-  } finally {
-    setUploading(false);
-  }
-};
+      alert(t.profile_avatar_updated);
+    } catch (err) {
+      console.error(err);
+      alert(t.upload_failed);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   /* =======================
      UI STATES
@@ -174,18 +191,22 @@ useEffect(() => {
       </div>
 
       <div className="bg-white mt-6 mx-4 p-4 rounded-xl shadow space-y-3">
-        {[
-          ["display_name", t.app_name],
-          ["email", t.email],
-          ["phone", t.phone],
-          ["address", t.address],
-          ["province", t.province],
-          ["country", t.country],
-        ].map(([key, label]) => (
+        {(
+          [
+            ["display_name", t.app_name],
+            ["email", t.email],
+            ["phone", t.phone],        // ✅ PHONE ĐÃ FIX
+            ["address", t.address],
+            ["province", t.province],
+            ["country", t.country],
+          ] as const
+        ).map(([key, label]) => (
           <div key={key} className="flex justify-between border-b pb-2">
             <span>{label}</span>
             <span>
-              {profile?.[key as keyof ProfileData] || t.not_set}
+              {profile?.[key] && profile[key] !== ""
+                ? profile[key]
+                : t.not_set}
             </span>
           </div>
         ))}
