@@ -1,18 +1,19 @@
-import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { resolveRole } from "@/lib/auth/resolveRole";
 
-export async function GET() {
-  const auth = headers().get("authorization");
-  if (!auth) {
+export async function GET(req: NextRequest) {
+  const user = await getUserFromBearer(req);
+  if (!user) {
     return NextResponse.json({ error: "NO_AUTH" }, { status: 401 });
   }
 
-  const res = await fetch("https://api.minepi.com/v2/me", {
-    headers: {
-      Authorization: auth,
-    },
-  });
+  const role = await resolveRole(user);
 
-  const data = await res.json();
-  return NextResponse.json(data);
+  return NextResponse.json({
+    pi_uid: user.pi_uid,
+    username: user.username,
+    wallet_address: user.wallet_address,
+    role,
+  });
 }
