@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect, useState, useRef, ChangeEvent, FormEvent } from "react";
+import {
+  useEffect,
+  useState,
+  useRef,
+  ChangeEvent,
+  FormEvent,
+} from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
+/* =========================
+   HELPERS
+========================= */
 function formatDateToInput(dateString: string | null) {
   if (!dateString) return "";
   const d = new Date(dateString);
@@ -15,6 +24,9 @@ function formatDateToInput(dateString: string | null) {
   )}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/* =========================
+   TYPES
+========================= */
 interface ProductData {
   id: string | number;
   name: string;
@@ -33,10 +45,14 @@ interface Category {
   name: string;
 }
 
+/* =========================
+   PAGE
+========================= */
 export default function EditProductPage() {
   const { t } = useTranslation();
   const { id } = useParams();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
 
   const [product, setProduct] = useState<ProductData | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -52,67 +68,70 @@ export default function EditProductPage() {
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
 
-  /* LOAD CATEGORIES */
+  /* =========================
+     🔐 AUTH GUARD (SELLER ONLY)
+     - AUTH-CENTRIC
+     - NO COOKIE
+     - NO /api/users/me
+  ========================= */
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      router.replace("/pilogin");
+      return;
+    }
+
+    if (user.role !== "seller" && user.role !== "admin") {
+      router.replace("/account");
+    }
+  }, [authLoading, user, router]);
+
+  /* =========================
+     LOAD CATEGORIES
+  ========================= */
   useEffect(() => {
     fetch("/api/categories")
       .then((r) => r.json())
       .then((data) => setCategories(data || []));
   }, []);
+
   /* =========================
-   AUTH GUARD (SELLER ONLY)
-   ========================= */
-useEffect(() => {
-  fetch("/api/users/me", {
-    credentials: "include", // 🔥 BẮT BUỘC
-    cache: "no-store",
-  })
-    .then((r) => {
-      if (!r.ok) throw new Error("unauthorized");
-      return r.json();
-    })
-    .then((data) => {
-      const user = data?.user;
-      if (!user || user.role !== "seller") {
-        router.replace("/account");
-      }
-    })
-    .catch(() => {
-      router.replace("/account");
-    });
-}, [router]);
-
-  /* LOAD PRODUCT */
+     LOAD PRODUCT
+  ========================= */
   useEffect(() => {
-  if (!id) {
-    setMessage({
-      text: t.product_not_found,
-      type: "error",
-    });
-    setLoadingPage(false);
-    return;
-  }
+    if (!id) {
+      setMessage({
+        text: t.product_not_found,
+        type: "error",
+      });
+      setLoadingPage(false);
+      return;
+    }
 
-  fetch("/api/products", { cache: "no-store" })
-    .then((r) => r.json())
-    .then((list: ProductData[]) => {
-      const p = list.find((x) => x.id == id);
+    fetch("/api/products", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((list: ProductData[]) => {
+        const p = list.find((x) => x.id == id);
 
-      if (!p) {
-        setMessage({
-          text: t.product_not_found,
-          type: "error",
-        });
-        setTimeout(() => router.push("/seller/stock"), 1500);
-        return;
-      }
+        if (!p) {
+          setMessage({
+            text: t.product_not_found,
+            type: "error",
+          });
+          setTimeout(() => router.push("/seller/stock"), 1500);
+          return;
+        }
 
-      setProduct(p);
-      setPreviews(p.images || []);
-    })
-    .finally(() => setLoadingPage(false));
-}, [id, t, router]);
-  
-  /* UPLOAD FILE */
+        setProduct(p);
+        setPreviews(p.images || []);
+      })
+      .finally(() => setLoadingPage(false));
+  }, [id, t, router]);
+
+  /* =========================
+     UPLOAD FILE
+  ========================= */
   async function handleFileUpload(file: File): Promise<string | null> {
     try {
       const arr = await file.arrayBuffer();
@@ -131,7 +150,9 @@ useEffect(() => {
     }
   }
 
-  /* ADD IMAGE */
+  /* =========================
+     IMAGE HANDLERS
+  ========================= */
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     setImages((prev) => [...prev, ...files]);
@@ -153,72 +174,88 @@ useEffect(() => {
     );
   };
 
-  /* SAVE PRODUCT */
-
+  /* =========================
+     SAVE PRODUCT
+  ========================= */
   async function handleSave(e: FormEvent<HTMLFormElement>) {
-  e.preventDefault();
-  if (!product) return;
+    e.preventDefault();
+    if (!product) return;
 
-  setSaving(true);
+    setSaving(true);
 
-  const form = e.currentTarget as HTMLFormElement;
+    const form = e.currentTarget;
 
-  const payload: ProductData = {
-    id: product.id,
-    name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
-    price: Number((form.elements.namedItem("price") as HTMLInputElement).value),
-    description: (form.elements.namedItem("description") as HTMLTextAreaElement).value,
-    categoryId: Number(
-      (form.elements.namedItem("categoryId") as HTMLSelectElement).value
-    ),
-    salePrice:
-      Number(
-        (form.elements.namedItem("salePrice") as HTMLInputElement).value
-      ) || null,
-    saleStart:
-      (form.elements.namedItem("saleStart") as HTMLInputElement).value || null,
-    saleEnd:
-      (form.elements.namedItem("saleEnd") as HTMLInputElement).value || null,
-    images: [],
-    seller: "", // giữ interface, API sẽ bỏ qua
-  };
+    const payload: ProductData = {
+      id: product.id,
+      name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+      price: Number(
+        (form.elements.namedItem("price") as HTMLInputElement).value
+      ),
+      description: (
+        form.elements.namedItem("description") as HTMLTextAreaElement
+      ).value,
+      categoryId: Number(
+        (form.elements.namedItem("categoryId") as HTMLSelectElement).value
+      ),
+      salePrice:
+        Number(
+          (form.elements.namedItem("salePrice") as HTMLInputElement).value
+        ) || null,
+      saleStart:
+        (form.elements.namedItem("saleStart") as HTMLInputElement).value || null,
+      saleEnd:
+        (form.elements.namedItem("saleEnd") as HTMLInputElement).value || null,
+      images: [],
+      seller: "",
+    };
 
-  const newUrls: string[] = [];
-  for (const f of images) {
-    const url = await handleFileUpload(f);
-    if (url) newUrls.push(url);
+    const newUrls: string[] = [];
+    for (const f of images) {
+      const url = await handleFileUpload(f);
+      if (url) newUrls.push(url);
+    }
+
+    payload.images = [...(product.images || []), ...newUrls];
+
+    const res = await fetch("/api/products", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await res.json();
+
+    if (res.ok) {
+      setMessage({ text: t.save_success, type: "success" });
+      setTimeout(() => router.push("/seller/stock"), 1000);
+    } else {
+      setMessage({
+        text: result.error || t.save_failed,
+        type: "error",
+      });
+    }
+
+    setSaving(false);
   }
 
-  payload.images = [...(product.images || []), ...newUrls];
-
-  const res = await fetch("/api/products", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const result = await res.json();
-
-  if (res.ok) {
-    setMessage({ text: t.save_success, type: "success" });
-    setTimeout(() => router.push("/seller/stock"), 1000);
-  } else {
-    setMessage({ text: result.error || t.save_failed, type: "error" });
-  }
-
-  setSaving(false);
-}
-  /* UI */
-if (loadingPage)
+  /* =========================
+     UI STATES
+  ========================= */
+  if (authLoading || loadingPage) {
     return <p className="text-center mt-10">⏳ {t.loading}...</p>;
+  }
 
-  if (!product)
+  if (!product) {
     return (
       <p className="text-center mt-10 text-red-500">
         ❌ {t.product_not_found}
       </p>
     );
+  }
 
+  /* =========================
+     UI
+  ========================= */
   return (
     <main className="max-w-lg mx-auto p-6 bg-white rounded-xl shadow mt-10 pb-32">
       <button
@@ -235,7 +272,9 @@ if (loadingPage)
       {message.text && (
         <p
           className={`text-center mb-2 ${
-            message.type === "success" ? "text-green-600" : "text-red-500"
+            message.type === "success"
+              ? "text-green-600"
+              : "text-red-500"
           }`}
         >
           {message.text}
@@ -280,7 +319,9 @@ if (loadingPage)
 
         {/* SALE */}
         <div className="p-3 bg-orange-50 border rounded">
-          <h3 className="font-bold text-orange-600 mb-2">🔥 {t.sale}</h3>
+          <h3 className="font-bold text-orange-600 mb-2">
+            🔥 {t.sale}
+          </h3>
 
           <label>{t.sale_price}</label>
           <input
@@ -316,10 +357,15 @@ if (loadingPage)
           />
         </div>
 
-        {/* Hình ảnh */}
+        {/* IMAGES */}
         <div>
           <label>{t.product_images}</label>
-          <input type="file" multiple ref={fileInputRef} onChange={handleFileChange} />
+          <input
+            type="file"
+            multiple
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
 
           <div className="mt-3 space-y-2">
             {previews.map((url, idx) => (
@@ -327,7 +373,10 @@ if (loadingPage)
                 key={idx}
                 className="flex items-center justify-between bg-gray-50 p-2 border rounded"
               >
-                <img src={url} className="w-16 h-16 object-cover rounded" />
+                <img
+                  src={url}
+                  className="w-16 h-16 object-cover rounded"
+                />
                 <button
                   type="button"
                   onClick={() => removeImage(idx)}
