@@ -2,15 +2,19 @@ import { query } from "@/lib/db";
 import type { Role } from "./role";
 import type { SessionUser } from "./session";
 
-/**
- * Resolve RBAC role.
- * DB source of truth: public.users.role by pi_uid.
- * Fallback: env allowlists (keeps old behavior).
- */
-export async function resolveRole(user: SessionUser | null): Promise<Role> {
+/* =========================================================
+   Resolve RBAC role
+   - DB FIRST (source of truth)
+   - ENV FALLBACK (Bootstrap only)
+========================================================= */
+export async function resolveRole(
+  user: SessionUser | null
+): Promise<Role> {
   if (!user?.pi_uid) return "guest";
 
-  // 1) DB FIRST
+  /* =====================================================
+     1️⃣ DB FIRST
+  ===================================================== */
   try {
     const { rows } = await query(
       `
@@ -22,25 +26,47 @@ export async function resolveRole(user: SessionUser | null): Promise<Role> {
       [user.pi_uid]
     );
 
-    const role = rows?.[0]?.role as string | undefined;
-    if (role === "seller" || role === "customer" || role === "admin") return role as Role;
-    if (rows?.length) return "customer";
+    const role = rows?.[0]?.role;
+    if (role === "seller" || role === "admin" || role === "customer") {
+      return role;
+    }
+
+    if (rows?.length) {
+      return "customer";
+    }
   } catch {
-    // ignore
+    // ignore DB errors in bootstrap
   }
 
-  // 2) FALLBACK (bootstrap)
-  const allowUsers = process.env.NEXT_PUBLIC_SELLER_PI_USERNAMES?.split(",") ?? [];
-  const allowWallets = process.env.NEXT_PUBLIC_SELLER_PI_WALLETS?.split(",") ?? [];
+  /* =====================================================
+     2️⃣ FALLBACK (BOOTSTRAP MODE)
+  ===================================================== */
+  const normalize = (v?: string | null) =>
+    (v ?? "")
+      .normalize("NFKC")
+      .trim()
+      .toLowerCase();
 
-  const username = (user.username ?? "").trim().toLowerCase();
-  const wallet = (user.wallet_address ?? "").trim().toUpperCase();
+  const username = normalize(user.username);
+  const wallet = normalize(user.wallet_address);
+
+  const allowUsers =
+    process.env.NEXT_PUBLIC_SELLER_PI_USERNAMES
+      ?.split(",")
+      .map(u => normalize(u)) ?? [];
+
+  const allowWallets =
+    process.env.NEXT_PUBLIC_SELLER_PI_WALLETS
+      ?.split(",")
+      .map(w => normalize(w)) ?? [];
 
   const isSellerByUsername =
-    !!username && allowUsers.map((u) => u.trim().toLowerCase()).includes(username);
+    !!username && allowUsers.includes(username);
 
   const isSellerByWallet =
-    !!wallet && allowWallets.map((w) => w.trim().toUpperCase()).includes(wallet);
+    !!wallet && allowWallets.includes(wallet);
 
-  return isSellerByUsername || isSellerByWallet ? "seller" : "customer";
+  return isSellerByUsername || isSellerByWallet
+    ? "seller"
+    : "customer";
 }
