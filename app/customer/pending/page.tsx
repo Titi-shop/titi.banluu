@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
@@ -15,33 +16,35 @@ export default function PendingOrdersPage() {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      try {
-        const res = await fetch("/api/orders", {
-          method: "GET",
-          credentials: "include", // 🔥 BẮT BUỘC
-          cache: "no-store",
-        });
+  try {
+    const res = await apiFetch("/api/orders");
 
-        const data = await res.json();
+    if (!res.ok) {
+      throw new Error("unauthorized");
+    }
 
-        if (!Array.isArray(data)) {
-          setOrders([]);
-          return;
-        }
+    const data = await res.json();
 
-        const statusMap: Record<string, string[]> = {
-          vi: ["Chờ xác nhận", "Đã thanh toán", "Chờ xác minh"],
-          en: ["Pending", "Paid", "Waiting for verification"],
-          zh: ["待确认", "已付款", "待核实"],
-        };
+    if (!Array.isArray(data)) {
+      setOrders([]);
+      return;
+    }
 
-        const allowed = statusMap[lang] || statusMap.vi;
-
-        setOrders(data.filter(o => allowed.includes(o.status)));
-      } finally {
-        setLoading(false);
-      }
+    const statusMap: Record<string, string[]> = {
+      vi: ["Chờ xác nhận", "Đã thanh toán", "Chờ xác minh"],
+      en: ["Pending", "Paid", "Waiting for verification"],
+      zh: ["待确认", "已付款", "待核实"],
     };
+
+    const allowed = statusMap[lang] || statusMap.vi;
+    setOrders(data.filter(o => allowed.includes(o.status)));
+  } catch (err) {
+    console.error("❌ Load pending orders error:", err);
+    setOrders([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
     fetchOrders();
   }, [lang]);
