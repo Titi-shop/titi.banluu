@@ -1,9 +1,14 @@
-import { cookies } from "next/headers";
+// lib/auth/session.ts
+// ⚠️ TYPE ONLY — NO RUNTIME LOGIC — NO COOKIES
 
 export type SessionUser = {
   /** Pi UID */
   pi_uid: string;
+
+  /** Pi username */
   username?: string;
+
+  /** Pi wallet address */
   wallet_address?: string | null;
 };
 
