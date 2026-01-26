@@ -5,7 +5,7 @@ import { requireSeller } from "@/lib/auth/guard";
 import {
   getAllProducts,
   createProduct,
-  type ProductRecord,
+  updateProductBySeller, // 👈 THÊM
 } from "@/lib/db/products";
 
 export const runtime = "nodejs";
@@ -49,17 +49,14 @@ export async function GET() {
 
 /* =========================================================
    POST — CREATE PRODUCT (SELLER ONLY)
-   AUTH: Authorization: Bearer <Pi accessToken>
 ========================================================= */
 export async function POST(req: Request) {
-  // 🔐 AUTH + RBAC
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
   try {
     const body = await req.json();
 
-    // 🔎 Validate payload tối thiểu
     if (!body?.name || typeof body.price !== "number") {
       return NextResponse.json(
         { error: "INVALID_PAYLOAD" },
@@ -67,7 +64,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔥 seller_id = users.pi_uid (TEXT)
     const product = await createProduct(auth.user.pi_uid, {
       name: body.name.trim(),
       price: body.price,
@@ -81,14 +77,60 @@ export async function POST(req: Request) {
       sold: 0,
     });
 
-    return NextResponse.json({
-      success: true,
-      product,
-    });
+    return NextResponse.json({ success: true, product });
   } catch (err) {
     console.error("❌ CREATE PRODUCT ERROR:", err);
     return NextResponse.json(
       { error: "FAILED_TO_CREATE_PRODUCT" },
+      { status: 500 }
+    );
+  }
+}
+
+/* =========================================================
+   PUT — UPDATE PRODUCT (SELLER ONLY) ✅ FIX 405
+========================================================= */
+export async function PUT(req: Request) {
+  const auth = await requireSeller();
+  if (!auth.ok) return auth.response;
+
+  try {
+    const body = await req.json();
+
+    if (!body?.id || !body?.name || typeof body.price !== "number") {
+      return NextResponse.json(
+        { error: "INVALID_PAYLOAD" },
+        { status: 400 }
+      );
+    }
+
+    const updated = await updateProductBySeller(
+      auth.user.pi_uid,
+      body.id,
+      {
+        name: body.name.trim(),
+        price: body.price,
+        description: body.description ?? "",
+        images: Array.isArray(body.images) ? body.images : [],
+        category_id: body.categoryId ?? null,
+        sale_price: body.salePrice ?? null,
+        sale_start: body.saleStart ?? null,
+        sale_end: body.saleEnd ?? null,
+      }
+    );
+
+    if (!updated) {
+      return NextResponse.json(
+        { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("❌ UPDATE PRODUCT ERROR:", err);
+    return NextResponse.json(
+      { error: "FAILED_TO_UPDATE_PRODUCT" },
       { status: 500 }
     );
   }
