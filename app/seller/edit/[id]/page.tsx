@@ -8,6 +8,8 @@ import {
   FormEvent,
 } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { apiFetch } from "@/lib/apiFetch";
+import { apiFetchForm } from "@/lib/apiFetchForm";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
@@ -91,8 +93,8 @@ export default function EditProductPage() {
      LOAD CATEGORIES
   ========================= */
   useEffect(() => {
-    fetch("/api/categories")
-      .then((r) => r.json())
+    apiFetch("/api/categories")
+  .then((r) => r.json())
       .then((data) => setCategories(data || []));
   }, []);
 
@@ -109,7 +111,7 @@ export default function EditProductPage() {
       return;
     }
 
-    fetch("/api/products", { cache: "no-store" })
+    apiFetch("/api/products")
       .then((r) => r.json())
       .then((list: ProductData[]) => {
         const p = list.find((x) => x.id == id);
@@ -133,22 +135,21 @@ export default function EditProductPage() {
      UPLOAD FILE
   ========================= */
   async function handleFileUpload(file: File): Promise<string | null> {
-    try {
-      const arr = await file.arrayBuffer();
-      const upload = await fetch("/api/upload", {
-        method: "POST",
-        headers: {
-          "x-filename": encodeURIComponent(file.name),
-          "Content-Type": file.type,
-        },
-        body: arr,
-      });
-      const data = await upload.json();
-      return data.url;
-    } catch {
-      return null;
-    }
+  try {
+    const form = new FormData();
+    form.append("file", file);
+
+    const res = await apiFetchForm("/api/upload", {
+      method: "POST",
+      body: form,
+    });
+
+    const data = await res.json();
+    return data.url || null;
+  } catch {
+    return null;
   }
+}
 
   /* =========================
      IMAGE HANDLERS
@@ -217,11 +218,10 @@ export default function EditProductPage() {
 
     payload.images = [...(product.images || []), ...newUrls];
 
-    const res = await fetch("/api/products", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const res = await apiFetch("/api/products", {
+  method: "PUT",
+  body: JSON.stringify(payload),
+});
 
     const result = await res.json();
 
