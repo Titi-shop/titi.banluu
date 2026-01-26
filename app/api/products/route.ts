@@ -180,3 +180,49 @@ export async function PUT(req: Request) {
     );
   }
 }
+/* =========================================================
+   DELETE — DELETE PRODUCT (SELLER ONLY)
+   DELETE /api/products?id=PRODUCT_ID
+========================================================= */
+export async function DELETE(req: Request) {
+  const auth = await requireSeller();
+  if (!auth.ok) return auth.response;
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "MISSING_PRODUCT_ID" },
+        { status: 400 }
+      );
+    }
+
+    const { rowCount } = await (
+      await import("@/lib/db")
+    ).query(
+      `
+      DELETE FROM products
+      WHERE id = $1
+        AND seller_id = $2
+      `,
+      [id, auth.user.pi_uid]
+    );
+
+    if (rowCount === 0) {
+      return NextResponse.json(
+        { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("❌ DELETE PRODUCT ERROR:", err);
+    return NextResponse.json(
+      { error: "FAILED_TO_DELETE_PRODUCT" },
+      { status: 500 }
+    );
+  }
+}
