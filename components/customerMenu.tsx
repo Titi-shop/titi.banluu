@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -13,13 +14,35 @@ import {
 } from "lucide-react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/apiFetch";
 
 export default function CustomerMenu() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  const isSeller = user?.role === "seller";
+  const [isSeller, setIsSeller] = useState(false);
+
+  /* =====================================================
+     🔑 RESOLVE ROLE FROM BACKEND (SOURCE OF TRUTH)
+  ===================================================== */
+  useEffect(() => {
+    if (!user) return;
+
+    const checkRole = async () => {
+      try {
+        const res = await apiFetch("/api/debug/me");
+        if (!res.ok) return;
+
+        const data = await res.json();
+        setIsSeller(data.role === "seller" || data.role === "admin");
+      } catch {
+        setIsSeller(false);
+      }
+    };
+
+    checkRole();
+  }, [user]);
 
   const customerMenuItems = [
     { label: t.profile, icon: <User size={22} />, path: "/customer/profile" },
@@ -30,7 +53,7 @@ export default function CustomerMenu() {
     { label: t.shipping_address, icon: <MapPin size={22} />, path: "/customer/address" },
     { label: t.support, icon: <HelpCircle size={22} />, path: "/support" },
 
-    // 🔑 SELLER ENTRY (kế bên Customer Support)
+    // 🔑 SELLER ENTRY
     isSeller
       ? {
           label: t.seller_center || "Quản lý bán hàng",
@@ -46,7 +69,6 @@ export default function CustomerMenu() {
 
   return (
     <div className="bg-white mx-3 mt-6 p-5 rounded-2xl shadow-lg border border-gray-100 mb-6">
-      {/* ===== CUSTOMER MENU ===== */}
       <div className="grid grid-cols-4 gap-4 text-center">
         {customerMenuItems.map((item, i) => (
           <button
@@ -55,12 +77,11 @@ export default function CustomerMenu() {
             className="flex flex-col items-center text-gray-700 hover:text-orange-500 transition"
           >
             <div
-              className={`p-3 rounded-full shadow-sm mb-1
-                ${
-                  item.path === "/seller"
-                    ? "bg-orange-100 text-orange-600"
-                    : "bg-gray-100"
-                }`}
+              className={`p-3 rounded-full shadow-sm mb-1 ${
+                item.path === "/seller"
+                  ? "bg-orange-100 text-orange-600"
+                  : "bg-gray-100"
+              }`}
             >
               {item.icon}
             </div>
@@ -71,7 +92,6 @@ export default function CustomerMenu() {
         ))}
       </div>
 
-      {/* ===== SELLER NOTE (GĐ1) ===== */}
       {!isSeller && (
         <div className="mt-4 text-center text-xs text-gray-500">
           {t.seller_note ||
