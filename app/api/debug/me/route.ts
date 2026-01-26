@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getUserFromBearer();
   if (!user) {
-    return NextResponse.json({ error: "NO_AUTH" }, { status: 401 });
+    return NextResponse.json(
+      { error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
   }
 
   const role = await resolveRole(user);
@@ -16,7 +19,6 @@ export async function GET() {
   return NextResponse.json({
     pi_uid: user.pi_uid,
     username: user.username,
-    wallet_address: user.wallet_address,
     role,
   });
 }
