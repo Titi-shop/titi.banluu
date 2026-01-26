@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 interface OrderItem {
@@ -21,21 +22,21 @@ export default function OrdersSummaryPage() {
   }, []);
 
   const fetchOrders = async () => {
-    try {
-      const res = await fetch("/api/seller/orders", {
-        cache: "no-store",
-        credentials: "include",
-      });
+  try {
+    const res = await apiFetch("/api/seller/orders");
 
-      const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("❌ Load orders error:", err);
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      throw new Error("unauthorized");
     }
-  };
 
+    const data = await res.json();
+    setOrders(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.error("❌ Load orders error:", err);
+  } finally {
+    setLoading(false);
+  }
+};
   if (loading)
     return (
       <p className="text-center mt-10 text-gray-500">
