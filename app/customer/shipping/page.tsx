@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
@@ -35,10 +36,7 @@ export default function CustomerShippingPage() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch("/api/orders", {
-        cache: "no-store",
-        credentials: "include",
-      });
+      const res = await apiFetch("/api/orders");
 
       if (!res.ok) throw new Error("unauthorized");
 
@@ -71,15 +69,13 @@ export default function CustomerShippingPage() {
     if (!confirm(t.confirm_received_message || "Xác nhận đã nhận hàng?")) return;
 
     try {
-      const res = await fetch("/api/orders", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          id,
-          status: t.status_completed || "Hoàn tất",
-        }),
-      });
+      const res = await apiFetch("/api/orders", {
+   method: "PUT",
+   body: JSON.stringify({
+    id,
+    status: t.status_completed || "Hoàn tất",
+    }),
+  });
 
       if (!res.ok) throw new Error("update_failed");
 
