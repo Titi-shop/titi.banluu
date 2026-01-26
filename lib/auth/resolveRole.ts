@@ -1,6 +1,6 @@
 import { query } from "@/lib/db";
 import type { Role } from "./role";
-import type { SessionUser } from "./session";
+import type { AuthUser } from "./types";
 
 /* =========================================================
    Resolve RBAC role
@@ -8,7 +8,7 @@ import type { SessionUser } from "./session";
    - ENV FALLBACK (Bootstrap only)
 ========================================================= */
 export async function resolveRole(
-  user: SessionUser | null
+  user: AuthUser | null
 ): Promise<Role> {
   if (!user?.pi_uid) return "guest";
 
