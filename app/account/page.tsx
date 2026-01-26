@@ -10,23 +10,15 @@ import CustomerMenu from "@/components/customerMenu";
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, piReady, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
 
   useEffect(() => {
-    if (piReady && !user) {
+    if (!loading && !user) {
       router.replace("/pilogin");
     }
-  }, [piReady, user, router]);
+  }, [loading, user, router]);
 
-  if (!piReady) {
-    return (
-      <main className="min-h-screen flex items-center justify-center text-gray-500">
-        ⏳ Đang khởi tạo Pi…
-      </main>
-    );
-  }
-
-  if (!user) {
+  if (loading || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center text-gray-500">
         ⏳ Đang xác thực…
