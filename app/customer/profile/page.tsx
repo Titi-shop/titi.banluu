@@ -36,8 +36,8 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   /* =======================
-     LOAD PROFILE (COOKIE-BASED)
-  ======================= */
+   LOAD PROFILE (BEARER AUTH)
+======================= */
 useEffect(() => {
   if (authLoading) return;
 
@@ -68,8 +68,8 @@ useEffect(() => {
 }, [authLoading, user, t]);
 
   /* =======================
-     UPLOAD AVATAR (COOKIE-BASED)
-  ======================= */
+   UPLOAD AVATAR (BEARER + FORM DATA)
+======================= */
   const handleFileChange = async (
   e: React.ChangeEvent<HTMLInputElement>
 ) => {
