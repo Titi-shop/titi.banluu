@@ -126,3 +126,46 @@ export async function createProduct(
   const data = await res.json();
   return data[0];
 }
+/* =========================
+   PUT — UPDATE PRODUCT BY SELLER
+   sellerPiUid = users.pi_uid
+========================= */
+export async function updateProductBySeller(
+  sellerPiUid: string,
+  productId: string,
+  data: {
+    name: string;
+    price: number;
+    description?: string;
+    images?: string[];
+    category_id?: number | null;
+    sale_price?: number | null;
+    sale_start?: string | null;
+    sale_end?: string | null;
+  }
+): Promise<boolean> {
+  const payload = {
+    ...data,
+  };
+
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/products?id=eq.${productId}&seller_id=eq.${sellerPiUid}`,
+    {
+      method: "PATCH",
+      headers: {
+        ...supabaseHeaders(),
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("❌ SUPABASE UPDATE PRODUCT ERROR:", text);
+    throw new Error("FAILED_TO_UPDATE_PRODUCT");
+  }
+
+  // Supabase REST PATCH không trả row → chỉ cần biết thành công
+  return true;
+}
