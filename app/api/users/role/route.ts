@@ -1,60 +1,72 @@
-export const dynamic = "force-dynamic";
+/* =========================================================
+   app/api/users/role/route.ts
+   - NETWORK–FIRST Pi Auth
+   - Bearer ONLY (NO cookie)
+   - ADMIN only (Bootstrap tool)
+========================================================= */
 
 import { NextResponse } from "next/server";
 import { kv } from "@vercel/kv";
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
+import { resolveRole } from "@/lib/auth/resolveRole";
 
-const COOKIE_NAME = "pi_user";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /* =========================
    TYPES
 ========================= */
-type Session = {
-  uid: string;
+type UserRole = "customer" | "seller" | "admin";
+
+type PiUser = {
+  pi_uid: string;
+  username: string;
+  wallet_address?: string | null;
 };
 
-type UserRole = "buyer" | "seller" | "admin";
-
 /* =========================
-   SESSION HELPER
+   AUTH — PI BEARER
 ========================= */
-function getSession(): Session | null {
-  const raw = cookies().get(COOKIE_NAME)?.value;
-  if (!raw) return null;
+async function getUserFromBearer(): Promise<PiUser | null> {
+  const auth = headers().get("authorization");
+  if (!auth?.startsWith("Bearer ")) return null;
 
-  try {
-    const parsed = JSON.parse(
-      Buffer.from(raw, "base64").toString("utf8")
-    ) as unknown;
+  const token = auth.slice(7).trim();
+  if (!token) return null;
 
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "uid" in parsed &&
-      typeof (parsed as { uid: unknown }).uid === "string"
-    ) {
-      return { uid: (parsed as { uid: string }).uid };
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  const res = await fetch("https://api.minepi.com/v2/me", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  if (!data?.uid) return null;
+
+  return {
+    pi_uid: String(data.uid),
+    username: String(data.username ?? ""),
+    wallet_address: data.wallet_address ?? null,
+  };
 }
 
 /* =========================
-   GET — LẤY ROLE USER HIỆN TẠI
+   GET — CURRENT USER ROLE
 ========================= */
 export async function GET() {
-  const session = getSession();
-  if (!session) {
+  const user = await getUserFromBearer();
+  if (!user) {
     return NextResponse.json(
-      { success: false, error: "unauthorized" },
+      { success: false, error: "UNAUTHORIZED" },
       { status: 401 }
     );
   }
 
-  const key = `user_role:${session.uid}`;
-  const role = (await kv.get<UserRole>(key)) ?? "buyer";
+  const role = await resolveRole(user);
 
   return NextResponse.json({
     success: true,
@@ -63,61 +75,52 @@ export async function GET() {
 }
 
 /* =========================
-   POST — ADMIN GÁN ROLE
+   POST — ADMIN SET ROLE
 ========================= */
 export async function POST(req: Request) {
-  const session = getSession();
-  if (!session) {
+  const admin = await getUserFromBearer();
+  if (!admin) {
     return NextResponse.json(
-      { success: false, error: "unauthorized" },
+      { success: false, error: "UNAUTHORIZED" },
       { status: 401 }
     );
   }
 
-  // 🔐 CHỈ ADMIN
-  const myRole = await kv.get<UserRole>(`user_role:${session.uid}`);
+  const myRole = await resolveRole(admin);
   if (myRole !== "admin") {
     return NextResponse.json(
-      { success: false, error: "forbidden" },
+      { success: false, error: "FORBIDDEN" },
       { status: 403 }
     );
   }
 
   try {
-    const body = (await req.json()) as unknown;
+    const body = (await req.json()) as {
+      uid?: string;
+      role?: UserRole;
+    };
 
     if (
-      typeof body !== "object" ||
-      body === null ||
-      !("uid" in body) ||
-      !("role" in body)
+      typeof body?.uid !== "string" ||
+      !["customer", "seller", "admin"].includes(body.role ?? "")
     ) {
       return NextResponse.json(
-        { success: false, error: "invalid_payload" },
+        { success: false, error: "INVALID_PAYLOAD" },
         { status: 400 }
       );
     }
 
-    const { uid, role } = body as { uid: string; role: UserRole };
-
-    if (!["buyer", "seller", "admin"].includes(role)) {
-      return NextResponse.json(
-        { success: false, error: "invalid_role" },
-        { status: 400 }
-      );
-    }
-
-    await kv.set(`user_role:${uid}`, role);
+    await kv.set(`user_role:${body.uid}`, body.role);
 
     return NextResponse.json({
       success: true,
-      uid,
-      role,
+      uid: body.uid,
+      role: body.role,
     });
-  } catch (err: unknown) {
-    console.error("❌ Lỗi gán role:", err);
+  } catch (err) {
+    console.error("❌ SET ROLE ERROR:", err);
     return NextResponse.json(
-      { success: false, error: "server_error" },
+      { success: false, error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
