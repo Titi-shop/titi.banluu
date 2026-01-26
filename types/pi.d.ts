@@ -24,7 +24,7 @@ declare global {
     onReadyForServerApproval: (paymentId: string) => void;
     onReadyForServerCompletion: (paymentId: string) => void;
     onCancel?: () => void;
-    onError?: (error: Error) => void;
+    onError?: (error: unknown) => void;
   }
 
   interface Window {
