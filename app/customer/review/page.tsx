@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
@@ -33,25 +34,22 @@ export default function ReviewPage() {
      LOAD ORDERS (COOKIE AUTH)
   ========================= */
   useEffect(() => {
-    fetch("/api/orders", {
-      cache: "no-store",
-      credentials: "include",
+  apiFetch("/api/orders")
+    .then((res) => {
+      if (!res.ok) throw new Error("unauthorized");
+      return res.json();
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("unauthorized");
-        return res.json();
-      })
-      .then((data: Order[]) => {
-        const filtered = (data || []).filter(
-          (o) => o.status === "Hoàn tất" && !o.reviewed
-        );
-        setOrders(filtered);
-      })
-      .catch((err) => {
-        console.error("❌ Load orders error:", err);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    .then((data: Order[]) => {
+      const filtered = (data || []).filter(
+        (o) => o.status === "Hoàn tất" && !o.reviewed
+      );
+      setOrders(filtered);
+    })
+    .catch((err) => {
+      console.error("❌ Load orders error:", err);
+    })
+    .finally(() => setLoading(false));
+}, []);
 
   /* =========================
      SUBMIT REVIEW
@@ -67,16 +65,14 @@ export default function ReviewPage() {
 
     setSubmitting(orderId);
     try {
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          orderId,
-          rating,
-          comment,
-        }),
-      });
+      const res = await apiFetch("/api/reviews", {
+  method: "POST",
+  body: JSON.stringify({
+    orderId,
+    rating,
+    comment,
+  }),
+});
 
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "review_failed");
