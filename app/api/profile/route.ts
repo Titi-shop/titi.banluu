@@ -1,23 +1,44 @@
 // app/api/profile/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { verifyPiTokenFromRequest } from "@/lib/auth/verifyPiToken";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+async function getUserFromBearer(req: NextRequest) {
+  const auth = req.headers.get("authorization");
+  if (!auth?.startsWith("Bearer ")) return null;
+
+  const token = auth.slice(7);
+
+  const res = await fetch("https://api.minepi.com/v2/me", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  if (!data?.uid) return null;
+
+  return {
+    pi_uid: data.uid as string,
+    username: data.username ?? "",
+  };
+}
+
 /* =========================
    GET /api/profile
 ========================= */
-export async function GET() {
-  const user = await verifyPiTokenFromRequest();
+export async function GET(req: NextRequest) {
+  const user = await getUserFromBearer(req);
 
   if (!user) {
-    return NextResponse.json(
-      { success: false, error: "unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
   const { rows } = await query(
@@ -35,7 +56,7 @@ export async function GET() {
         phone: "",
         address: "",
         province: "",
-        country: "",
+        country: "VN",
       },
   });
 }
@@ -43,14 +64,11 @@ export async function GET() {
 /* =========================
    POST /api/profile
 ========================= */
-export async function POST(req: Request) {
-  const user = await verifyPiTokenFromRequest();
+export async function POST(req: NextRequest) {
+  const user = await getUserFromBearer(req);
 
   if (!user) {
-    return NextResponse.json(
-      { success: false, error: "unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
   const body = await req.json().catch(() => ({}));
@@ -82,7 +100,7 @@ export async function POST(req: Request) {
       body.phone ?? "",
       body.address ?? "",
       body.province ?? "",
-      body.country ?? "",
+      body.country ?? "VN",
     ]
   );
 
