@@ -5,7 +5,7 @@ import { requireSeller } from "@/lib/auth/guard";
 import {
   getAllProducts,
   createProduct,
-  updateProductBySeller, // 👈 THÊM
+  updateProductBySeller,
 } from "@/lib/db/products";
 
 export const runtime = "nodejs";
@@ -31,7 +31,13 @@ export async function GET() {
         now <= end;
 
       return {
-        ...p,
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        images: p.images,
+        category_id: p.category_id,
+        price: p.price,
+        sale_price: p.sale_price,
         isSale,
         finalPrice: isSale ? p.sale_price : p.price,
       };
@@ -55,9 +61,26 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
 
   try {
-    const body = await req.json();
+    const body: unknown = await req.json();
+    if (typeof body !== "object" || body === null) {
+      return NextResponse.json(
+        { error: "INVALID_PAYLOAD" },
+        { status: 400 }
+      );
+    }
 
-    if (!body?.name || typeof body.price !== "number") {
+    const {
+      name,
+      price,
+      description,
+      images,
+      categoryId,
+      salePrice,
+      saleStart,
+      saleEnd,
+    } = body as Record<string, unknown>;
+
+    if (typeof name !== "string" || typeof price !== "number") {
       return NextResponse.json(
         { error: "INVALID_PAYLOAD" },
         { status: 400 }
@@ -65,14 +88,14 @@ export async function POST(req: Request) {
     }
 
     const product = await createProduct(auth.user.pi_uid, {
-      name: body.name.trim(),
-      price: body.price,
-      description: body.description ?? "",
-      images: Array.isArray(body.images) ? body.images : [],
-      category_id: body.categoryId ?? null,
-      sale_price: body.salePrice ?? null,
-      sale_start: body.saleStart ?? null,
-      sale_end: body.saleEnd ?? null,
+      name: name.trim(),
+      price,
+      description: typeof description === "string" ? description : "",
+      images: Array.isArray(images) ? images.filter(i => typeof i === "string") : [],
+      category_id: typeof categoryId === "string" ? categoryId : null,
+      sale_price: typeof salePrice === "number" ? salePrice : null,
+      sale_start: typeof saleStart === "string" ? saleStart : null,
+      sale_end: typeof saleEnd === "string" ? saleEnd : null,
       views: 0,
       sold: 0,
     });
@@ -88,16 +111,38 @@ export async function POST(req: Request) {
 }
 
 /* =========================================================
-   PUT — UPDATE PRODUCT (SELLER ONLY) ✅ FIX 405
+   PUT — UPDATE PRODUCT (SELLER ONLY)
 ========================================================= */
 export async function PUT(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
   try {
-    const body = await req.json();
+    const body: unknown = await req.json();
+    if (typeof body !== "object" || body === null) {
+      return NextResponse.json(
+        { error: "INVALID_PAYLOAD" },
+        { status: 400 }
+      );
+    }
 
-    if (!body?.id || !body?.name || typeof body.price !== "number") {
+    const {
+      id,
+      name,
+      price,
+      description,
+      images,
+      categoryId,
+      salePrice,
+      saleStart,
+      saleEnd,
+    } = body as Record<string, unknown>;
+
+    if (
+      typeof id !== "string" ||
+      typeof name !== "string" ||
+      typeof price !== "number"
+    ) {
       return NextResponse.json(
         { error: "INVALID_PAYLOAD" },
         { status: 400 }
@@ -106,16 +151,16 @@ export async function PUT(req: Request) {
 
     const updated = await updateProductBySeller(
       auth.user.pi_uid,
-      body.id,
+      id,
       {
-        name: body.name.trim(),
-        price: body.price,
-        description: body.description ?? "",
-        images: Array.isArray(body.images) ? body.images : [],
-        category_id: body.categoryId ?? null,
-        sale_price: body.salePrice ?? null,
-        sale_start: body.saleStart ?? null,
-        sale_end: body.saleEnd ?? null,
+        name: name.trim(),
+        price,
+        description: typeof description === "string" ? description : "",
+        images: Array.isArray(images) ? images.filter(i => typeof i === "string") : [],
+        category_id: typeof categoryId === "string" ? categoryId : null,
+        sale_price: typeof salePrice === "number" ? salePrice : null,
+        sale_start: typeof saleStart === "string" ? saleStart : null,
+        sale_end: typeof saleEnd === "string" ? saleEnd : null,
       }
     );
 
