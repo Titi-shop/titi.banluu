@@ -1,7 +1,10 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { apiFetchForm } from "@/lib/apiFetchForm";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Upload, Edit3 } from "lucide-react";
@@ -68,39 +71,38 @@ useEffect(() => {
      UPLOAD AVATAR (COOKIE-BASED)
   ======================= */
   const handleFileChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0];
+  if (!file || !user) return;
 
-    setPreview(URL.createObjectURL(file));
-    setUploading(true);
+  setPreview(URL.createObjectURL(file));
+  setUploading(true);
 
-    try {
-      const form = new FormData();
-      form.append("file", file);
+  try {
+    const form = new FormData();
+    form.append("file", file);
 
-      const res = await fetch("/api/uploadAvatar", {
-        method: "POST",
-        credentials: "include", // 🔥 KHÔNG Bearer
-        body: form,
-      });
+    const res = await apiFetchForm("/api/uploadAvatar", {
+      method: "POST",
+      body: form,
+    });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
 
-      setProfile(prev =>
-        prev ? { ...prev, avatar: data.avatar } : prev
-      );
+    setProfile(prev =>
+      prev ? { ...prev, avatar: data.avatar } : prev
+    );
 
-      alert(t.profile_avatar_updated);
-    } catch (err) {
-      console.error(err);
-      alert(t.upload_failed);
-    } finally {
-      setUploading(false);
-    }
-  };
+    alert(t.profile_avatar_updated);
+  } catch (err) {
+    console.error(err);
+    alert(t.upload_failed);
+  } finally {
+    setUploading(false);
+  }
+};
 
   /* =======================
      UI STATES
