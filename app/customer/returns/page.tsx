@@ -47,24 +47,27 @@ export default function ReturnPage() {
      UPLOAD IMAGE
   ======================= */
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    setUploading(true);
-    try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: { "x-filename": file.name },
-        body: file,
-      });
-      const data = await res.json();
-      if (data.url) setImages((prev) => [...prev, data.url]);
-    } catch {
-      alert(t.upload_error);
-    } finally {
-      setUploading(false);
-    }
-  };
+  setUploading(true);
+  try {
+    const form = new FormData();
+    form.append("file", file);
+
+    const res = await apiFetchForm("/api/upload", {
+      method: "POST",
+      body: form,
+    });
+
+    const data = await res.json();
+    if (data.url) setImages((prev) => [...prev, data.url]);
+  } catch {
+    alert(t.upload_error);
+  } finally {
+    setUploading(false);
+  }
+};
 
   /* =======================
      SUBMIT RETURN
@@ -77,16 +80,14 @@ export default function ReturnPage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/returns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          orderId: selectedOrder,
-          reason,
-          images,
-        }),
-      });
+      const res = await apiFetch("/api/returns", {
+  method: "POST",
+  body: JSON.stringify({
+    orderId: selectedOrder,
+    reason,
+    images,
+  }),
+});
 
       const data = await res.json();
       if (data.success) {
