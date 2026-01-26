@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
+import { apiFetchForm } from "@/lib/apiFetchForm";
 
 /* =========================
    TYPES
@@ -29,6 +30,9 @@ export default function SellerPostPage() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
   const [message, setMessage] = useState<MessageState>({
     text: "",
     type: "",
@@ -49,12 +53,52 @@ export default function SellerPostPage() {
   useEffect(() => {
     fetch("/api/categories", { cache: "no-store" })
       .then((r) => r.json())
-      .then((data) => setCategories(data || []))
+      .then((data: Category[]) => setCategories(data || []))
       .catch(() => setCategories([]));
   }, []);
 
   /* =========================
-     SUBMIT
+     IMAGE UPLOAD
+  ========================= */
+  async function handleImageChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setMessage({ text: "", type: "" });
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await apiFetchForm("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data: { success: boolean; url?: string } =
+        await res.json();
+
+      if (!res.ok || !data.success || !data.url) {
+        throw new Error("UPLOAD_FAILED");
+      }
+
+      setImageUrl(data.url);
+    } catch (err) {
+      console.error(err);
+      setMessage({
+        text: "❌ Upload ảnh thất bại",
+        type: "error",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  /* =========================
+     SUBMIT PRODUCT
   ========================= */
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -75,48 +119,63 @@ export default function SellerPostPage() {
       return;
     }
 
-    setSaving(true);
-    setMessage({ text: "", type: "" });
+    if (!imageUrl) {
+      setMessage({
+        text: "⚠️ Vui lòng chọn ảnh sản phẩm",
+        type: "error",
+      });
+      return;
+    }
 
     const form = e.currentTarget;
 
     const payload = {
-      name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+      name: (form.elements.namedItem("name") as HTMLInputElement)
+        .value.trim(),
       price: Number(
-        (form.elements.namedItem("price") as HTMLInputElement).value
+        (form.elements.namedItem("price") as HTMLInputElement)
+          .value
       ),
       description: (
-        form.elements.namedItem("description") as HTMLTextAreaElement
+        form.elements.namedItem(
+          "description"
+        ) as HTMLTextAreaElement
       ).value,
       categoryId:
         Number(
-          (form.elements.namedItem("categoryId") as HTMLSelectElement).value
+          (form.elements.namedItem(
+            "categoryId"
+          ) as HTMLSelectElement).value
         ) || null,
-      images: (
-        (form.elements.namedItem("imageUrl") as HTMLInputElement).value.trim()
-          ? [
-              (form.elements.namedItem("imageUrl") as HTMLInputElement).value.trim(),
-            ]
-          : []
-      ),
+      images: [imageUrl],
       salePrice:
         Number(
-          (form.elements.namedItem("salePrice") as HTMLInputElement).value
+          (form.elements.namedItem(
+            "salePrice"
+          ) as HTMLInputElement).value
         ) || null,
       saleStart:
-        (form.elements.namedItem("saleStart") as HTMLInputElement).value || null,
+        (form.elements.namedItem(
+          "saleStart"
+        ) as HTMLInputElement).value || null,
       saleEnd:
-        (form.elements.namedItem("saleEnd") as HTMLInputElement).value || null,
+        (form.elements.namedItem(
+          "saleEnd"
+        ) as HTMLInputElement).value || null,
     };
 
     if (!payload.name || !payload.price) {
       setMessage({
-        text: t.enter_valid_name_price || "⚠️ Nhập tên & giá hợp lệ!",
+        text:
+          t.enter_valid_name_price ||
+          "⚠️ Nhập tên & giá hợp lệ!",
         type: "error",
       });
-      setSaving(false);
       return;
     }
+
+    setSaving(true);
+    setMessage({ text: "", type: "" });
 
     try {
       const res = await apiFetch("/api/products", {
@@ -128,7 +187,9 @@ export default function SellerPostPage() {
 
       if (res.ok) {
         setMessage({
-          text: t.post_success || "🎉 Đăng sản phẩm thành công!",
+          text:
+            t.post_success ||
+            "🎉 Đăng sản phẩm thành công!",
           type: "success",
         });
 
@@ -137,7 +198,10 @@ export default function SellerPostPage() {
         }, 800);
       } else {
         setMessage({
-          text: result.error || t.post_failed || "❌ Đăng thất bại",
+          text:
+            result.error ||
+            t.post_failed ||
+            "❌ Đăng thất bại",
           type: "error",
         });
       }
@@ -205,8 +269,13 @@ export default function SellerPostPage() {
           className="w-full border p-2 rounded"
         />
 
-        <select name="categoryId" className="w-full border p-2 rounded">
-          <option value="">{t.select_category}</option>
+        <select
+          name="categoryId"
+          className="w-full border p-2 rounded"
+        >
+          <option value="">
+            {t.select_category}
+          </option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -214,11 +283,29 @@ export default function SellerPostPage() {
           ))}
         </select>
 
-        <input
-          name="imageUrl"
-          placeholder="Image URL (https://...)"
-          className="w-full border p-2 rounded"
-        />
+        {/* IMAGE UPLOAD */}
+        <div className="space-y-2">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            className="w-full border p-2 rounded"
+          />
+
+          {uploadingImage && (
+            <p className="text-sm text-gray-500">
+              ⏳ Đang upload ảnh...
+            </p>
+          )}
+
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt="Preview"
+              className="w-32 h-32 object-cover rounded border"
+            />
+          )}
+        </div>
 
         <textarea
           name="description"
@@ -250,7 +337,9 @@ export default function SellerPostPage() {
           disabled={saving}
           className="w-full bg-[#ff6600] text-white p-3 rounded-lg font-semibold"
         >
-          {saving ? t.posting : "💾 " + t.post_product}
+          {saving
+            ? t.posting
+            : "💾 " + t.post_product}
         </button>
       </form>
     </main>
