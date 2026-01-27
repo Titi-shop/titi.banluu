@@ -3,42 +3,46 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const { amount, memo, metadata, uid } = body;
 
-    const piApiKey = process.env.PI_API_KEY;
-    if (!piApiKey) {
+    if (!uid || !amount) {
       return NextResponse.json(
-        { error: "Missing PI_API_KEY" },
-        { status: 500 }
+        { error: "missing uid or amount" },
+        { status: 400 }
       );
     }
 
-    const res = await fetch("https://api.minepi.com/v2/payments", {
+    const API_KEY = process.env.PI_API_KEY!;
+    const API_URL =
+      process.env.NEXT_PUBLIC_PI_ENV === "testnet"
+        ? "https://api.minepi.com/v2/sandbox/payments"
+        : "https://api.minepi.com/v2/payments";
+
+    const res = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Key ${piApiKey}`,
+        Authorization: `Key ${API_KEY}`,
       },
       body: JSON.stringify({
-        amount: body.amount,
-        memo: body.memo,
-        metadata: body.metadata,
+        amount,
+        memo,
+        metadata,
+        uid, // ✅ UID PI THẬT
       }),
     });
 
-    const payment = await res.json();
+    const text = await res.text();
 
     if (!res.ok) {
-      console.error("❌ Pi create payment error:", payment);
-      return NextResponse.json(payment, { status: res.status });
+      console.error("❌ Pi create payment error:", text);
     }
 
-    // ⚠️ CÁI NÀY QUAN TRỌNG: trả nguyên object cho Pi SDK
-    return NextResponse.json(payment);
+    return new NextResponse(text, {
+      status: res.status,
+    });
   } catch (err) {
-    console.error("❌ /api/pi/create error:", err);
-    return NextResponse.json(
-      { error: "Create Pi payment failed" },
-      { status: 500 }
-    );
+    console.error("💥 create payment exception", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
