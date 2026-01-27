@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 import { LogOut } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
-import CustomerPage from "../customer/page";
+import AccountHeader from "@/components/AccountHeader";
 import CustomerMenu from "@/components/customerMenu";
 
 export default function AccountPage() {
@@ -27,16 +27,15 @@ export default function AccountPage() {
   }
 
   return (
-    <main className="bg-gray-100 pb-32 space-y-6">
-      <CustomerPage embedded />
+    <main className="bg-gray-100 pb-32 space-y-4">
+      <AccountHeader />
       <CustomerMenu />
 
       <section className="mx-4">
         <button
           onClick={logout}
-          className="w-full py-4 bg-red-500 hover:bg-red-600
-            text-white rounded-2xl flex items-center justify-center
-            gap-3 font-semibold text-lg shadow-lg"
+          className="w-full py-4 bg-red-500 text-white rounded-2xl
+            flex items-center justify-center gap-3 font-semibold text-lg shadow"
         >
           <LogOut size={22} />
           Đăng xuất
