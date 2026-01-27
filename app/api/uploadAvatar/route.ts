@@ -1,3 +1,4 @@
+// app/api/uploadAvatar/route.ts
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { query } from "@/lib/db";
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
       {
         access: "public",
         token: process.env.BLOB_READ_WRITE_TOKEN,
+        allowOverwrite: true, // ⭐ BẮT BUỘC
       }
     );
 
@@ -39,7 +41,11 @@ export async function POST(req: Request) {
       [user.pi_uid, user.username, blob.url]
     );
 
-    return NextResponse.json({ success: true, avatar: blob.url });
+    // ⭐ TRẢ URL CÓ CACHE-BUST
+    return NextResponse.json({
+      success: true,
+      avatar: `${blob.url}?t=${Date.now()}`,
+    });
   } catch (err) {
     console.error("❌ UPLOAD AVATAR ERROR:", err);
     return NextResponse.json({ error: "UPLOAD_FAILED" }, { status: 500 });
