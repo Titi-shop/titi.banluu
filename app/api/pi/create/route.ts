@@ -1,51 +1,43 @@
 import { NextResponse } from "next/server";
 
-interface CreatePaymentBody {
-  amount: number;
-  memo: string;
-  metadata: Record<string, unknown>;
-}
-
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as CreatePaymentBody;
+    const body = await req.json();
 
-    if (!body.amount || !body.memo) {
+    const piApiKey = process.env.PI_API_KEY;
+    if (!piApiKey) {
       return NextResponse.json(
-        { error: "invalid payload" },
-        { status: 400 }
-      );
-    }
-
-    const API_KEY = process.env.PI_API_KEY;
-    const API_URL =
-      process.env.NEXT_PUBLIC_PI_ENV === "testnet"
-        ? "https://api.minepi.com/v2/sandbox/payments"
-        : "https://api.minepi.com/v2/payments";
-
-    if (!API_KEY) {
-      return NextResponse.json(
-        { error: "missing PI_API_KEY" },
+        { error: "Missing PI_API_KEY" },
         { status: 500 }
       );
     }
 
-    // ✅ FIX Ở ĐÂY (chỉ 1 dấu =)
-    const res = await fetch(API_URL, {
+    const res = await fetch("https://api.minepi.com/v2/payments", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Key ${API_KEY}`,
+        Authorization: `Key ${piApiKey}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        amount: body.amount,
+        memo: body.memo,
+        metadata: body.metadata,
+      }),
     });
 
-    const text = await res.text();
-    return new NextResponse(text, { status: res.status });
+    const payment = await res.json();
+
+    if (!res.ok) {
+      console.error("❌ Pi create payment error:", payment);
+      return NextResponse.json(payment, { status: res.status });
+    }
+
+    // ⚠️ CÁI NÀY QUAN TRỌNG: trả nguyên object cho Pi SDK
+    return NextResponse.json(payment);
   } catch (err) {
-    console.error("💥 [PI CREATE ERROR]", err);
+    console.error("❌ /api/pi/create error:", err);
     return NextResponse.json(
-      { error: "create payment failed" },
+      { error: "Create Pi payment failed" },
       { status: 500 }
     );
   }
