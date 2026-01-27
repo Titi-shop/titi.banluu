@@ -28,7 +28,8 @@ type ReturnRequestBody = {
 function isReturnRequestBody(
   value: unknown
 ): value is ReturnRequestBody {
-  if (typeof value !== "object" || value === null) return false;
+  if (typeof value !== "object" || value === null)
+    return false;
 
   const v = value as Record<string, unknown>;
 
@@ -49,50 +50,58 @@ function isReturnRequestBody(
 ========================= */
 
 export async function POST(req: Request) {
-  // 🔐 Auth
-  const user = await getUserFromBearer();
-  if (!user) {
+  try {
+    /* 🔐 AUTH */
+    const user = await getUserFromBearer();
+    if (!user) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const role = await resolveRole(user);
+    if (role !== "customer") {
+      return NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    /* 📦 BODY */
+    const body: unknown = await req.json().catch(() => null);
+
+    if (!isReturnRequestBody(body)) {
+      return NextResponse.json(
+        { error: "INVALID_BODY" },
+        { status: 400 }
+      );
+    }
+
+    const { orderId, reason, images } = body;
+
+    /**
+     * 👉 Production:
+     * - validate order belongs to user
+     * - persist to DB / KV
+     */
+    console.log("📦 [RETURN REQUEST]", {
+      buyerPiUid: user.pi_uid,
+      orderId,
+      reason,
+      images: images ?? [],
+      createdAt: new Date().toISOString(),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Yêu cầu trả hàng đã được ghi nhận.",
+    });
+  } catch (err) {
+    console.error("RETURN ERROR:", err);
     return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
+      { error: "INTERNAL_ERROR" },
+      { status: 500 }
     );
   }
-
-  const role = await resolveRole(user);
-  if (role !== "customer") {
-    return NextResponse.json(
-      { error: "FORBIDDEN" },
-      { status: 403 }
-    );
-  }
-
-  // 📦 Body
-  const body: unknown = await req.json();
-
-  if (!isReturnRequestBody(body)) {
-    return NextResponse.json(
-      { error: "INVALID_BODY" },
-      { status: 400 }
-    );
-  }
-
-  const { orderId, reason, images } = body;
-
-  /**
-   * 👉 Bản production:
-   * - validate order belongs to user
-   * - lưu vào DB / KV
-   */
-  console.log("📦 [RETURN REQUEST]", {
-    buyerPiUid: user.pi_uid,
-    orderId,
-    reason,
-    images: images ?? [],
-    createdAt: new Date().toISOString(),
-  });
-
-  return NextResponse.json({
-    success: true,
-    message: "Yêu cầu trả hàng đã được ghi nhận.",
-  });
 }
