@@ -1,19 +1,39 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useCart } from "../context/CartContext";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft } from "lucide-react";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import { apiFetch } from "@/lib/apiFetch";
 
+import { useCart } from "../context/CartContext";
+import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/apiFetch";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+
+/* =========================
+   PI GLOBAL (NO any)
+========================= */
 declare global {
   interface Window {
-    Pi?: any;
+    Pi?: {
+      createPayment: (
+        payment: unknown,
+        callbacks: {
+          onReadyForServerApproval: (paymentId: string) => Promise<void>;
+          onReadyForServerCompletion: (
+            paymentId: string,
+            txid: string
+          ) => Promise<void>;
+          onCancel: () => void;
+          onError: (err: unknown) => void;
+        }
+      ) => Promise<void>;
+    };
   }
 }
 
+/* =========================
+   TYPES
+========================= */
 interface ShippingInfo {
   name: string;
   phone: string;
@@ -29,6 +49,19 @@ interface CartItem {
   images?: string[];
 }
 
+/* =========================
+   UTIL
+========================= */
+async function ensureOK(res: Response, label: string): Promise<void> {
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${label} failed (${res.status}): ${text}`);
+  }
+}
+
+/* =========================
+   PAGE
+========================= */
 export default function CheckoutPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -52,13 +85,19 @@ export default function CheckoutPage() {
   ========================= */
   useEffect(() => {
     const saved = localStorage.getItem("shipping_info");
-    if (saved) setShipping(JSON.parse(saved));
+    if (saved) {
+      try {
+        setShipping(JSON.parse(saved) as ShippingInfo);
+      } catch {
+        setShipping(null);
+      }
+    }
   }, []);
 
   /* =========================
      PAY WITH PI
   ========================= */
-  const handlePayWithPi = async () => {
+  const handlePayWithPi = async (): Promise<void> => {
     if (!window.Pi || !piReady) {
       alert(t.pi_not_ready);
       return;
@@ -74,7 +113,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!shipping?.name || !shipping?.phone || !shipping?.address) {
+    if (!shipping?.name || !shipping.phone || !shipping.address) {
       alert(t.must_fill_shipping);
       router.push("/customer/address");
       return;
@@ -85,7 +124,10 @@ export default function CheckoutPage() {
     try {
       const orderId = `ORD-${Date.now()}`;
 
-      const paymentData = {
+      /* =========================
+         CREATE PAYMENT (SERVER)
+      ========================= */
+      const paymentPayload = {
         amount: Number(total.toFixed(2)),
         memo: `${t.payment_for_order} #${orderId}`,
         metadata: {
@@ -96,16 +138,32 @@ export default function CheckoutPage() {
         },
       };
 
-      const callbacks = {
+      const createRes = await apiFetch("/api/pi/create", {
+        method: "POST",
+        body: JSON.stringify(paymentPayload),
+      });
+
+      await ensureOK(createRes, "PI CREATE");
+      const payment = await createRes.json();
+
+      /* =========================
+         PI CALLBACKS
+      ========================= */
+      await window.Pi.createPayment(payment, {
         onReadyForServerApproval: async (paymentId: string) => {
-          await apiFetch("/api/pi/approve", {
+          const res = await apiFetch("/api/pi/approve", {
             method: "POST",
-            body: JSON.stringify({ paymentId, orderId }),
+            body: JSON.stringify({ paymentId }),
           });
+
+          await ensureOK(res, "PI APPROVE");
         },
 
-        onReadyForServerCompletion: async (paymentId: string, txid: string) => {
-          await apiFetch("/api/orders", {
+        onReadyForServerCompletion: async (
+          paymentId: string,
+          txid: string
+        ) => {
+          const orderRes = await apiFetch("/api/orders", {
             method: "POST",
             body: JSON.stringify({
               id: orderId,
@@ -119,10 +177,14 @@ export default function CheckoutPage() {
             }),
           });
 
-          await apiFetch("/api/pi/complete", {
+          await ensureOK(orderRes, "CREATE ORDER");
+
+          const completeRes = await apiFetch("/api/pi/complete", {
             method: "POST",
             body: JSON.stringify({ paymentId, txid }),
           });
+
+          await ensureOK(completeRes, "PI COMPLETE");
 
           clearCart();
           alert(t.payment_success);
@@ -137,16 +199,7 @@ export default function CheckoutPage() {
           console.error("💥 Pi payment error:", err);
           alert(t.payment_error);
         },
-      };
-
-      const res = await apiFetch("/api/pi/create", {
-  method: "POST",
-  body: JSON.stringify(paymentData),
-});
-
-const payment = await res.json();
-
-await window.Pi.createPayment(payment, callbacks);
+      });
     } catch (err) {
       console.error("❌ Checkout error:", err);
       alert(t.transaction_failed);
@@ -155,7 +208,10 @@ await window.Pi.createPayment(payment, callbacks);
     }
   };
 
-  const resolveImageUrl = (img?: string) => {
+  /* =========================
+     UI HELPERS
+  ========================= */
+  const resolveImageUrl = (img?: string): string => {
     if (!img) return "/placeholder.png";
     if (img.startsWith("http")) return img;
     return `/${img.replace(/^\//, "")}`;
@@ -169,11 +225,17 @@ await window.Pi.createPayment(payment, callbacks);
     );
   }
 
+  /* =========================
+     RENDER
+  ========================= */
   return (
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col justify-between">
       {/* HEADER */}
       <div className="flex items-center bg-white p-3 border-b sticky top-0 z-10">
-        <button onClick={() => router.back()} className="flex items-center text-gray-700">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center text-gray-700"
+        >
           <ArrowLeft className="w-5 h-5 mr-1" />
           {t.back}
         </button>
@@ -201,7 +263,7 @@ await window.Pi.createPayment(payment, callbacks);
         </div>
 
         <div className="p-4 bg-white mt-2">
-          {cart.map((item: CartItem, i) => (
+          {cart.map((item: CartItem, i: number) => (
             <div key={i} className="flex items-center border-b py-2">
               <img
                 src={resolveImageUrl(item.image || item.images?.[0])}
@@ -234,7 +296,9 @@ await window.Pi.createPayment(payment, callbacks);
           onClick={handlePayWithPi}
           disabled={processing}
           className={`px-6 py-3 rounded-lg text-white font-semibold ${
-            processing ? "bg-gray-400" : "bg-orange-600 hover:bg-orange-700"
+            processing
+              ? "bg-gray-400"
+              : "bg-orange-600 hover:bg-orange-700"
           }`}
         >
           {processing ? t.processing : t.pay_now}
