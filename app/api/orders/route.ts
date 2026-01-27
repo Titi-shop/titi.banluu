@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 /* =========================
    TYPES
 ========================= */
+
 type OrderItemInput = {
   productId: string;
   quantity: number;
@@ -24,9 +25,39 @@ type CreateOrderBody = {
 };
 
 /* =========================
+   RUNTIME GUARDS
+========================= */
+
+function isOrderItem(value: unknown): value is OrderItemInput {
+  if (typeof value !== "object" || value === null) return false;
+
+  const v = value as Record<string, unknown>;
+
+  return (
+    typeof v.productId === "string" &&
+    typeof v.quantity === "number" &&
+    v.quantity > 0
+  );
+}
+
+function isCreateOrderBody(value: unknown): value is CreateOrderBody {
+  if (typeof value !== "object" || value === null) return false;
+
+  const v = value as Record<string, unknown>;
+
+  if (!Array.isArray(v.items)) return false;
+  if (!v.items.every(isOrderItem)) return false;
+
+  if ("note" in v && typeof v.note !== "string") return false;
+
+  return true;
+}
+
+/* =========================
    GET /api/orders
    → customer xem đơn của mình
 ========================= */
+
 export async function GET() {
   const user = await getUserFromBearer();
   if (!user) {
@@ -52,6 +83,7 @@ export async function GET() {
    POST /api/orders
    → tạo đơn hàng mới (CUSTOMER)
 ========================= */
+
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
   if (!user) {
@@ -70,42 +102,18 @@ export async function POST(req: Request) {
   }
 
   const body: unknown = await req.json();
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("items" in body) ||
-    !Array.isArray((body as { items: unknown }).items)
-  ) {
+
+  if (!isCreateOrderBody(body)) {
     return NextResponse.json(
       { error: "INVALID_BODY" },
       { status: 400 }
     );
   }
 
-  const items = (body as CreateOrderBody).items;
-
-  if (
-    items.length === 0 ||
-    items.some(
-      i =>
-        typeof i.productId !== "string" ||
-        typeof i.quantity !== "number" ||
-        i.quantity <= 0
-    )
-  ) {
-    return NextResponse.json(
-      { error: "INVALID_ITEMS" },
-      { status: 400 }
-    );
-  }
-
   const order = await createOrder({
     buyerPiUid: user.pi_uid,
-    items,
-    note:
-      typeof (body as CreateOrderBody).note === "string"
-        ? (body as CreateOrderBody).note
-        : null,
+    items: body.items,
+    note: body.note ?? null,
   });
 
   return NextResponse.json(order, { status: 201 });
