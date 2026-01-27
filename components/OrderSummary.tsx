@@ -2,11 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { Clock, Package, Truck, Star, RotateCcw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslationClient as useTranslation } 
+  from "@/app/lib/i18n/client";
 
 export default function OrderSummary() {
   const router = useRouter();
-  const t = useTranslations();
+  const t = useTranslation();
 
   return (
     <section className="bg-white mx-4 mt-4 rounded-lg shadow">
@@ -29,7 +30,7 @@ export default function OrderSummary() {
         />
         <Item
           icon={<Truck size={26} />}
-          label={t("status_shipping")}
+          label={t("shipping")}
           path="/customer/shipping"
         />
         <Item
@@ -47,17 +48,15 @@ export default function OrderSummary() {
   );
 }
 
-/* =========================
-   ITEM
-========================= */
-
-type ItemProps = {
+function Item({
+  icon,
+  label,
+  path,
+}: {
   icon: React.ReactNode;
   label: string;
   path: string;
-};
-
-function Item({ icon, label, path }: ItemProps) {
+}) {
   const router = useRouter();
 
   return (
@@ -66,9 +65,7 @@ function Item({ icon, label, path }: ItemProps) {
       className="flex flex-col items-center text-gray-700 hover:text-orange-500"
     >
       {icon}
-      <span className="text-xs mt-1">
-        {label}
-      </span>
+      <span className="text-xs mt-1">{label}</span>
     </button>
   );
 }
