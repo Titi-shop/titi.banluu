@@ -180,7 +180,7 @@ export async function PUT(req: Request) {
     );
   }
 }
-/* =========================================================
+/*=========================================================
    DELETE — DELETE PRODUCT (SELLER ONLY)
    DELETE /api/products?id=PRODUCT_ID
 ========================================================= */
@@ -199,21 +199,27 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const { rowCount } = await (
-      await import("@/lib/db")
-    ).query(
-      `
-      DELETE FROM products
-      WHERE id = $1
-        AND seller_id = $2
-      `,
-      [id, auth.user.pi_uid]
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${id}&seller_id=eq.${auth.user.pi_uid}`,
+      {
+        method: "DELETE",
+        headers: {
+          apikey: SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          Prefer: "return=minimal",
+        },
+      }
     );
 
-    if (rowCount === 0) {
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("❌ SUPABASE DELETE ERROR:", text);
       return NextResponse.json(
-        { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
-        { status: 404 }
+        { error: "FAILED_TO_DELETE_PRODUCT" },
+        { status: 500 }
       );
     }
 
