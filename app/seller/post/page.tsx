@@ -31,7 +31,9 @@ export default function SellerPostPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  // 🔥 nhiều ảnh – tối đa 6
+  const [images, setImages] = useState<string[]>([]);
 
   const [message, setMessage] = useState<MessageState>({
     text: "",
@@ -58,34 +60,44 @@ export default function SellerPostPage() {
   }, []);
 
   /* =========================
-     IMAGE UPLOAD
+     IMAGE UPLOAD (MAX 6)
   ========================= */
   async function handleImageChange(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    if (images.length + files.length > 6) {
+      setMessage({
+        text: "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm",
+        type: "error",
+      });
+      return;
+    }
 
     setUploadingImage(true);
     setMessage({ text: "", type: "" });
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
 
-      const res = await apiFetchForm("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+        const res = await apiFetchForm("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-      const data: { success: boolean; url?: string } =
-        await res.json();
+        const data: { success: boolean; url?: string } =
+          await res.json();
 
-      if (!res.ok || !data.success || !data.url) {
-        throw new Error("UPLOAD_FAILED");
+        if (!res.ok || !data.success || !data.url) {
+          throw new Error("UPLOAD_FAILED");
+        }
+
+        setImages((prev) => [...prev, data.url]);
       }
-
-      setImageUrl(data.url);
     } catch (err) {
       console.error(err);
       setMessage({
@@ -94,7 +106,12 @@ export default function SellerPostPage() {
       });
     } finally {
       setUploadingImage(false);
+      e.target.value = "";
     }
+  }
+
+  function removeImage(index: number) {
+    setImages((prev) => prev.filter((_, i) => i !== index));
   }
 
   /* =========================
@@ -119,9 +136,9 @@ export default function SellerPostPage() {
       return;
     }
 
-    if (!imageUrl) {
+    if (images.length === 0) {
       setMessage({
-        text: "⚠️ Vui lòng chọn ảnh sản phẩm",
+        text: "⚠️ Vui lòng chọn ít nhất 1 ảnh sản phẩm",
         type: "error",
       });
       return;
@@ -147,7 +164,7 @@ export default function SellerPostPage() {
             "categoryId"
           ) as HTMLSelectElement).value
         ) || null,
-      images: [imageUrl],
+      images, // 🔥 6 ảnh
       salePrice:
         Number(
           (form.elements.namedItem(
@@ -183,7 +200,7 @@ export default function SellerPostPage() {
         body: JSON.stringify(payload),
       });
 
-      const result = await res.json();
+      const result: { error?: string } = await res.json();
 
       if (res.ok) {
         setMessage({
@@ -288,9 +305,14 @@ export default function SellerPostPage() {
           <input
             type="file"
             accept="image/*"
+            multiple
             onChange={handleImageChange}
             className="w-full border p-2 rounded"
           />
+
+          <p className="text-sm text-gray-500">
+            {images.length}/6 ảnh
+          </p>
 
           {uploadingImage && (
             <p className="text-sm text-gray-500">
@@ -298,12 +320,25 @@ export default function SellerPostPage() {
             </p>
           )}
 
-          {imageUrl && (
-            <img
-              src={imageUrl}
-              alt="Preview"
-              className="w-32 h-32 object-cover rounded border"
-            />
+          {images.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {images.map((url, i) => (
+                <div key={url} className="relative">
+                  <img
+                    src={url}
+                    alt={`image-${i}`}
+                    className="w-full h-24 object-cover rounded border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -337,9 +372,7 @@ export default function SellerPostPage() {
           disabled={saving}
           className="w-full bg-[#ff6600] text-white p-3 rounded-lg font-semibold"
         >
-          {saving
-            ? t.posting
-            : "💾 " + t.post_product}
+          {saving ? t.posting : "💾 " + t.post_product}
         </button>
       </form>
     </main>
