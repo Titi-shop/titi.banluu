@@ -86,36 +86,34 @@ export default function SellerStockPage() {
      ❌ DELETE PRODUCT (TOKEN FIRST)
   ============================================ */
   const handleDelete = async (id: string) => {
-    const product = products.find((p) => p.id === id);
-    if (!product) return;
+  const product = products.find((p) => p.id === id);
+  if (!product) return;
 
-    if (!confirm(`${t.confirm_delete} "${product.name}"?`)) return;
+  if (!confirm(`${t.confirm_delete} "${product.name}"?`)) return;
 
-    try {
-      const res = await apiFetch(
-        `/api/products?id=${id}`,
-        piToken,
-        { method: "DELETE" }
-      );
+  try {
+    const res = await apiFetch(`/api/products?id=${id}`, {
+      method: "DELETE",
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (res.ok) {
-        setMessage({ text: t.delete_success, type: "success" });
-        loadProducts();
-      } else {
-        setMessage({
-          text: data.error || t.delete_failed,
-          type: "error",
-        });
-      }
-    } catch {
+    if (res.ok) {
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setMessage({ text: t.delete_success, type: "success" });
+    } else {
       setMessage({
-        text: t.delete_failed,
+        text: data.error || t.delete_failed,
         type: "error",
       });
     }
-  };
+  } catch {
+    setMessage({
+      text: t.delete_failed,
+      type: "error",
+    });
+  }
+};
 
   /* ============================================
      ⏳ LOADING
