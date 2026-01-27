@@ -3,14 +3,16 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useTranslations } from "next-intl";
 
+import { useAuth } from "@/context/AuthContext";
 import AccountHeader from "@/components/AccountHeader";
 import OrderSummary from "@/components/OrderSummary";
 import CustomerMenu from "@/components/customerMenu";
 
 export default function AccountPage() {
   const router = useRouter();
+  const t = useTranslations();
   const { user, loading, logout } = useAuth();
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function AccountPage() {
   if (loading || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center text-gray-500">
-        ⏳ Đang xác thực…
+        ⏳ {t("authenticating")}
       </main>
     );
   }
@@ -30,7 +32,7 @@ export default function AccountPage() {
   return (
     <main className="bg-gray-100 pb-32 space-y-4">
       <AccountHeader />
-       <OrderSummary />
+      <OrderSummary />
       <CustomerMenu />
 
       <section className="mx-4">
@@ -40,7 +42,7 @@ export default function AccountPage() {
             flex items-center justify-center gap-3 font-semibold text-lg shadow"
         >
           <LogOut size={22} />
-          Đăng xuất
+          {t("logout")}
         </button>
       </section>
     </main>
