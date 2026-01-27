@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 import AccountHeader from "@/components/AccountHeader";
+import OrderSummary from "@/components/OrderSummary";
 import CustomerMenu from "@/components/customerMenu";
 
 export default function AccountPage() {
@@ -29,6 +30,7 @@ export default function AccountPage() {
   return (
     <main className="bg-gray-100 pb-32 space-y-4">
       <AccountHeader />
+       <OrderSummary />
       <CustomerMenu />
 
       <section className="mx-4">
