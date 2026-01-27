@@ -30,7 +30,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const res = = await fetch(API_URL, {
+    // ✅ FIX Ở ĐÂY (chỉ 1 dấu =)
+    const res = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -39,11 +40,10 @@ export async function POST(req: Request) {
       body: JSON.stringify(body),
     });
 
-    const data = await res.text();
-
-    return new NextResponse(data, { status: res.status });
+    const text = await res.text();
+    return new NextResponse(text, { status: res.status });
   } catch (err) {
-    console.error("💥 [PI CREATE]", err);
+    console.error("💥 [PI CREATE ERROR]", err);
     return NextResponse.json(
       { error: "create payment failed" },
       { status: 500 }
