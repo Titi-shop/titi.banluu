@@ -1,35 +1,98 @@
 import { NextResponse } from "next/server";
 
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { resolveRole } from "@/lib/auth/resolveRole";
+
 /**
- * 🧾 API: /api/returns
- * - Nhận yêu cầu trả hàng từ khách hàng
- * - Lưu thông tin vào DB hoặc file (hiện tạm log ra console)
+ * API: /api/returns
+ * - Customer gửi yêu cầu trả hàng
+ * - NETWORK-FIRST (Bearer Pi token)
+ * - AUTH-CENTRIC + RBAC
+ * - NO any
  */
+
+/* =========================
+   TYPES
+========================= */
+
+type ReturnRequestBody = {
+  orderId: string;
+  reason: string;
+  images?: string[];
+};
+
+/* =========================
+   RUNTIME GUARD
+========================= */
+
+function isReturnRequestBody(
+  value: unknown
+): value is ReturnRequestBody {
+  if (typeof value !== "object" || value === null) return false;
+
+  const v = value as Record<string, unknown>;
+
+  if (typeof v.orderId !== "string") return false;
+  if (typeof v.reason !== "string") return false;
+
+  if ("images" in v) {
+    if (!Array.isArray(v.images)) return false;
+    if (!v.images.every((i) => typeof i === "string"))
+      return false;
+  }
+
+  return true;
+}
+
+/* =========================
+   POST /api/returns
+========================= */
+
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { username, orderId, reason, images } = body;
-
-    if (!username || !orderId || !reason) {
-      return NextResponse.json(
-        { success: false, message: "Thiếu thông tin bắt buộc." },
-        { status: 400 }
-      );
-    }
-
-    // 👉 Ở bản thật, bạn sẽ lưu vào DB (ví dụ MongoDB)
-    console.log("📦 [YÊU CẦU TRẢ HÀNG]:", { username, orderId, reason, images });
-
-    return NextResponse.json({
-      success: true,
-      message: "Yêu cầu trả hàng đã được ghi nhận.",
-      data: { username, orderId, reason, images },
-    });
-  } catch (error: any) {
-    console.error("❌ [RETURN ERROR]:", error);
+  // 🔐 Auth
+  const user = await getUserFromBearer();
+  if (!user) {
     return NextResponse.json(
-      { success: false, message: "Lỗi xử lý yêu cầu trả hàng." },
-      { status: 500 }
+      { error: "UNAUTHORIZED" },
+      { status: 401 }
     );
   }
+
+  const role = await resolveRole(user);
+  if (role !== "customer") {
+    return NextResponse.json(
+      { error: "FORBIDDEN" },
+      { status: 403 }
+    );
+  }
+
+  // 📦 Body
+  const body: unknown = await req.json();
+
+  if (!isReturnRequestBody(body)) {
+    return NextResponse.json(
+      { error: "INVALID_BODY" },
+      { status: 400 }
+    );
+  }
+
+  const { orderId, reason, images } = body;
+
+  /**
+   * 👉 Bản production:
+   * - validate order belongs to user
+   * - lưu vào DB / KV
+   */
+  console.log("📦 [RETURN REQUEST]", {
+    buyerPiUid: user.pi_uid,
+    orderId,
+    reason,
+    images: images ?? [],
+    createdAt: new Date().toISOString(),
+  });
+
+  return NextResponse.json({
+    success: true,
+    message: "Yêu cầu trả hàng đã được ghi nhận.",
+  });
 }
