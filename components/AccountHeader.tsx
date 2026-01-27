@@ -5,7 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import Image from "next/image";
 import { UserCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslationClient as useTranslation } 
+  from "@/app/lib/i18n/client";
 
 /* =========================
    TYPES
@@ -17,10 +18,6 @@ type ProfileApiResponse = {
   };
 };
 
-/* =========================
-   RUNTIME GUARD
-========================= */
-
 function isProfileApiResponse(
   value: unknown
 ): value is ProfileApiResponse {
@@ -30,15 +27,9 @@ function isProfileApiResponse(
 
   if (!("profile" in v)) return true;
 
-  if (
-    typeof v.profile === "object" &&
-    v.profile !== null
-  ) {
+  if (typeof v.profile === "object" && v.profile !== null) {
     const p = v.profile as Record<string, unknown>;
-    return (
-      !("avatar" in p) ||
-      typeof p.avatar === "string"
-    );
+    return !("avatar" in p) || typeof p.avatar === "string";
   }
 
   return false;
@@ -50,8 +41,8 @@ function isProfileApiResponse(
 
 export default function AccountHeader() {
   const { user } = useAuth();
-  const t = useTranslations();
   const [avatar, setAvatar] = useState<string | null>(null);
+  const t = useTranslation();
 
   useEffect(() => {
     if (!user) return;
@@ -63,13 +54,19 @@ export default function AccountHeader() {
           setAvatar(null);
           return;
         }
-
         setAvatar(data.profile?.avatar ?? null);
       })
       .catch(() => setAvatar(null));
   }, [user]);
 
   if (!user) return null;
+
+  const roleLabel =
+    user.role === "admin"
+      ? t("admin")
+      : user.role === "seller"
+      ? t("seller")
+      : t("buyer");
 
   return (
     <section className="bg-orange-500 text-white p-6 text-center shadow">
@@ -92,7 +89,7 @@ export default function AccountHeader() {
       </p>
 
       <p className="text-xs opacity-90">
-        {t(`role.${user.role}`)}
+        {roleLabel}
       </p>
     </section>
   );
