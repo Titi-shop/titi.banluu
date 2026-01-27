@@ -14,43 +14,77 @@ import { getOrdersBySeller } from "@/lib/db/orders";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/* =========================
+   TYPES
+========================= */
+
+type OrderStatus =
+  | "PENDING"
+  | "PAID"
+  | "SHIPPED"
+  | "CANCELLED"
+  | "COMPLETED";
+
+/* =========================
+   HELPERS
+========================= */
+
+function parseOrderStatus(
+  value: string | null
+): OrderStatus | undefined {
+  if (!value) return undefined;
+
+  const allowed: OrderStatus[] = [
+    "PENDING",
+    "PAID",
+    "SHIPPED",
+    "CANCELLED",
+    "COMPLETED",
+  ];
+
+  return allowed.includes(value as OrderStatus)
+    ? (value as OrderStatus)
+    : undefined;
+}
+
 /* =========================================================
    GET /api/seller/orders
    BOOTSTRAP RULE:
    - Not seller yet => return []
 ========================================================= */
+
 export async function GET(req: Request) {
+  /* 1️⃣ AUTH */
+  const user = await getUserFromBearer();
+  if (!user) {
+    return NextResponse.json(
+      { error: "UNAUTHENTICATED" },
+      { status: 401 }
+    );
+  }
+
+  /* 2️⃣ RBAC */
+  const role = await resolveRole(user);
+
+  // BOOTSTRAP: chưa là seller => chưa có đơn
+  if (role !== "seller" && role !== "admin") {
+    return NextResponse.json([], { status: 200 });
+  }
+
+  /* 3️⃣ QUERY PARAMS */
+  const { searchParams } = new URL(req.url);
+  const status = parseOrderStatus(
+    searchParams.get("status")
+  );
+
+  /* 4️⃣ DB */
   try {
-    /* 1️⃣ AUTH */
-    const user = await getUserFromBearer();
-    if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
-
-    /* 2️⃣ RBAC */
-    const role = await resolveRole(user);
-
-    // BOOTSTRAP: chưa là seller => chưa có đơn
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json([], { status: 200 });
-    }
-
-    /* 3️⃣ QUERY PARAMS */
-    const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status") ?? undefined;
-
-    /* 4️⃣ DB */
     const orders = await getOrdersBySeller(
       user.pi_uid,
       status
     );
-
     return NextResponse.json(orders);
   } catch (err) {
-    // BOOTSTRAP: không crash UI
     console.warn("SELLER ORDERS WARN:", err);
     return NextResponse.json([], { status: 200 });
   }
