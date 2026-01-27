@@ -1,25 +1,22 @@
-/* =========================================================
-   lib/auth/getUserFromBearer.ts
-   - NETWORK–FIRST Pi Auth
-   - Bearer token only
-   - Shared auth helper (Phase 1 Bootstrap)
-========================================================= */
-
 import { headers } from "next/headers";
 import type { AuthUser } from "./types";
 
-/* /* =========================================================
-   VERIFY PI TOKEN FROM AUTHORIZATION HEADER
+/* =========================================================
+   PI AUTH — NETWORK FIRST
 ========================================================= */
 export async function getUserFromBearer(): Promise<AuthUser | null> {
   try {
-    const authHeader = headers().get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const auth = headers().get("authorization");
+    if (!auth || !auth.startsWith("Bearer ")) {
       return null;
     }
 
-    const accessToken = authHeader.slice(7).trim();
+    const accessToken = auth.slice(7).trim();
     if (!accessToken) return null;
+
+    // ⏱️ TIMEOUT — Pi Browser safe
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch("https://api.minepi.com/v2/me", {
       method: "GET",
@@ -28,45 +25,54 @@ export async function getUserFromBearer(): Promise<AuthUser | null> {
         Accept: "application/json",
       },
       cache: "no-store",
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
-    if (!res.ok) {
+    if (!res.ok) return null;
+
+    const raw: unknown = await res.json();
+
+    /* =========================
+       TYPE GUARD (NO any)
+    ========================= */
+    if (typeof raw !== "object" || raw === null) {
       return null;
     }
 
-    const data: unknown = await res.json();
+    const data = raw as {
+      uid?: unknown;
+      username?: unknown;
+      wallet_address?: unknown;
+    };
 
-    // 🔒 TYPE GUARD — NO any
     if (
-      typeof data !== "object" ||
-      data === null ||
-      !("uid" in data)
+      (typeof data.uid !== "string" &&
+        typeof data.uid !== "number") ||
+      (data.username !== undefined &&
+        typeof data.username !== "string") ||
+      (data.wallet_address !== undefined &&
+        typeof data.wallet_address !== "string")
     ) {
       return null;
     }
 
-    const uid = (data as { uid: unknown }).uid;
-    if (typeof uid !== "string" && typeof uid !== "number") {
+    return {
+      pi_uid: String(data.uid),
+      username: data.username ?? "",
+      wallet_address: data.wallet_address ?? null,
+      // ❌ KHÔNG gắn role ở auth layer
+    };
+  } catch (err) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "name" in err &&
+      (err as { name: string }).name === "AbortError"
+    ) {
+      console.warn("⚠️ Pi auth timeout");
       return null;
     }
 
-    const username =
-      typeof (data as { username?: unknown }).username === "string"
-        ? (data as { username?: string }).username
-        : "";
-
-    const wallet_address =
-      typeof (data as { wallet_address?: unknown }).wallet_address === "string"
-        ? (data as { wallet_address?: string }).wallet_address
-        : null;
-
-    return {
-      pi_uid: String(uid),
-      username,
-      wallet_address,
-      role: "CUSTOMER", // default, sẽ resolve RBAC sau
-    };
-  } catch (err) {
     console.error("❌ getUserFromBearer error:", err);
     return null;
   }
