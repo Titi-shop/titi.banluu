@@ -1,4 +1,3 @@
-// components/AccountHeader.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,26 +5,66 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import Image from "next/image";
 import { UserCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+/* =========================
+   TYPES
+========================= */
+
+type ProfileApiResponse = {
+  profile?: {
+    avatar?: string;
+  };
+};
+
+/* =========================
+   RUNTIME GUARD
+========================= */
+
+function isProfileApiResponse(
+  value: unknown
+): value is ProfileApiResponse {
+  if (typeof value !== "object" || value === null) return false;
+
+  const v = value as Record<string, unknown>;
+
+  if (!("profile" in v)) return true;
+
+  if (
+    typeof v.profile === "object" &&
+    v.profile !== null
+  ) {
+    const p = v.profile as Record<string, unknown>;
+    return (
+      !("avatar" in p) ||
+      typeof p.avatar === "string"
+    );
+  }
+
+  return false;
+}
+
+/* =========================
+   COMPONENT
+========================= */
 
 export default function AccountHeader() {
   const { user } = useAuth();
+  const t = useTranslations();
   const [avatar, setAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
 
     apiFetch("/api/profile")
-      .then(res => res.json())
-      .then(data => {
-        const url =
-          typeof data === "object" &&
-          data !== null &&
-          "profile" in data &&
-          typeof (data as any).profile?.avatar === "string"
-            ? (data as any).profile.avatar
-            : null;
+      .then((res) => res.json())
+      .then((data: unknown) => {
+        if (!isProfileApiResponse(data)) {
+          setAvatar(null);
+          return;
+        }
 
-        setAvatar(url);
+        setAvatar(data.profile?.avatar ?? null);
       })
       .catch(() => setAvatar(null));
   }, [user]);
@@ -53,11 +92,7 @@ export default function AccountHeader() {
       </p>
 
       <p className="text-xs opacity-90">
-        {user.role === "seller"
-          ? "Người bán"
-          : user.role === "admin"
-          ? "Quản trị"
-          : "Khách hàng"}
+        {t(`role.${user.role}`)}
       </p>
     </section>
   );
