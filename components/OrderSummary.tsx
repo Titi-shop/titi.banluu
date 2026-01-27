@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { Clock, Package, Truck, Star, RotateCcw } from "lucide-react";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 export default function OrderSummary() {
   const router = useRouter();
-
+  const { t } = useTranslation();
   return (
     <section className="bg-white mx-4 mt-4 rounded-lg shadow">
       <div className="p-4 border-b">
