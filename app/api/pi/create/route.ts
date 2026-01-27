@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    console.log("CREATE BODY:", body);
+
     const { amount, memo, metadata, uid } = body;
 
-    if (!uid || !amount) {
+    if (typeof amount !== "number" || !uid) {
       return NextResponse.json(
-        { error: "missing uid or amount" },
+        { error: "missing or invalid uid/amount" },
         { status: 400 }
       );
     }
@@ -28,21 +32,19 @@ export async function POST(req: Request) {
         amount,
         memo,
         metadata,
-        uid, // ✅ UID PI THẬT
+        uid,
       }),
     });
 
     const text = await res.text();
 
     if (!res.ok) {
-      console.error("❌ Pi create payment error:", text);
+      console.error("❌ Pi create error:", text);
     }
 
-    return new NextResponse(text, {
-      status: res.status,
-    });
+    return new NextResponse(text, { status: res.status });
   } catch (err) {
-    console.error("💥 create payment exception", err);
+    console.error("💥 create exception:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
