@@ -21,8 +21,8 @@ interface ProfileRow {
 /* =========================
    GET /api/profile
 ========================= */
-export async function GET() {
-  const user = await getUserFromBearer();
+export async function GET(req: Request) {
+  const user = await getUserFromBearer(req);
   if (!user) {
     return NextResponse.json(
       { error: "UNAUTHORIZED" },
@@ -67,7 +67,7 @@ export async function GET() {
    POST /api/profile
 ========================= */
 export async function POST(req: Request) {
-  const user = await getUserFromBearer();
+  const user = await getUserFromBearer(req);
   if (!user) {
     return NextResponse.json(
       { error: "UNAUTHORIZED" },
