@@ -139,7 +139,14 @@ export default function CheckoutPage() {
         },
       };
 
-      await window.Pi.createPayment(paymentData, callbacks);
+      const res = await apiFetch("/api/pi/create", {
+  method: "POST",
+  body: JSON.stringify(paymentData),
+});
+
+const payment = await res.json();
+
+await window.Pi.createPayment(payment, callbacks);
     } catch (err) {
       console.error("❌ Checkout error:", err);
       alert(t.transaction_failed);
