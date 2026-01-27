@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -14,57 +13,67 @@ import {
 } from "lucide-react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/lib/apiFetch";
 
 export default function CustomerMenu() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  const [isSeller, setIsSeller] = useState(false);
+  // 🔑 RBAC – source of truth từ AuthContext
+  const isSeller =
+    user?.role === "seller" || user?.role === "admin";
 
-  /* =====================================================
-     🔑 RESOLVE ROLE FROM BACKEND (SOURCE OF TRUTH)
-  ===================================================== */
-  useEffect(() => {
-    if (!user) return;
+  const sellerPath = isSeller
+    ? "/seller"
+    : "/seller/register-info";
 
-    const checkRole = async () => {
-      try {
-        const res = await apiFetch("/api/debug/me");
-        if (!res.ok) return;
-
-        const data = await res.json();
-        setIsSeller(data.role === "seller" || data.role === "admin");
-      } catch {
-        setIsSeller(false);
-      }
-    };
-
-    checkRole();
-  }, [user]);
+  const sellerLabel = isSeller
+    ? t.seller_center || "Quản lý bán hàng"
+    : t.register_seller || "Đăng ký bán hàng";
 
   const customerMenuItems = [
-    { label: t.profile, icon: <User size={22} />, path: "/customer/profile" },
-    { label: t.my_orders, icon: <Package size={22} />, path: "/customer/orders" },
-    { label: t.pi_wallet, icon: <Wallet size={22} />, path: "/customer/wallet" },
-    { label: t.messages, icon: <MessageCircle size={22} />, path: "/messages" },
-    { label: t.language, icon: <Globe size={22} />, path: "/language" },
-    { label: t.shipping_address, icon: <MapPin size={22} />, path: "/customer/address" },
-    { label: t.support, icon: <HelpCircle size={22} />, path: "/support" },
+    {
+      label: t.profile,
+      icon: <User size={22} />,
+      path: "/customer/profile",
+    },
+    {
+      label: t.my_orders,
+      icon: <Package size={22} />,
+      path: "/customer/orders",
+    },
+    {
+      label: t.pi_wallet,
+      icon: <Wallet size={22} />,
+      path: "/customer/wallet",
+    },
+    {
+      label: t.messages,
+      icon: <MessageCircle size={22} />,
+      path: "/messages",
+    },
+    {
+      label: t.language,
+      icon: <Globe size={22} />,
+      path: "/language",
+    },
+    {
+      label: t.shipping_address,
+      icon: <MapPin size={22} />,
+      path: "/customer/address",
+    },
+    {
+      label: t.support,
+      icon: <HelpCircle size={22} />,
+      path: "/support",
+    },
 
-    // 🔑 SELLER ENTRY
-    isSeller
-      ? {
-          label: t.seller_center || "Quản lý bán hàng",
-          icon: <Store size={22} />,
-          path: "/seller",
-        }
-      : {
-          label: t.register_seller || "Đăng ký bán hàng",
-          icon: <Store size={22} />,
-          path: "/seller/register-info",
-        },
+    // 🔑 SELLER ENTRY (1 NÚT – 2 HÀNH VI)
+    {
+      label: sellerLabel,
+      icon: <Store size={22} />,
+      path: sellerPath,
+    },
   ];
 
   return (
@@ -76,13 +85,7 @@ export default function CustomerMenu() {
             onClick={() => router.push(item.path)}
             className="flex flex-col items-center text-gray-700 hover:text-orange-500 transition"
           >
-            <div
-              className={`p-3 rounded-full shadow-sm mb-1 ${
-                item.path === "/seller"
-                  ? "bg-orange-100 text-orange-600"
-                  : "bg-gray-100"
-              }`}
-            >
+            <div className="p-3 rounded-full shadow-sm mb-1 bg-gray-100">
               {item.icon}
             </div>
             <span className="text-xs font-medium leading-tight">
@@ -95,7 +98,7 @@ export default function CustomerMenu() {
       {!isSeller && (
         <div className="mt-4 text-center text-xs text-gray-500">
           {t.seller_note ||
-            "Chức năng đăng ký bán hàng sẽ được mở ở giai đoạn tiếp theo."}
+            "Bạn có thể đăng ký bán hàng để mở gian hàng của mình."}
         </div>
       )}
     </div>
