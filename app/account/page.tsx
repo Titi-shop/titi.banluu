@@ -3,17 +3,18 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { useTranslations } from "next-intl";
-
 import { useAuth } from "@/context/AuthContext";
+import { useTranslationClient as useTranslation } 
+  from "@/app/lib/i18n/client";
+
 import AccountHeader from "@/components/AccountHeader";
 import OrderSummary from "@/components/OrderSummary";
 import CustomerMenu from "@/components/customerMenu";
 
 export default function AccountPage() {
   const router = useRouter();
-  const t = useTranslations();
   const { user, loading, logout } = useAuth();
+  const t = useTranslation();
 
   useEffect(() => {
     if (!loading && !user) {
