@@ -180,7 +180,7 @@ export async function PUT(req: Request) {
     );
   }
 }
-/*=========================================================
+/* =========================================================
    DELETE — DELETE PRODUCT (SELLER ONLY)
    DELETE /api/products?id=PRODUCT_ID
 ========================================================= */
@@ -232,3 +232,4 @@ export async function DELETE(req: Request) {
     );
   }
 }
+
