@@ -194,58 +194,6 @@ await window.Pi.createPayment(paymentFromServer, {
   },
 });
 
-    try {
-      await window.Pi.createPayment(payment, {
-        onReadyForServerApproval: async (paymentId) => {
-          await apiFetch("/api/pi/approve", {
-            method: "POST",
-            body: JSON.stringify({ paymentId, orderId }),
-          });
-        },
-
-        onReadyForServerCompletion: async (paymentId, txid) => {
-          await apiFetch("/api/orders", {
-            method: "POST",
-            body: JSON.stringify({
-              id: orderId,
-              buyer: user.username,
-              items: cart,
-              total,
-              txid,
-              shipping,
-              status: "paid",
-              createdAt: new Date().toISOString(),
-            }),
-          });
-
-          await apiFetch("/api/pi/complete", {
-            method: "POST",
-            body: JSON.stringify({ paymentId, txid }),
-          });
-
-          clearCart();
-          alert(t.payment_success);
-          router.push("/customer/pending");
-        },
-
-        onCancel: () => {
-          alert(t.payment_canceled);
-          setProcessing(false);
-        },
-
-        onError: (err) => {
-          console.error("❌ PI PAYMENT ERROR", err);
-          alert(t.payment_error);
-          setProcessing(false);
-        },
-      });
-    } catch (err) {
-      console.error("❌ CHECKOUT FAILED", err);
-      alert(t.transaction_failed);
-      setProcessing(false);
-    }
-  };
-
   /* =========================
      HELPERS
   ========================= */
