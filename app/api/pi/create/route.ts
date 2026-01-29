@@ -2,65 +2,54 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    console.log("🟢 PI CREATE BODY:", body);
-
-    const { amount, memo, metadata, uid } = body;
-
-if (typeof amount !== "number" || !uid) {
-  return NextResponse.json(
-    { error: "missing uid or invalid amount" },
-    { status: 400 }
-  );
+function getPiApiUrl() {
+  return process.env.NEXT_PUBLIC_PI_ENV === "testnet"
+    ? "https://api.minepi.com/v2/sandbox/payments"
+    : "https://api.minepi.com/v2/payments";
 }
 
-    const BASE_URL =
-      process.env.PI_API_URL ||
-      process.env.NEXT_PUBLIC_PI_API_URL;
+export async function POST(req: Request) {
+  try {
+    const { amount, memo, metadata, uid } = await req.json();
 
-    const API_KEY = process.env.PI_API_KEY;
-
-    if (!BASE_URL || !API_KEY) {
+    if (!uid || typeof amount !== "number") {
       return NextResponse.json(
-        { error: "pi_env_missing" },
-        { status: 500 }
+        { error: "INVALID_INPUT" },
+        { status: 400 }
       );
     }
 
-    const API_URL = BASE_URL.replace(/\/$/, "");
-
-    const res = await fetch(API_URL, {
+    const res = await fetch(getPiApiUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Key ${API_KEY}`,
+        Authorization: `Key ${process.env.PI_API_KEY}`,
       },
       body: JSON.stringify({
         amount,
         memo,
         metadata,
-        uid, // 🔥 QUAN TRỌNG
+        uid, // 🔴 BẮT BUỘC
       }),
     });
 
-    const raw = await res.text();
+    const text = await res.text();
 
     if (!res.ok) {
-      console.error("❌ PI CREATE FAILED:", raw);
+      console.error("❌ PI CREATE FAILED:", text);
       return NextResponse.json(
-        { error: "pi_create_failed", raw },
+        { error: "PI_CREATE_FAILED", raw: text },
         { status: res.status }
       );
     }
 
-    const data = JSON.parse(raw);
-    return NextResponse.json(data);
+    // 🔴 PHẢI TRẢ NGUYÊN OBJECT PI
+    return new NextResponse(text, { status: 200 });
+
   } catch (err) {
-    console.error("💥 PI CREATE EXCEPTION:", err);
+    console.error("💥 PI CREATE ERROR:", err);
     return NextResponse.json(
-      { error: "server_error" },
+      { error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
