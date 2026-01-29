@@ -32,7 +32,8 @@ export default function HomePage() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [visibleCount, setVisibleCount] = useState(20);
-  const [selectedCategory, setSelectedCategory] = useState<number | "all">("all");
+  const [selectedCategory, setSelectedCategory] =
+    useState<number | "all">("all");
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
@@ -52,6 +53,7 @@ export default function HomePage() {
           views: p.views ?? 0,
           sold: p.sold ?? 0,
           finalPrice: p.finalPrice ?? p.price,
+          isSale: p.finalPrice !== undefined && p.finalPrice < p.price,
         }));
 
         setProducts(normalized);
@@ -77,43 +79,49 @@ export default function HomePage() {
     <main className="bg-gray-50 min-h-screen pb-24">
       <BannerCarousel />
 
-      <div className="px-3 space-y-4 max-w-6xl mx-auto">
+      <div className="px-3 space-y-5 max-w-6xl mx-auto">
         {/* Categories */}
         <section>
-          <h2 className="text-base font-semibold">{t.featured_categories}</h2>
+          <h2 className="text-base font-semibold mb-2">
+            {t.featured_categories}
+          </h2>
+
           {loadingCategories ? (
             <p>{t.loading_categories}</p>
           ) : (
             <div className="flex overflow-x-auto space-x-4 scrollbar-hide">
               <button
                 onClick={() => setSelectedCategory("all")}
-                className={`min-w-[70px] text-xs ${
+                className={`min-w-[72px] text-xs text-center ${
                   selectedCategory === "all"
                     ? "font-bold text-orange-600"
-                    : ""
+                    : "text-gray-600"
                 }`}
               >
-                🛍 {t.all}
+                🛍
+                <div>{t.all}</div>
               </button>
 
               {categories.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => setSelectedCategory(c.id)}
-                  className={`min-w-[70px] text-xs ${
+                  className={`min-w-[72px] text-xs text-center ${
                     selectedCategory === c.id
                       ? "font-bold text-orange-600"
-                      : ""
+                      : "text-gray-600"
                   }`}
                 >
                   <Image
                     src={c.icon || "/placeholder.png"}
-                    alt={t["category_" + c.id] || c.name}
+                    alt={c.name}
                     width={56}
                     height={56}
-                    className="rounded-full mx-auto"
+                    className="rounded-full mx-auto mb-1 border"
                   />
-                  <span>{t["category_" + c.id] || c.name}</span>
+                  <span className="line-clamp-1">
+                    {t["category_" + c.id] || c.name}
+                  </span>
                 </button>
               ))}
             </div>
@@ -122,37 +130,65 @@ export default function HomePage() {
 
         {/* Products */}
         <section>
-          <h2 className="text-base font-bold">{t.all_products}</h2>
+          <h2 className="text-base font-bold mb-2">
+            {t.all_products}
+          </h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {filteredProducts.slice(0, visibleCount).map((p) => (
               <div
                 key={p.id}
                 onClick={() => router.push(`/product/${p.id}`)}
-                className="bg-white rounded-xl shadow border cursor-pointer"
+                className="bg-white rounded-xl border shadow-sm cursor-pointer hover:shadow-md transition"
               >
-                <Image
-                  src={p.images?.[0] || "/placeholder.png"}
-                  alt={p.name}
-                  width={300}
-                  height={200}
-                  className="w-full h-32 object-cover rounded"
-                />
-                <div className="p-2">
-                  <p className="text-sm font-medium">{p.name}</p>
-                  <p className="text-orange-600 font-bold">
-                    {p.finalPrice} π
+                <div className="relative">
+                  <Image
+                    src={p.images?.[0] || "/placeholder.png"}
+                    alt={p.name}
+                    width={300}
+                    height={300}
+                    className="w-full h-36 object-cover rounded-t-xl"
+                  />
+
+                  {/* Views */}
+                  <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-2 py-[2px] rounded-full">
+                    👁 {p.views}
+                  </div>
+
+                  {/* Sold */}
+                  {p.sold ? (
+                    <div className="absolute top-1 right-1 bg-orange-600 text-white text-[10px] px-2 py-[2px] rounded-full">
+                      🔥 {p.sold}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="p-2 space-y-1">
+                  <p className="text-sm font-medium line-clamp-2">
+                    {p.name}
                   </p>
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-orange-600 font-bold text-sm">
+                      {p.finalPrice} π
+                    </span>
+
+                    {p.isSale && (
+                      <span className="text-xs text-gray-400 line-through">
+                        {p.price} π
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
           {visibleCount < filteredProducts.length && (
-            <div className="flex justify-center mt-3">
+            <div className="flex justify-center mt-4">
               <button
                 onClick={() => setVisibleCount((p) => p + 20)}
-                className="px-6 py-2 bg-orange-600 text-white rounded-full"
+                className="px-6 py-2 bg-orange-600 text-white rounded-full text-sm"
               >
                 {t.load_more}
               </button>
