@@ -2,36 +2,43 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-function getPiApiBase() {
-  return process.env.NEXT_PUBLIC_PI_NETWORK === "testnet"
-    ? "https://api.minepi.com/v2/payments"
-    : "https://api.minepi.com/v2/sandbox/payments";
-}
-
 export async function POST(req: Request) {
   try {
-    const { amount, memo, metadata } = await req.json();
+    const body = await req.json();
+    console.log("🟢 PI CREATE BODY:", body);
 
-    if (typeof amount !== "number" || !memo) {
+    const { amount, memo, metadata } = body;
+
+    if (typeof amount !== "number") {
       return NextResponse.json(
-        { error: "INVALID_PAYMENT_DATA" },
+        { error: "invalid amount" },
         { status: 400 }
       );
     }
 
-    const apiKey = process.env.PI_API_KEY;
-    if (!apiKey) {
+    const API_URL =
+      process.env.PI_API_URL ||
+      process.env.NEXT_PUBLIC_PI_API_URL;
+
+    const API_KEY = process.env.PI_API_KEY;
+
+    if (!API_URL || !API_KEY) {
+      console.error("❌ PI ENV MISSING", {
+        API_URL,
+        API_KEY: !!API_KEY,
+      });
+
       return NextResponse.json(
-        { error: "PI_API_KEY_MISSING" },
+        { error: "pi_env_missing" },
         { status: 500 }
       );
     }
 
-    const res = await fetch(getPiApiBase(), {
+    const res = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Key ${API_KEY}`,
       },
       body: JSON.stringify({
         amount,
@@ -40,17 +47,36 @@ export async function POST(req: Request) {
       }),
     });
 
-    const data = await res.json();
+    const raw = await res.text();
 
+    /* =========================
+       PI ERROR / HTML GUARD
+    ========================= */
     if (!res.ok) {
-      console.error("❌ PI CREATE FAILED:", data);
-      return NextResponse.json(data, { status: 400 });
+      console.error("❌ PI CREATE FAILED:", raw);
+      return NextResponse.json(
+        { error: "pi_create_failed", raw },
+        { status: res.status }
+      );
     }
 
-    // ⚠️ BẮT BUỘC trả JSON
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      console.error("❌ PI RETURNED NON-JSON:", raw);
+      return NextResponse.json(
+        { error: "pi_invalid_response" },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json(data);
   } catch (err) {
-    console.error("💥 PI CREATE ERROR:", err);
-    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
+    console.error("💥 PI CREATE EXCEPTION:", err);
+    return NextResponse.json(
+      { error: "server_error" },
+      { status: 500 }
+    );
   }
 }
