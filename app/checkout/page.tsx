@@ -99,100 +99,107 @@ export default function CheckoutPage() {
      PAY WITH PI
   ========================= */
   const handlePayWithPi = async () => {
-    if (!window.Pi || !piReady) {
-      alert(t.pi_not_ready);
-      return;
-    }
+  if (!window.Pi || !piReady) {
+    alert(t.pi_not_ready);
+    return;
+  }
 
-    if (!user) {
-      router.push("/pilogin");
-      return;
-    }
+  if (!user) {
+    router.push("/pilogin");
+    return;
+  }
 
-    if (!cart.length) {
-      alert(t.cart_empty);
-      return;
-    }
+  if (!cart.length) {
+    alert(t.cart_empty);
+    return;
+  }
 
-    if (!shipping?.name || !shipping.phone || !shipping.address) {
-      alert(t.must_fill_shipping);
-      router.push("/customer/address");
-      return;
-    }
+  if (!shipping?.name || !shipping.phone || !shipping.address) {
+    alert(t.must_fill_shipping);
+    router.push("/customer/address");
+    return;
+  }
 
-    if (processing) return;
-    setProcessing(true);
+  if (processing) return;
+  setProcessing(true);
 
-    const orderId = `ORD-${Date.now()}`;
+  const orderId = `ORD-${Date.now()}`;
 
+  try {
     // 1️⃣ GỌI SERVER TẠO PAYMENT (TESTNET / MAINNET TỰ ĐỘNG)
-const res = await apiFetch("/api/pi/create", {
-  method: "POST",
-  body: JSON.stringify({
-    amount: Number(total.toFixed(2)),
-    memo: `${t.payment_for_order} #${orderId}`,
-    metadata: {
-      orderId,
-      buyer: user.username,
-      shipping,
-      items: cart,
-    },
-    uid: user.uid, // ⚠️ BẮT BUỘC
-  }),
-});
-
-if (!res.ok) {
-  throw new Error("PI_CREATE_PAYMENT_FAILED");
-}
-
-// 2️⃣ PAYMENT OBJECT DO PI TRẢ VỀ
-const paymentFromServer = await res.json();
-
-// 3️⃣ GỌI PI WALLET
-await window.Pi.createPayment(paymentFromServer, {
-  onReadyForServerApproval: async (paymentId) => {
-    await apiFetch("/api/pi/approve", {
-      method: "POST",
-      body: JSON.stringify({ paymentId, orderId }),
-    });
-  },
-
-  onReadyForServerCompletion: async (paymentId, txid) => {
-    await apiFetch("/api/orders", {
+    const res = await apiFetch("/api/pi/create", {
       method: "POST",
       body: JSON.stringify({
-        id: orderId,
-        buyer: user.username,
-        items: cart,
-        total,
-        txid,
-        shipping,
-        status: "paid",
-        createdAt: new Date().toISOString(),
+        amount: Number(total.toFixed(2)),
+        memo: `${t.payment_for_order} #${orderId}`,
+        metadata: {
+          orderId,
+          buyer: user.username,
+          shipping,
+          items: cart,
+        },
+        uid: user.uid, // ⚠️ BẮT BUỘC
       }),
     });
 
-    await apiFetch("/api/pi/complete", {
-      method: "POST",
-      body: JSON.stringify({ paymentId, txid }),
+    if (!res.ok) {
+      throw new Error("PI_CREATE_PAYMENT_FAILED");
+    }
+
+    // 2️⃣ PAYMENT OBJECT DO PI TRẢ VỀ
+    const paymentFromServer = await res.json();
+
+    // 3️⃣ GỌI PI WALLET (CHỈ 1 LẦN DUY NHẤT)
+    await window.Pi.createPayment(paymentFromServer, {
+      onReadyForServerApproval: async (paymentId) => {
+        await apiFetch("/api/pi/approve", {
+          method: "POST",
+          body: JSON.stringify({ paymentId, orderId }),
+        });
+      },
+
+      onReadyForServerCompletion: async (paymentId, txid) => {
+        await apiFetch("/api/orders", {
+          method: "POST",
+          body: JSON.stringify({
+            id: orderId,
+            buyer: user.username,
+            items: cart,
+            total,
+            txid,
+            shipping,
+            status: "paid",
+            createdAt: new Date().toISOString(),
+          }),
+        });
+
+        await apiFetch("/api/pi/complete", {
+          method: "POST",
+          body: JSON.stringify({ paymentId, txid }),
+        });
+
+        clearCart();
+        alert(t.payment_success);
+        router.push("/customer/pending");
+      },
+
+      onCancel: () => {
+        alert(t.payment_canceled);
+        setProcessing(false);
+      },
+
+      onError: (err) => {
+        console.error("❌ PI PAYMENT ERROR", err);
+        alert(t.payment_error);
+        setProcessing(false);
+      },
     });
-
-    clearCart();
-    alert(t.payment_success);
-    router.push("/customer/pending");
-  },
-
-  onCancel: () => {
-    alert(t.payment_canceled);
+  } catch (err) {
+    console.error("❌ CHECKOUT FAILED", err);
+    alert(t.transaction_failed);
     setProcessing(false);
-  },
-
-  onError: (err) => {
-    console.error("❌ PI PAYMENT ERROR", err);
-    alert(t.payment_error);
-    setProcessing(false);
-  },
-});
+  }
+};
 
   /* =========================
      HELPERS
