@@ -1,16 +1,11 @@
 "use client";
 
-"use client";
-
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useContext } from "react";
 
-// 🔴 THIẾU CÁI NÀY
-import { useCart } from "../../hooks/useCart";
-import { useAuth } from "../../hooks/useAuth";
-import { useI18n } from "../../i18n/useI18n";
-import { apiFetch } from "@/lib/apiFetch";
-
+import { CartContext } from "@/context/CartContext";
+import { AuthContext } from "@/context/AuthContext";
+import { t } from "@/i18n";
 /* 
   ⚠️ Giả định bạn đã có:
   - apiFetch()
