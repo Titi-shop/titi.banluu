@@ -114,17 +114,17 @@ export default function CheckoutPage() {
 
   const orderId = `ORD-${Date.now()}`;
 
-  // ✅ PI SDK PAYMENT (KHÔNG GỌI WALLET TỪ SERVER)
-  const piPayment: PiPayment = {
-    amount: Number(total.toFixed(2)),
-    memo: `${t.payment_for_order} #${orderId}`,
-    paymentMetadata: {
-      orderId,
-      buyer: user.username,
-      shipping,
-      items: cart,
-    },
-  };
+  // ✅ PI SDK PAYMENT
+const piPayment: PiPayment = {
+  amount: Number(total.toFixed(2)),
+  memo: `${t.payment_for_order} #${orderId}`,
+  metadata: {          // ✅ ĐÚNG TÊN KEY
+    orderId,
+    buyer: user.username,
+    shipping,
+    items: cart,
+  },
+};
 
   try {
     await window.Pi.createPayment(piPayment, {
