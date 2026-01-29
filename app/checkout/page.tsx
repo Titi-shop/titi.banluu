@@ -104,19 +104,8 @@ export default function CheckoutPage() {
     return;
   }
 
-  if (!user) {
-    router.push("/pilogin");
-    return;
-  }
-
-  if (!cart.length) {
-    alert(t.cart_empty);
-    return;
-  }
-
-  if (!shipping?.name || !shipping.phone || !shipping.address) {
-    alert(t.must_fill_shipping);
-    router.push("/customer/address");
+  if (!user || !cart.length || !shipping) {
+    alert(t.transaction_failed);
     return;
   }
 
@@ -125,38 +114,31 @@ export default function CheckoutPage() {
 
   const orderId = `ORD-${Date.now()}`;
 
+  // ✅ PI SDK PAYMENT (KHÔNG GỌI WALLET TỪ SERVER)
+  const piPayment: PiPayment = {
+    amount: Number(total.toFixed(2)),
+    memo: `${t.payment_for_order} #${orderId}`,
+    paymentMetadata: {
+      orderId,
+      buyer: user.username,
+      shipping,
+      items: cart,
+    },
+  };
+
   try {
-    // 1️⃣ SERVER TẠO PAYMENT
-    const res = await apiFetch("/api/pi/create", {
-      method: "POST",
-      body: JSON.stringify({
-        amount: Number(total.toFixed(2)),
-        memo: `${t.payment_for_order} #${orderId}`,
-        metadata: {
-          orderId,
-          buyer: user.username,
-          shipping,
-          items: cart,
-        },
-        uid: user.uid, // 🔴 BẮT BUỘC
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error("PI_CREATE_FAILED");
-    }
-
-    const payment = await res.json();
-
-    // 2️⃣ GỌI PI WALLET (CHỈ 1 LẦN)
-    await window.Pi.createPayment(payment, {
+    await window.Pi.createPayment(piPayment, {
+      // 1️⃣ APPROVE
       onReadyForServerApproval: async (paymentId) => {
-        await apiFetch("/api/pi/approve", {
+        const res = await apiFetch("/api/pi/approve", {
           method: "POST",
           body: JSON.stringify({ paymentId }),
         });
+
+        if (!res.ok) throw new Error("APPROVE_FAILED");
       },
 
+      // 2️⃣ COMPLETE
       onReadyForServerCompletion: async (paymentId, txid) => {
         await apiFetch("/api/orders", {
           method: "POST",
@@ -182,11 +164,13 @@ export default function CheckoutPage() {
         router.push("/customer/pending");
       },
 
+      // 3️⃣ USER HUỶ
       onCancel: () => {
         alert(t.payment_canceled);
         setProcessing(false);
       },
 
+      // 4️⃣ ERROR
       onError: (err) => {
         console.error("❌ PI ERROR", err);
         alert(t.payment_error);
@@ -199,7 +183,6 @@ export default function CheckoutPage() {
     setProcessing(false);
   }
 };
-
   /* =========================
      HELPERS
   ========================= */
