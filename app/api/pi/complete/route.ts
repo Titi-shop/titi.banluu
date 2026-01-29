@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 function getPiApiBase() {
-  return process.env.NEXT_PUBLIC_PI_NETWORK === "mainnet"
+  return process.env.NEXT_PUBLIC_PI_NETWORK === "testnet"
     ? "https://api.minepi.com/v2/payments"
     : "https://api.minepi.com/v2/sandbox/payments";
 }
