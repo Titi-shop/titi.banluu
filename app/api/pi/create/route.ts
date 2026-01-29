@@ -7,32 +7,29 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("🟢 PI CREATE BODY:", body);
 
-    const { amount, memo, metadata } = body;
+    const { amount, memo, metadata, uid } = body;
 
-    if (typeof amount !== "number") {
+    if (typeof amount !== "number" || !uid) {
       return NextResponse.json(
-        { error: "invalid amount" },
+        { error: "invalid_request" },
         { status: 400 }
       );
     }
 
-    const API_URL =
+    const BASE_URL =
       process.env.PI_API_URL ||
       process.env.NEXT_PUBLIC_PI_API_URL;
 
     const API_KEY = process.env.PI_API_KEY;
 
-    if (!API_URL || !API_KEY) {
-      console.error("❌ PI ENV MISSING", {
-        API_URL,
-        API_KEY: !!API_KEY,
-      });
-
+    if (!BASE_URL || !API_KEY) {
       return NextResponse.json(
         { error: "pi_env_missing" },
         { status: 500 }
       );
     }
+
+    const API_URL = BASE_URL.replace(/\/$/, "");
 
     const res = await fetch(API_URL, {
       method: "POST",
@@ -44,14 +41,12 @@ export async function POST(req: Request) {
         amount,
         memo,
         metadata,
+        uid, // 🔥 QUAN TRỌNG
       }),
     });
 
     const raw = await res.text();
 
-    /* =========================
-       PI ERROR / HTML GUARD
-    ========================= */
     if (!res.ok) {
       console.error("❌ PI CREATE FAILED:", raw);
       return NextResponse.json(
@@ -60,17 +55,7 @@ export async function POST(req: Request) {
       );
     }
 
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      console.error("❌ PI RETURNED NON-JSON:", raw);
-      return NextResponse.json(
-        { error: "pi_invalid_response" },
-        { status: 502 }
-      );
-    }
-
+    const data = JSON.parse(raw);
     return NextResponse.json(data);
   } catch (err) {
     console.error("💥 PI CREATE EXCEPTION:", err);
