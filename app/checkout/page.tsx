@@ -125,16 +125,74 @@ export default function CheckoutPage() {
 
     const orderId = `ORD-${Date.now()}`;
 
-    const payment: PiPayment = {
-      amount: Number(total.toFixed(2)),
-      memo: `${t.payment_for_order} #${orderId}`,
-      metadata: {
-        orderId,
+    // 1️⃣ GỌI SERVER TẠO PAYMENT (TESTNET / MAINNET TỰ ĐỘNG)
+const res = await apiFetch("/api/pi/create", {
+  method: "POST",
+  body: JSON.stringify({
+    amount: Number(total.toFixed(2)),
+    memo: `${t.payment_for_order} #${orderId}`,
+    metadata: {
+      orderId,
+      buyer: user.username,
+      shipping,
+      items: cart,
+    },
+    uid: user.uid, // ⚠️ BẮT BUỘC
+  }),
+});
+
+if (!res.ok) {
+  throw new Error("PI_CREATE_PAYMENT_FAILED");
+}
+
+// 2️⃣ PAYMENT OBJECT DO PI TRẢ VỀ
+const paymentFromServer = await res.json();
+
+// 3️⃣ GỌI PI WALLET
+await window.Pi.createPayment(paymentFromServer, {
+  onReadyForServerApproval: async (paymentId) => {
+    await apiFetch("/api/pi/approve", {
+      method: "POST",
+      body: JSON.stringify({ paymentId, orderId }),
+    });
+  },
+
+  onReadyForServerCompletion: async (paymentId, txid) => {
+    await apiFetch("/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        id: orderId,
         buyer: user.username,
-        shipping,
         items: cart,
-      },
-    };
+        total,
+        txid,
+        shipping,
+        status: "paid",
+        createdAt: new Date().toISOString(),
+      }),
+    });
+
+    await apiFetch("/api/pi/complete", {
+      method: "POST",
+      body: JSON.stringify({ paymentId, txid }),
+    });
+
+    clearCart();
+    alert(t.payment_success);
+    router.push("/customer/pending");
+  },
+
+  onCancel: () => {
+    alert(t.payment_canceled);
+    setProcessing(false);
+  },
+
+  onError: (err) => {
+    console.error("❌ PI PAYMENT ERROR", err);
+    alert(t.payment_error);
+    setProcessing(false);
+  },
+});
 
     try {
       await window.Pi.createPayment(payment, {
