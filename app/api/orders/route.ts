@@ -83,37 +83,49 @@ export async function GET() {
    POST /api/orders
    → tạo đơn hàng mới (CUSTOMER)
 ========================= */
-
+/* =========================
+   POST /api/orders
+   → tạo đơn sau khi Pi payment COMPLETE
+   ⚠️ KHÔNG REQUIRE AUTH
+========================= */
 export async function POST(req: Request) {
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
-    );
-  }
+  const body = await req.json();
 
-  const role = await resolveRole(user);
-  if (role !== "customer") {
-    return NextResponse.json(
-      { error: "FORBIDDEN" },
-      { status: 403 }
-    );
-  }
+  /**
+   * Payload từ checkout:
+   * {
+   *   id,
+   *   buyer,
+   *   items,
+   *   total,
+   *   txid,
+   *   shipping,
+   *   status,
+   *   createdAt
+   * }
+   */
 
-  const body: unknown = await req.json();
-
-  if (!isCreateOrderBody(body)) {
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !Array.isArray(body.items) ||
+    typeof body.buyer !== "string" ||
+    typeof body.txid !== "string"
+  ) {
     return NextResponse.json(
-      { error: "INVALID_BODY" },
+      { error: "INVALID_ORDER_PAYLOAD" },
       { status: 400 }
     );
   }
 
+  // ❗ buyer ở đây là username / pi_uid gửi từ checkout
   const order = await createOrder({
-    buyerPiUid: user.pi_uid,
+    buyerPiUid: body.buyer,
     items: body.items,
     note: body.note ?? null,
+    txid: body.txid,
+    status: "paid",
+    createdAt: body.createdAt ?? new Date().toISOString(),
   });
 
   return NextResponse.json(order, { status: 201 });
