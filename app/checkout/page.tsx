@@ -1,51 +1,64 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
+import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useContext } from "react";
 
 import { CartContext } from "@/context/CartContext";
 import { AuthContext } from "@/context/AuthContext";
-import { t } from "@/i18n";
-/* 
-  ⚠️ Giả định bạn đã có:
-  - apiFetch()
-  - useCart()
-  - useAuth()
-  - i18n (t)
-*/
+import { apiFetch } from "@/lib/apiFetch";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 declare global {
   interface Window {
-    Pi: any;
+    Pi?: any;
   }
 }
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { t } = useTranslation();
 
-  const { cart, clearCart, total } = useCart();
-  const { user } = useAuth();
-  const { t } = useI18n();
+  const { cart, total, clearCart } = useContext(CartContext);
+  const { user, loading, piReady } = useContext(AuthContext);
 
-  const [loading, setLoading] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
-  // ✅ Bắt buộc: chỉ cho chạy trong Pi Browser
+  /* =========================
+     REQUIRE PI BROWSER + LOGIN
+  ========================= */
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (loading) return;
 
     if (!window.Pi) {
       alert("Vui lòng mở trang này bằng Pi Browser");
       router.replace("/");
       return;
     }
-  }, [router]);
 
-  async function handleCheckout() {
-    if (!cart.length || !user) return;
+    if (!user) {
+      router.replace("/pilogin");
+    }
+  }, [loading, user, router]);
 
-    setLoading(true);
+  /* =========================
+     PAY WITH PI
+  ========================= */
+  const handlePay = async () => {
+    if (!window.Pi || !piReady) {
+      alert(t.pi_not_ready);
+      return;
+    }
 
-    const orderId = crypto.randomUUID();
+    if (!user || !cart.length) {
+      alert(t.cart_empty);
+      return;
+    }
+
+    setProcessing(true);
+
+    const orderId = `ORD-${Date.now()}`;
 
     const paymentData = {
       amount: Number(total),
@@ -59,7 +72,7 @@ export default function CheckoutPage() {
 
     try {
       await window.Pi.createPayment(paymentData, {
-        // 🔑 STEP 1: Pi yêu cầu server approve
+        /* 🔑 PI → SERVER APPROVE */
         onReadyForServerApproval: async (paymentId: string) => {
           await apiFetch("/api/pi/approve", {
             method: "POST",
@@ -67,12 +80,11 @@ export default function CheckoutPage() {
           });
         },
 
-        // 🔑 STEP 2: Pi đã ký xong giao dịch
+        /* 🔑 PI → SERVER COMPLETE */
         onReadyForServerCompletion: async (
           paymentId: string,
           txid: string
         ) => {
-          // ✅ Lưu đơn hàng
           await apiFetch("/api/orders", {
             method: "POST",
             body: JSON.stringify({
@@ -86,7 +98,6 @@ export default function CheckoutPage() {
             }),
           });
 
-          // ✅ Báo Pi hoàn tất
           await apiFetch("/api/pi/complete", {
             method: "POST",
             body: JSON.stringify({ paymentId, txid }),
@@ -98,40 +109,69 @@ export default function CheckoutPage() {
 
         onCancel: () => {
           alert(t.payment_canceled);
-          setLoading(false);
+          setProcessing(false);
         },
 
         onError: (err: unknown) => {
-          console.error("Pi error:", err);
+          console.error("💥 Pi error:", err);
           alert(t.payment_error);
-          setLoading(false);
+          setProcessing(false);
         },
       });
     } catch (err) {
-      console.error("Checkout failed:", err);
-      setLoading(false);
+      console.error("❌ Checkout error:", err);
+      setProcessing(false);
     }
+  };
+
+  if (loading || !user) {
+    return (
+      <main className="min-h-screen flex items-center justify-center text-gray-500">
+        ⏳ {t.loading}
+      </main>
+    );
   }
 
   return (
-    <div className="checkout">
-      <h1>{t.checkout}</h1>
+    <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col justify-between">
+      {/* HEADER */}
+      <div className="bg-white p-4 border-b text-center font-semibold">
+        {t.checkout}
+      </div>
 
-      {cart.map((item) => (
-        <div key={item.id}>
-          {item.name} × {item.qty} — {item.price} π
+      {/* CART */}
+      <div className="flex-1 overflow-y-auto p-4 bg-white">
+        {cart.map((item: any, i: number) => (
+          <div key={i} className="flex justify-between py-2 border-b text-sm">
+            <span>
+              {item.name} × {item.quantity}
+            </span>
+            <span className="font-semibold">
+              {(item.price * item.quantity).toFixed(2)} π
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* FOOTER */}
+      <div className="p-4 border-t bg-white">
+        <div className="flex justify-between mb-3">
+          <span>{t.total_label}</span>
+          <span className="font-bold text-orange-600">
+            {total.toFixed(2)} π
+          </span>
         </div>
-      ))}
 
-      <hr />
-
-      <p>
-        {t.total}: <b>{total} π</b>
-      </p>
-
-      <button disabled={loading} onClick={handleCheckout}>
-        {loading ? t.processing : t.pay_now}
-      </button>
-    </div>
+        <button
+          onClick={handlePay}
+          disabled={processing}
+          className={`w-full py-3 rounded-lg text-white font-semibold ${
+            processing ? "bg-gray-400" : "bg-orange-600"
+          }`}
+        >
+          {processing ? t.processing : t.pay_now}
+        </button>
+      </div>
+    </main>
   );
 }
