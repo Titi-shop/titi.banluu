@@ -2,49 +2,55 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+function getPiApiBase() {
+  return process.env.NEXT_PUBLIC_PI_NETWORK === "mainnet"
+    ? "https://api.minepi.com/v2/payments"
+    : "https://api.minepi.com/v2/sandbox/payments";
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    console.log("CREATE BODY:", body);
+    const { amount, memo, metadata } = await req.json();
 
-    const { amount, memo, metadata, uid } = body;
-
-    if (typeof amount !== "number" || !uid) {
+    if (typeof amount !== "number" || !memo) {
       return NextResponse.json(
-        { error: "missing or invalid uid/amount" },
+        { error: "INVALID_PAYMENT_DATA" },
         { status: 400 }
       );
     }
 
-    const API_KEY = process.env.PI_API_KEY!;
-    const API_URL =
-      process.env.NEXT_PUBLIC_PI_ENV === "testnet"
-        ? "https://api.minepi.com/v2/sandbox/payments"
-        : "https://api.minepi.com/v2/payments";
+    const apiKey = process.env.PI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "PI_API_KEY_MISSING" },
+        { status: 500 }
+      );
+    }
 
-    const res = await fetch(API_URL, {
+    const res = await fetch(getPiApiBase(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Key ${API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         amount,
         memo,
         metadata,
-        uid,
       }),
     });
 
-    const text = await res.text();
+    const data = await res.json();
 
     if (!res.ok) {
-      console.error("❌ Pi create error:", text);
+      console.error("❌ PI CREATE FAILED:", data);
+      return NextResponse.json(data, { status: 400 });
     }
 
-    return new NextResponse(text, { status: res.status });
+    // ⚠️ BẮT BUỘC trả JSON
+    return NextResponse.json(data);
   } catch (err) {
-    console.error("💥 create exception:", err);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    console.error("💥 PI CREATE ERROR:", err);
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
   }
 }
