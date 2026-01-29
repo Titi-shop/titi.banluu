@@ -19,9 +19,12 @@ type OrderItemInput = {
   quantity: number;
 };
 
-type CreateOrderBody = {
+type CreatePaidOrderBody = {
+  buyerPiUid: string; // pi_uid hoặc username
   items: OrderItemInput[];
+  txid: string; // Pi transaction id
   note?: string;
+  createdAt?: string;
 };
 
 /* =========================
@@ -40,22 +43,29 @@ function isOrderItem(value: unknown): value is OrderItemInput {
   );
 }
 
-function isCreateOrderBody(value: unknown): value is CreateOrderBody {
+function isCreatePaidOrderBody(
+  value: unknown
+): value is CreatePaidOrderBody {
   if (typeof value !== "object" || value === null) return false;
 
   const v = value as Record<string, unknown>;
+
+  if (typeof v.buyerPiUid !== "string") return false;
+  if (typeof v.txid !== "string") return false;
 
   if (!Array.isArray(v.items)) return false;
   if (!v.items.every(isOrderItem)) return false;
 
   if ("note" in v && typeof v.note !== "string") return false;
+  if ("createdAt" in v && typeof v.createdAt !== "string") return false;
 
   return true;
 }
 
 /* =========================
    GET /api/orders
-   → customer xem đơn của mình
+   → CUSTOMER xem đơn của mình
+   → AUTH-CENTRIC + RBAC
 ========================= */
 
 export async function GET() {
@@ -81,51 +91,29 @@ export async function GET() {
 
 /* =========================
    POST /api/orders
-   → tạo đơn hàng mới (CUSTOMER)
+   → TẠO ĐƠN SAU KHI PI PAYMENT COMPLETE
+   ⚠️ KHÔNG AUTH (Pi Wallet callback)
 ========================= */
-/* =========================
-   POST /api/orders
-   → tạo đơn sau khi Pi payment COMPLETE
-   ⚠️ KHÔNG REQUIRE AUTH
-========================= */
+
 export async function POST(req: Request) {
-  const body = await req.json();
+  const body: unknown = await req.json();
 
-  /**
-   * Payload từ checkout:
-   * {
-   *   id,
-   *   buyer,
-   *   items,
-   *   total,
-   *   txid,
-   *   shipping,
-   *   status,
-   *   createdAt
-   * }
-   */
-
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !Array.isArray(body.items) ||
-    typeof body.buyer !== "string" ||
-    typeof body.txid !== "string"
-  ) {
+  if (!isCreatePaidOrderBody(body)) {
     return NextResponse.json(
       { error: "INVALID_ORDER_PAYLOAD" },
       { status: 400 }
     );
   }
 
-  // ❗ buyer ở đây là username / pi_uid gửi từ checkout
   const order = await createOrder({
-    buyerPiUid: body.buyer,
+    buyerPiUid: body.buyerPiUid,
     items: body.items,
     note: body.note ?? null,
     txid: body.txid,
     status: "paid",
-    createdAt: body.createdAt ?? new Date().toISOString(),
+    createdAt: body.createdAt
+      ? new Date(body.createdAt)
+      : new Date(),
   });
 
   return NextResponse.json(order, { status: 201 });
