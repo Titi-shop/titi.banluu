@@ -2,50 +2,20 @@ import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { resolveRole } from "@/lib/auth/resolveRole";
 import {
-  getOrdersByBuyer,
-  createOrder,
+  getOrdersByBuyerSafe,
+  createOrderSafe,
 } from "@/lib/db/orders";
 
+/* =========================
+   CONFIG
+========================= */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================
-   TYPES
-========================= */
-type OrderItemInput = {
-  productId: string;
-  quantity: number;
-  price: number;
-};
-
-type CreateOrderBody = {
-  items: OrderItemInput[];
-  total: number;
-};
-
-/* =========================
-   VALIDATION
-========================= */
-function isCreateOrderBody(v: unknown): v is CreateOrderBody {
-  if (typeof v !== "object" || v === null) return false;
-
-  const b = v as Record<string, unknown>;
-
-  if (!Array.isArray(b.items)) return false;
-  if (typeof b.total !== "number") return false;
-
-  return b.items.every(
-    (i) =>
-      typeof i === "object" &&
-      i !== null &&
-      typeof (i as any).productId === "string" &&
-      typeof (i as any).quantity === "number" &&
-      typeof (i as any).price === "number"
-  );
-}
-
-/* =========================
-   GET – buyer orders
+   GET /api/orders
+   - customer xem đơn của mình
+   - BOOTSTRAP SAFE: chưa có user → []
 ========================= */
 export async function GET() {
   const user = await getUserFromBearer();
@@ -58,13 +28,13 @@ export async function GET() {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
-  const orders = await getOrdersByBuyer(user.pi_uid);
+  const orders = await getOrdersByBuyerSafe(user.pi_uid);
   return NextResponse.json(orders);
 }
 
 /* =========================
-   POST – create order
-   (CALLED AFTER PI COMPLETE)
+   POST /api/orders
+   - chỉ gọi SAU KHI PI PAYMENT COMPLETE
 ========================= */
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
@@ -77,21 +47,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
-  const body = (await req.json()) as unknown;
+  const body = await req.json();
 
-  if (!isCreateOrderBody(body)) {
+  const { items, total } = body;
+  if (!Array.isArray(items) || typeof total !== "number") {
     return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
   }
 
-  const order = await createOrder(
-    user.pi_uid,
-    body.items.map((i) => ({
-      product_id: i.productId,
-      quantity: i.quantity,
-      price: i.price,
-    })),
-    body.total
-  );
+  const order = await createOrderSafe({
+    buyerPiUid: user.pi_uid,
+    items,
+    total,
+  });
 
   return NextResponse.json(order, { status: 201 });
 }
