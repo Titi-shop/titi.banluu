@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 // 🔴 THIẾU CÁI NÀY
-import { useCart } from "@/hooks/useCart";
-import { useAuth } from "@/hooks/useAuth";
-import { useI18n } from "@/i18n/useI18n";
+import { useCart } from "../../hooks/useCart";
+import { useAuth } from "../../hooks/useAuth";
+import { useI18n } from "../../i18n/useI18n";
 import { apiFetch } from "@/lib/apiFetch";
 
 /* 
