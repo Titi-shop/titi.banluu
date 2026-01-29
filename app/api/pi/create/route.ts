@@ -9,12 +9,12 @@ export async function POST(req: Request) {
 
     const { amount, memo, metadata, uid } = body;
 
-    if (typeof amount !== "number" || !uid) {
-      return NextResponse.json(
-        { error: "invalid_request" },
-        { status: 400 }
-      );
-    }
+if (typeof amount !== "number" || !uid) {
+  return NextResponse.json(
+    { error: "missing uid or invalid amount" },
+    { status: 400 }
+  );
+}
 
     const BASE_URL =
       process.env.PI_API_URL ||
