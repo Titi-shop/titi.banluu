@@ -1,38 +1,41 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
+function getPiApiBase() {
+  return process.env.NEXT_PUBLIC_PI_NETWORK === "mainnet"
+    ? "https://api.minepi.com/v2/payments"
+    : "https://api.minepi.com/v2/sandbox/payments";
+}
+
 export async function POST(req: Request) {
   try {
-    const { paymentId, txid } = (await req.json()) as {
-      paymentId: string;
-      txid: string;
-    };
+    const { paymentId, txid } = await req.json();
 
     if (!paymentId || !txid) {
       return NextResponse.json(
-        { error: "missing params" },
+        { error: "MISSING_PAYMENT_DATA" },
         { status: 400 }
       );
     }
 
-    const API_KEY = process.env.PI_API_KEY!;
-    const API_URL =
-      process.env.NEXT_PUBLIC_PI_ENV === "testnet"
-        ? "https://api.minepi.com/v2/sandbox/payments"
-        : "https://api.minepi.com/v2/payments";
+    const apiKey = process.env.PI_API_KEY!;
+    const res = await fetch(
+      `${getPiApiBase()}/${paymentId}/complete`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ txid }),
+      }
+    );
 
-    const res = await fetch(`${API_URL}/${paymentId}/complete`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Key ${API_KEY}`,
-      },
-      body: JSON.stringify({ txid }),
-    });
-
-    const data = await res.text();
-    return new NextResponse(data, { status: res.status });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
   } catch (err) {
-    console.error("💥 [PI COMPLETE]", err);
-    return NextResponse.json({ error: "complete failed" }, { status: 500 });
+    console.error("💥 PI COMPLETE ERROR:", err);
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
   }
 }
