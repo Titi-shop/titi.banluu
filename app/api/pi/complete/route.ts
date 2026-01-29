@@ -19,20 +19,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const apiKey = process.env.PI_API_KEY!;
     const res = await fetch(
       `${getPiApiBase()}/${paymentId}/complete`,
       {
         method: "POST",
         headers: {
-          Authorization: `Key ${apiKey}`, // ✅ FIX
+          "Content-Type": "application/json", // 🔴 BẮT BUỘC
+          Authorization: `Key ${process.env.PI_API_KEY}`,
         },
         body: JSON.stringify({ txid }),
       }
     );
 
-    const raw = await res.text();
-    return new NextResponse(raw, { status: res.status });
+    const text = await res.text();
+    return new NextResponse(text, { status: res.status });
   } catch (err) {
     console.error("💥 PI COMPLETE ERROR:", err);
     return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
