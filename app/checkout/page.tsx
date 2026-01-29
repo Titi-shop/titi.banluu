@@ -126,7 +126,7 @@ export default function CheckoutPage() {
   const orderId = `ORD-${Date.now()}`;
 
   try {
-    // 1️⃣ GỌI SERVER TẠO PAYMENT (TESTNET / MAINNET TỰ ĐỘNG)
+    // 1️⃣ SERVER TẠO PAYMENT
     const res = await apiFetch("/api/pi/create", {
       method: "POST",
       body: JSON.stringify({
@@ -138,23 +138,22 @@ export default function CheckoutPage() {
           shipping,
           items: cart,
         },
-        uid: user.uid, // ⚠️ BẮT BUỘC
+        uid: user.uid, // 🔴 BẮT BUỘC
       }),
     });
 
     if (!res.ok) {
-      throw new Error("PI_CREATE_PAYMENT_FAILED");
+      throw new Error("PI_CREATE_FAILED");
     }
 
-    // 2️⃣ PAYMENT OBJECT DO PI TRẢ VỀ
-    const paymentFromServer = await res.json();
+    const payment = await res.json();
 
-    // 3️⃣ GỌI PI WALLET (CHỈ 1 LẦN DUY NHẤT)
-    await window.Pi.createPayment(paymentFromServer, {
+    // 2️⃣ GỌI PI WALLET (CHỈ 1 LẦN)
+    await window.Pi.createPayment(payment, {
       onReadyForServerApproval: async (paymentId) => {
         await apiFetch("/api/pi/approve", {
           method: "POST",
-          body: JSON.stringify({ paymentId, orderId }),
+          body: JSON.stringify({ paymentId }),
         });
       },
 
@@ -189,7 +188,7 @@ export default function CheckoutPage() {
       },
 
       onError: (err) => {
-        console.error("❌ PI PAYMENT ERROR", err);
+        console.error("❌ PI ERROR", err);
         alert(t.payment_error);
         setProcessing(false);
       },
