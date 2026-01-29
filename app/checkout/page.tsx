@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { CartContext } from "@/context/CartContext";
+import { CartContext } from "./context/CartContext";
 import { AuthContext } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
