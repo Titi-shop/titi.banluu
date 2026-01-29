@@ -150,11 +150,17 @@ export default function HomePage() {
                     className="w-full h-36 object-cover rounded-t-xl"
                   />
 
-                  {/* Views */}
-                  <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-2 py-[2px] rounded-full">
-                    👁 {p.views}
-                  </div>
+                 {/* Views */}
+<div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-2 py-[2px] rounded-full">
+  👁 {p.views}
+</div>
 
+{/* Sold */}
+{p.sold ? (
+  <div className="absolute top-1 right-1 bg-orange-600 text-white text-[10px] px-2 py-[2px] rounded-full">
+    🛒 {p.sold}
+  </div>
+) : null}
                   {/* Sold */}
                   {p.sold ? (
                     <div className="absolute top-1 right-1 bg-orange-600 text-white text-[10px] px-2 py-[2px] rounded-full">
