@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 function getPiApiBase() {
-  return process.env.NEXT_PUBLIC_PI_NETWORK === "testnet"
-    ? "https://api.minepi.com/v2/payments"
-    : "https://api.minepi.com/v2/sandbox/payments";
+  return process.env.NEXT_PUBLIC_PI_ENV === "testnet"
+    ? "https://api.minepi.com/v2/sandbox/payments"
+    : "https://api.minepi.com/v2/payments";
 }
 
 export async function POST(req: Request) {
@@ -25,13 +25,13 @@ export async function POST(req: Request) {
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Key ${apiKey}`, // ✅ FIX
         },
       }
     );
 
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const raw = await res.text();
+    return new NextResponse(raw, { status: res.status });
   } catch (err) {
     console.error("💥 PI APPROVE ERROR:", err);
     return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
