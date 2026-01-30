@@ -1,51 +1,10 @@
-import { query } from "@/lib/db";
-import type { Role } from "./role";
-import type { AuthUser } from "./types";
-
-/* =========================================================
-   Resolve RBAC role
-   - DB FIRST (source of truth)
-   - ENV FALLBACK (Bootstrap only)
-========================================================= */
 export async function resolveRole(
   user: AuthUser | null
 ): Promise<Role> {
   if (!user?.pi_uid) return "guest";
 
-  /* =====================================================
-     1️⃣ DB FIRST
-  ===================================================== */
-  try {
-    const { rows } = await query(
-      `
-      SELECT role
-      FROM public.users
-      WHERE pi_uid = $1
-      LIMIT 1
-      `,
-      [user.pi_uid]
-    );
-
-    const role = rows?.[0]?.role;
-    if (role === "seller" || role === "admin" || role === "customer") {
-      return role;
-    }
-
-    if (rows?.length) {
-      return "customer";
-    }
-  } catch {
-    // ignore DB errors in bootstrap
-  }
-
-  /* =====================================================
-     2️⃣ FALLBACK (BOOTSTRAP MODE)
-  ===================================================== */
   const normalize = (v?: string | null) =>
-    (v ?? "")
-      .normalize("NFKC")
-      .trim()
-      .toLowerCase();
+    (v ?? "").normalize("NFKC").trim().toLowerCase();
 
   const username = normalize(user.username);
   const wallet = normalize(user.wallet_address);
@@ -60,13 +19,42 @@ export async function resolveRole(
       ?.split(",")
       .map(w => normalize(w)) ?? [];
 
-  const isSellerByUsername =
-    !!username && allowUsers.includes(username);
+  const isSellerByEnv =
+    (!!username && allowUsers.includes(username)) ||
+    (!!wallet && allowWallets.includes(wallet));
 
-  const isSellerByWallet =
-    !!wallet && allowWallets.includes(wallet);
+  /* =====================================
+     🔥 BOOTSTRAP OVERRIDE (ENV FIRST)
+  ===================================== */
+  if (isSellerByEnv) {
+    return "seller";
+  }
 
-  return isSellerByUsername || isSellerByWallet
-    ? "seller"
-    : "customer";
+  /* =====================================
+     DB FALLBACK
+  ===================================== */
+  try {
+    const { rows } = await query(
+      `
+      select role
+      from public.users
+      where pi_uid = $1
+      limit 1
+      `,
+      [user.pi_uid]
+    );
+
+    const role = rows?.[0]?.role;
+    if (role === "seller" || role === "admin" || role === "customer") {
+      return role;
+    }
+
+    if (rows?.length) {
+      return "customer";
+    }
+  } catch {
+    // ignore
+  }
+
+  return "customer";
 }
