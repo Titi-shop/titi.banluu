@@ -6,8 +6,12 @@ import { useRouter } from "next/navigation";
 import BannerCarousel from "./components/BannerCarousel";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
+/* =======================
+   TYPES
+======================= */
+
 interface Product {
-  id: number;
+  id: string; // 🔥 UUID từ DB
   name: string;
   price: number;
   images?: string[];
@@ -15,14 +19,18 @@ interface Product {
   sold?: number;
   finalPrice?: number;
   isSale?: boolean;
-  categoryId?: number | null;
+  categoryId?: string | null;
 }
 
 interface Category {
-  id: number;
+  id: string;
   name: string;
   icon?: string;
 }
+
+/* =======================
+   PAGE
+======================= */
 
 export default function HomePage() {
   const router = useRouter();
@@ -33,27 +41,35 @@ export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [visibleCount, setVisibleCount] = useState(20);
   const [selectedCategory, setSelectedCategory] =
-    useState<number | "all">("all");
+    useState<string | "all">("all");
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
+  /* =======================
+     LOAD CATEGORIES
+  ======================= */
   useEffect(() => {
     fetch("/api/categories")
       .then((res) => res.json())
-      .then(setCategories)
+      .then((data: Category[]) => setCategories(data))
       .finally(() => setLoadingCategories(false));
   }, []);
 
+  /* =======================
+     LOAD PRODUCTS
+  ======================= */
   useEffect(() => {
     fetch("/api/products")
       .then((res) => res.json())
       .then((data: Product[]) => {
-        const normalized = data.map((p) => ({
+        const normalized: Product[] = data.map((p) => ({
           ...p,
           views: p.views ?? 0,
           sold: p.sold ?? 0,
           finalPrice: p.finalPrice ?? p.price,
-          isSale: p.finalPrice !== undefined && p.finalPrice < p.price,
+          isSale:
+            typeof p.finalPrice === "number" &&
+            p.finalPrice < p.price,
         }));
 
         setProducts(normalized);
@@ -62,25 +78,44 @@ export default function HomePage() {
       .finally(() => setLoadingProducts(false));
   }, []);
 
+  /* =======================
+     FILTER BY CATEGORY
+  ======================= */
   useEffect(() => {
     let list = [...products];
+
     if (selectedCategory !== "all") {
-      list = list.filter((p) => p.categoryId === selectedCategory);
+      list = list.filter(
+        (p) => p.categoryId === selectedCategory
+      );
     }
+
     setFilteredProducts(list);
     setVisibleCount(20);
   }, [products, selectedCategory]);
 
+  /* =======================
+     LOADING
+  ======================= */
   if (loadingProducts) {
-    return <p className="text-center mt-10">⏳ {t.loading_products}</p>;
+    return (
+      <p className="text-center mt-10">
+        ⏳ {t.loading_products}
+      </p>
+    );
   }
 
+  /* =======================
+     RENDER
+  ======================= */
   return (
     <main className="bg-gray-50 min-h-screen pb-24">
       <BannerCarousel />
 
       <div className="px-3 space-y-5 max-w-6xl mx-auto">
-        {/* Categories */}
+        {/* ===================
+            CATEGORIES
+        =================== */}
         <section>
           <h2 className="text-base font-semibold mb-2">
             {t.featured_categories}
@@ -90,16 +125,17 @@ export default function HomePage() {
             <p>{t.loading_categories}</p>
           ) : (
             <div className="flex overflow-x-auto space-x-4 scrollbar-hide">
+              {/* ALL */}
               <button
                 onClick={() => setSelectedCategory("all")}
-                className={`min-w-[72px] text-xs text-center ${
+                className={`min-w-[56px] h-[56px] flex items-center justify-center rounded-full border ${
                   selectedCategory === "all"
-                    ? "font-bold text-orange-600"
-                    : "text-gray-600"
+                    ? "border-orange-600 text-orange-600"
+                    : "border-gray-300 text-gray-500"
                 }`}
+                title={t.all}
               >
                 🛍
-                <div>{t.all}</div>
               </button>
 
               {categories.map((c) => (
@@ -128,72 +164,74 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* Products */}
+        {/* ===================
+            PRODUCTS
+        =================== */}
         <section>
           <h2 className="text-base font-bold mb-2">
             {t.all_products}
           </h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {filteredProducts.slice(0, visibleCount).map((p) => (
-              <div
-                key={p.id}
-                onClick={() => router.push(`/product/${p.id}`)}
-                className="bg-white rounded-xl border shadow-sm cursor-pointer hover:shadow-md transition"
-              >
-                <div className="relative">
-                  <Image
-                    src={p.images?.[0] || "/placeholder.png"}
-                    alt={p.name}
-                    width={300}
-                    height={300}
-                    className="w-full h-36 object-cover rounded-t-xl"
-                  />
+            {filteredProducts
+              .slice(0, visibleCount)
+              .map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() =>
+                    router.push(`/product/${p.id}`)
+                  }
+                  className="bg-white rounded-xl border shadow-sm cursor-pointer hover:shadow-md transition"
+                >
+                  <div className="relative">
+                    <Image
+                      src={p.images?.[0] || "/placeholder.png"}
+                      alt={p.name}
+                      width={300}
+                      height={300}
+                      className="w-full h-36 object-cover rounded-t-xl"
+                    />
 
-                 {/* Views */}
-<div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-2 py-[2px] rounded-full">
-  👁 {p.views}
-</div>
-
-{/* Sold */}
-{p.sold ? (
-  <div className="absolute top-1 right-1 bg-orange-600 text-white text-[10px] px-2 py-[2px] rounded-full">
-    🛒 {p.sold}
-  </div>
-) : null}
-                  {/* Sold */}
-                  {p.sold ? (
-                    <div className="absolute top-1 right-1 bg-orange-600 text-white text-[10px] px-2 py-[2px] rounded-full">
-                      🔥 {p.sold}
+                    {/* 👁 Views */}
+                    <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-2 py-[2px] rounded-full">
+                      👁 {p.views}
                     </div>
-                  ) : null}
-                </div>
 
-                <div className="p-2 space-y-1">
-                  <p className="text-sm font-medium line-clamp-2">
-                    {p.name}
-                  </p>
-
-                  <div className="flex items-center gap-1">
-                    <span className="text-orange-600 font-bold text-sm">
-                      {p.finalPrice} π
-                    </span>
-
-                    {p.isSale && (
-                      <span className="text-xs text-gray-400 line-through">
-                        {p.price} π
-                      </span>
+                    {/* 🛒 Sold */}
+                    {p.sold && p.sold > 0 && (
+                      <div className="absolute top-1 right-1 bg-orange-600 text-white text-[10px] px-2 py-[2px] rounded-full">
+                        🛒 {p.sold}
+                      </div>
                     )}
                   </div>
+
+                  <div className="p-2 space-y-1">
+                    <p className="text-sm font-medium line-clamp-2">
+                      {p.name}
+                    </p>
+
+                    <div className="flex items-center gap-1">
+                      <span className="text-orange-600 font-bold text-sm">
+                        {p.finalPrice} π
+                      </span>
+
+                      {p.isSale && (
+                        <span className="text-xs text-gray-400 line-through">
+                          {p.price} π
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
 
           {visibleCount < filteredProducts.length && (
             <div className="flex justify-center mt-4">
               <button
-                onClick={() => setVisibleCount((p) => p + 20)}
+                onClick={() =>
+                  setVisibleCount((v) => v + 20)
+                }
                 className="px-6 py-2 bg-orange-600 text-white rounded-full text-sm"
               >
                 {t.load_more}
