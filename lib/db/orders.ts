@@ -11,24 +11,92 @@ function headers() {
   };
 }
 
-/* =========================
-   GET ORDERS BY BUYER (SAFE)
-   - buyer chưa tồn tại → []
-========================= */
+/* =====================================================
+   TYPES (CHO API /orders/[id])
+===================================================== */
+
+export type OrderRecord = {
+  id: string;
+  status: string;
+  total: number;
+  created_at: string;
+  buyer: {
+    pi_uid: string;
+  };
+  items: Array<{
+    quantity: number;
+    price: number;
+    product: {
+      seller: {
+        pi_uid: string;
+      };
+    };
+  }>;
+};
+
+/* =====================================================
+   GET ORDER BY ID (FULL JOIN)
+===================================================== */
+export async function getOrderById(
+  orderId: string
+): Promise<OrderRecord | null> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}&select=
+      id,
+      status,
+      total,
+      created_at,
+      buyer:buyer_id(pi_uid),
+      items:order_items(
+        quantity,
+        price,
+        product:product_id(
+          seller:seller_id(pi_uid)
+        )
+      )
+    `,
+    { headers: headers(), cache: "no-store" }
+  );
+
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  return data[0] ?? null;
+}
+
+/* =====================================================
+   UPDATE ORDER STATUS
+===================================================== */
+export async function updateOrderStatus(
+  orderId: string,
+  status: string
+) {
+  await fetch(
+    `${SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`,
+    {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ status }),
+    }
+  );
+}
+
+/* =====================================================
+   EXISTING FUNCTIONS (GIỮ NGUYÊN)
+===================================================== */
+
 export async function getOrdersByBuyerSafe(piUid: string) {
-  // 1️⃣ resolve user
   const userRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?pi_uid=eq.${piUid}&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?pi_uid=eq.${piUid}&select=pi_uid`,
     { headers: headers(), cache: "no-store" }
   );
 
   if (!userRes.ok) return [];
 
   const users = await userRes.json();
-  const buyerId = users[0]?.id;
+  const buyerId = users[0]?.pi_uid;
   if (!buyerId) return [];
 
-  // 2️⃣ get orders
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders?buyer_id=eq.${buyerId}&order=created_at.desc`,
     { headers: headers(), cache: "no-store" }
@@ -39,9 +107,6 @@ export async function getOrdersByBuyerSafe(piUid: string) {
   return await orderRes.json();
 }
 
-/* =========================
-   CREATE ORDER (SAFE)
-========================= */
 export async function createOrderSafe({
   buyerPiUid,
   items,
@@ -55,38 +120,6 @@ export async function createOrderSafe({
   }>;
   total: number;
 }) {
-  // 1️⃣ ensure user exists
-  const userRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?pi_uid=eq.${buyerPiUid}&select=id`,
-    { headers: headers(), cache: "no-store" }
-  );
-
-  let buyerId: string | null = null;
-
-  if (userRes.ok) {
-    const users = await userRes.json();
-    buyerId = users[0]?.id ?? null;
-  }
-
-  // 👉 BOOTSTRAP: auto create user
-  if (!buyerId) {
-    const createUserRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users`,
-      {
-        method: "POST",
-        headers: {
-          ...headers(),
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify({ pi_uid: buyerPiUid }),
-      }
-    );
-
-    const [user] = await createUserRes.json();
-    buyerId = user.id;
-  }
-
-  // 2️⃣ create order
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders`,
     {
@@ -96,7 +129,7 @@ export async function createOrderSafe({
         Prefer: "return=representation",
       },
       body: JSON.stringify({
-        buyer_id: buyerId,
+        buyer_id: buyerPiUid,
         total,
         status: "pending",
       }),
@@ -105,7 +138,6 @@ export async function createOrderSafe({
 
   const [order] = await orderRes.json();
 
-  // 3️⃣ create order items
   const orderItems = items.map((i) => ({
     order_id: order.id,
     product_id: i.product_id,
