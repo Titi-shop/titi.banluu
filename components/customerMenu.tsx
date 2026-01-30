@@ -26,7 +26,8 @@ export default function CustomerMenu() {
   const sellerLabel = isSeller
     ? t.seller_center || "Quản lý bán hàng"
     : t.register_seller || "Đăng ký bán hàng";
-  async function handleSellerClick() {
+  
+    async function handleSellerClick() {
   // 1️⃣ Chưa đăng nhập → login Pi
   if (!user) {
     await pilogin();
@@ -78,14 +79,6 @@ export default function CustomerMenu() {
     setSellerLoading(false);
   }
 }
-    // 🔁 vào seller sau khi đăng ký
-    window.location.href = "/seller";
-  } catch (err) {
-    console.error(err);
-    alert("Có lỗi xảy ra");
-  }
-}
-
   const customerMenuItems = [
     {
       label: t.profile,
