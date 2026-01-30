@@ -36,30 +36,40 @@ export async function POST() {
   /* 2️⃣ CHECK ROLE */
   const role = await resolveRole(user);
   if (role === "seller" || role === "admin") {
-    return NextResponse.json({ success: true, role });
+    return NextResponse.json({
+      success: true,
+      role,
+      message: "ALREADY_SELLER",
+    });
   }
 
-  /* 3️⃣ UPDATE ROLE */
+  /* 3️⃣ INSERT SELLER REQUEST (PENDING) */
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?pi_uid=eq.${user.pi_uid}`,
+    `${SUPABASE_URL}/rest/v1/seller_requests`,
     {
-      method: "PATCH",
+      method: "POST",
       headers: supabaseHeaders(),
-      body: JSON.stringify({ role: "seller" }),
+      body: JSON.stringify({
+        pi_uid: user.pi_uid,
+        username: user.username,
+        status: "pending",
+      }),
     }
   );
 
   if (!res.ok) {
     const text = await res.text();
     console.error("Supabase error:", text);
+
+    // 👉 thường là do index uniq_seller_request_pending
     return NextResponse.json(
-      { error: "FAILED_TO_REGISTER_SELLER" },
-      { status: 500 }
+      { error: "REQUEST_ALREADY_PENDING" },
+      { status: 409 }
     );
   }
 
   return NextResponse.json({
     success: true,
-    role: "seller",
+    status: "pending",
   });
 }
