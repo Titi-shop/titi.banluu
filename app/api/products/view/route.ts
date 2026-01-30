@@ -1,19 +1,11 @@
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
 
-/* =========================
-   TYPES
-========================= */
-type Product = {
-  id: string;
-};
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-/* =========================
-   POST — TĂNG VIEW
-========================= */
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as unknown;
+    const body: unknown = await req.json();
 
     if (
       typeof body !== "object" ||
@@ -29,28 +21,42 @@ export async function POST(req: Request) {
 
     const { id } = body as { id: string };
 
-    // 🔍 Kiểm tra product tồn tại (nhẹ)
-    const product = await kv.get<Product>(`product:${id}`);
-    if (!product) {
+    // 🔥 ATOMIC UPDATE VIEW
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${id}`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({
+          views: "views + 1",
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("❌ UPDATE VIEW ERROR:", text);
       return NextResponse.json(
-        { success: false, message: "Không tìm thấy sản phẩm" },
-        { status: 404 }
+        { success: false },
+        { status: 500 }
       );
     }
 
-    const viewKey = `product:views:${id}`;
-
-    // ⭐ ATOMIC INCREMENT
-    const views = await kv.incr(viewKey);
+    const [updated] = await res.json();
 
     return NextResponse.json({
       success: true,
-      views,
+      views: updated.views,
     });
-  } catch (err: unknown) {
-    console.error("❌ Lỗi tăng view:", err);
+  } catch (err) {
+    console.error("❌ VIEW ERROR:", err);
     return NextResponse.json(
-      { success: false, message: "Lỗi server" },
+      { success: false },
       { status: 500 }
     );
   }
