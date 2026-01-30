@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+interface ViewBody {
+  id: string;
+}
+
 export async function POST(req: Request) {
   try {
     const body: unknown = await req.json();
@@ -11,7 +15,7 @@ export async function POST(req: Request) {
       typeof body !== "object" ||
       body === null ||
       !("id" in body) ||
-      typeof (body as { id: unknown }).id !== "string"
+      typeof (body as ViewBody).id !== "string"
     ) {
       return NextResponse.json(
         { success: false, message: "Thiếu hoặc sai id" },
@@ -19,39 +23,35 @@ export async function POST(req: Request) {
       );
     }
 
-    const { id } = body as { id: string };
+    const { id } = body as ViewBody;
 
-    // 🔥 ATOMIC UPDATE VIEW
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${id}`,
+      `${SUPABASE_URL}/rest/v1/rpc/increment_product_view`,
       {
-        method: "PATCH",
+        method: "POST",
         headers: {
           apikey: SERVICE_KEY,
           Authorization: `Bearer ${SERVICE_KEY}`,
           "Content-Type": "application/json",
-          Prefer: "return=representation",
         },
-        body: JSON.stringify({
-          views: "views + 1",
-        }),
+        body: JSON.stringify({ pid: id }),
       }
     );
 
     if (!res.ok) {
       const text = await res.text();
-      console.error("❌ UPDATE VIEW ERROR:", text);
+      console.error("❌ VIEW RPC ERROR:", text);
       return NextResponse.json(
         { success: false },
         { status: 500 }
       );
     }
 
-    const [updated] = await res.json();
+    const data: { views: number }[] = await res.json();
 
     return NextResponse.json({
       success: true,
-      views: updated.views,
+      views: data[0]?.views ?? 0,
     });
   } catch (err) {
     console.error("❌ VIEW ERROR:", err);
