@@ -63,6 +63,37 @@ export async function getOrderById(
   const data = await res.json();
   return data[0] ?? null;
 }
+/* =====================================================
+   GET ORDERS BY SELLER
+   - Chỉ lấy đơn có sản phẩm của seller
+===================================================== */
+export async function getOrdersBySeller(
+  sellerPiUid: string
+) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/orders?select=
+      id,
+      status,
+      total,
+      created_at,
+      buyer:buyer_id(pi_uid),
+      items:order_items(
+        quantity,
+        price,
+        product:product_id(
+          seller:seller_id(pi_uid)
+        )
+      )
+      &items.product.seller.pi_uid=eq.${sellerPiUid}
+      &order=created_at.desc
+    `,
+    { headers: headers(), cache: "no-store" }
+  );
+
+  if (!res.ok) return [];
+
+  return await res.json();
+}
 
 /* =====================================================
    UPDATE ORDER STATUS
