@@ -39,11 +39,14 @@ export default function CustomerMenu() {
     return;
   }
 
-  // 3️⃣ Đăng ký seller
+  // 3️⃣ Đăng ký seller (KHÔNG CHUYỂN TRANG)
   try {
+    setSellerLoading(true);
+    setSellerMessage(null);
+
     const token = localStorage.getItem("pi_access_token");
     if (!token) {
-      alert("Chưa đăng nhập");
+      setSellerMessage("⚠️ Chưa đăng nhập");
       return;
     }
 
@@ -55,13 +58,26 @@ export default function CustomerMenu() {
       },
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
 
     if (!res.ok) {
-      alert(data?.error || "Đăng ký thất bại");
+      setSellerMessage(
+        data?.error || "❌ Đăng ký bán hàng thất bại"
+      );
       return;
     }
 
+    // ✅ THÀNH CÔNG
+    setSellerMessage(
+      "✅ Đăng ký bán hàng thành công. Vui lòng chờ duyệt."
+    );
+  } catch (err) {
+    console.error(err);
+    setSellerMessage("❌ Có lỗi xảy ra, vui lòng thử lại");
+  } finally {
+    setSellerLoading(false);
+  }
+}
     // 🔁 vào seller sau khi đăng ký
     window.location.href = "/seller";
   } catch (err) {
