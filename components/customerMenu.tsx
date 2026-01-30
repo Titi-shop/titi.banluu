@@ -97,13 +97,6 @@ export default function CustomerMenu() {
       path: "/language",
     },
     {
-      label: isSeller
-      ? t.seller_center || "Quản lý bán hàng"
-      : t.register_seller || "Đăng ký bán hàng",
-      icon: <Store size={22} />,
-      onClick: handleSellerClick,
-   },
-    {
       label: t.shipping_address,
       icon: <MapPin size={22} />,
       path: "/customer/address",
@@ -115,6 +108,13 @@ export default function CustomerMenu() {
     },
 
     // 🔑 SELLER ENTRY (1 NÚT – 2 HÀNH VI)
+    {
+       label: isSeller
+       ? t.seller_center || "Quản lý bán hàng"
+      : t.register_seller || "Đăng ký bán hàng",
+      icon: <Store size={22} />,
+      onClick: handleSellerClick,
+  },
   ];
 
   return (
