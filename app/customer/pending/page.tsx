@@ -3,81 +3,185 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { apiFetch } from "@/lib/apiFetch";
-import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+
+interface Order {
+  id: number;
+  total: number;
+  status: string;
+}
+
+interface TabItem {
+  label: string;
+  count: number;
+  href: string;
+  active: boolean;
+}
 
 export default function PendingOrdersPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { t, lang } = useTranslation();
 
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
+  /* =========================
+     LOAD ORDERS (CHỜ XÁC NHẬN)
+  ========================= */
   useEffect(() => {
-    const fetchOrders = async () => {
-  try {
-    const res = await apiFetch("/api/orders");
-
-    if (!res.ok) {
-      throw new Error("unauthorized");
-    }
-
-    const data = await res.json();
-
-    if (!Array.isArray(data)) {
-      setOrders([]);
-      return;
-    }
-
-    const statusMap: Record<string, string[]> = {
-      vi: ["Chờ xác nhận", "Đã thanh toán", "Chờ xác minh"],
-      en: ["Pending", "Paid", "Waiting for verification"],
-      zh: ["待确认", "已付款", "待核实"],
-    };
-
-    const allowed = statusMap[lang] || statusMap.vi;
-    setOrders(data.filter(o => allowed.includes(o.status)));
-  } catch (err) {
-    console.error("❌ Load pending orders error:", err);
-    setOrders([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
-    fetchOrders();
+    loadOrders();
   }, [lang]);
 
-  if (loading) return <p className="text-center mt-10">{t.loading_orders}</p>;
+  const loadOrders = async () => {
+    try {
+      const res = await apiFetch("/api/orders");
+      if (!res.ok) throw new Error("unauthorized");
 
+      const data: Order[] = await res.json();
+
+      const pendingStatusByLang: Record<string, string[]> = {
+        vi: ["Chờ xác nhận", "Đã thanh toán", "Chờ xác minh"],
+        en: ["Pending", "Paid", "Waiting for verification"],
+        zh: ["待确认", "已付款", "待核实"],
+      };
+
+      const allowStatus =
+        pendingStatusByLang[lang] || pendingStatusByLang.vi;
+
+      setOrders(data.filter((o) => allowStatus.includes(o.status)));
+    } catch (err) {
+      console.error("❌ Load pending orders error:", err);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =========================
+     TABS
+  ========================= */
+  const tabs: TabItem[] = [
+    {
+      label: t.wait_confirm || "Chờ xác nhận",
+      count: orders.length,
+      href: "/customer/pending",
+      active: pathname === "/customer/pending",
+    },
+    {
+      label: t.wait_pickup || "Chờ lấy hàng",
+      count: 0,
+      href: "/customer/pickup",
+      active: false,
+    },
+    {
+      label: t.shipping || "Đang giao",
+      count: 0,
+      href: "/customer/shipping",
+      active: false,
+    },
+    {
+      label: t.rating || "Đánh giá",
+      count: 0,
+      href: "/customer/orders/rating",
+      active: false,
+    },
+    {
+      label: t.received || "Đơn hàng nhận",
+      count: 0,
+      href: "/customer/orders/completed",
+      active: false,
+    },
+  ];
+
+  const totalPi = orders.reduce((s, o) => s + Number(o.total || 0), 0);
+
+  /* =========================
+     UI
+  ========================= */
   return (
-    <main className="p-4 max-w-4xl mx-auto bg-gray-50 min-h-screen pb-24">
-      <div className="flex items-center mb-4">
-        <button onClick={() => router.back()} className="text-orange-500 text-lg mr-2">
-          ←
-        </button>
-        <h1 className="text-2xl font-bold text-yellow-600">
-          ⏳ {t.pending_orders}
-        </h1>
+    <main className="min-h-screen bg-gray-100 pb-24">
+      {/* ===== HEADER ===== */}
+      <div className="bg-orange-500 text-white px-4 py-4">
+        <div className="flex items-center gap-2">
+          <button onClick={() => router.back()} className="text-xl">
+            ←
+          </button>
+          <h1 className="font-semibold text-lg">1pi Mall — 派商城</h1>
+        </div>
+
+        <div className="mt-4 bg-orange-400 rounded-lg p-4">
+          <p className="text-sm opacity-90">
+            {t.order_info || "Thông tin đặt hàng"}
+          </p>
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders || "Đặt hàng"}: {orders.length} · π{totalPi.toFixed(0)}
+          </p>
+        </div>
       </div>
 
-      {!orders.length ? (
-        <p className="text-center text-gray-500">{t.no_pending_orders}</p>
-      ) : (
-        <div className="space-y-4">
-          {orders.map(order => (
-            <div key={order.id} className="bg-white p-4 rounded shadow border">
-              <h2 className="font-semibold text-lg">🧾 #{order.id}</h2>
-              <p>💰 {t.total}: <b>{order.total}</b> Pi</p>
-              <p>📅 {t.created_at}: {new Date(order.createdAt).toLocaleString()}</p>
-              <p className="mt-2 text-yellow-600">
-                {t.status}: {order.status}
+      {/* ===== STATUS TABS ===== */}
+      <div className="bg-white shadow-sm">
+        <div className="grid grid-cols-5 text-center text-sm">
+          {tabs.map((tab) => (
+            <button
+              key={tab.label}
+              onClick={() => router.push(tab.href)}
+              className="py-3"
+            >
+              <p className="text-gray-700 leading-tight">{tab.label}</p>
+              <p
+                className={`mt-1 ${
+                  tab.active
+                    ? "text-orange-500 font-semibold"
+                    : "text-gray-500"
+                }`}
+              >
+                {tab.count}
               </p>
-            </div>
+              {tab.active && (
+                <div className="h-0.5 bg-orange-500 w-6 mx-auto mt-1 rounded" />
+              )}
+            </button>
           ))}
         </div>
-      )}
+      </div>
+
+      {/* ===== CONTENT ===== */}
+      <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
+        {loading ? (
+          <p>⏳ {t.loading_orders || "Đang tải đơn hàng..."}</p>
+        ) : orders.length === 0 ? (
+          <>
+            <div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
+            <p>{t.no_orders || "Chưa có đơn hàng"}</p>
+          </>
+        ) : (
+          <div className="w-full px-4 space-y-3">
+            {orders.map((o) => (
+              <div
+                key={o.id}
+                className="bg-white rounded-lg p-4 shadow"
+              >
+                <div className="flex justify-between">
+                  <span className="font-semibold">#{o.id}</span>
+                  <span className="text-orange-500 text-sm">
+                    {o.status}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm">
+                  💰 {t.total || "Tổng"}: π{o.total}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ===== FLOAT BUTTON ===== */}
+      <button className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-orange-500 shadow-lg" />
     </main>
   );
 }
