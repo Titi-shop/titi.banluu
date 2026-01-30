@@ -23,13 +23,52 @@ export default function CustomerMenu() {
   const isSeller =
     user?.role === "seller" || user?.role === "admin";
 
-  const sellerPath = isSeller
-    ? "/seller"
-    : "/seller/register-info";
-
   const sellerLabel = isSeller
     ? t.seller_center || "Quản lý bán hàng"
     : t.register_seller || "Đăng ký bán hàng";
+  async function handleSellerClick() {
+  // 1️⃣ Chưa đăng nhập → login Pi
+  if (!user) {
+    await pilogin();
+    return;
+  }
+
+  // 2️⃣ Đã là seller → vào seller dashboard
+  if (isSeller) {
+    router.push("/seller");
+    return;
+  }
+
+  // 3️⃣ Đăng ký seller
+  try {
+    const token = localStorage.getItem("pi_access_token");
+    if (!token) {
+      alert("Chưa đăng nhập");
+      return;
+    }
+
+    const res = await fetch("/api/seller/register", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data?.error || "Đăng ký thất bại");
+      return;
+    }
+
+    // 🔁 vào seller sau khi đăng ký
+    window.location.href = "/seller";
+  } catch (err) {
+    console.error(err);
+    alert("Có lỗi xảy ra");
+  }
+}
 
   const customerMenuItems = [
     {
@@ -58,6 +97,13 @@ export default function CustomerMenu() {
       path: "/language",
     },
     {
+      label: isSeller
+      ? t.seller_center || "Quản lý bán hàng"
+      : t.register_seller || "Đăng ký bán hàng",
+      icon: <Store size={22} />,
+      onClick: handleSellerClick,
+   },
+    {
       label: t.shipping_address,
       icon: <MapPin size={22} />,
       path: "/customer/address",
@@ -69,20 +115,15 @@ export default function CustomerMenu() {
     },
 
     // 🔑 SELLER ENTRY (1 NÚT – 2 HÀNH VI)
-    {
-      label: sellerLabel,
-      icon: <Store size={22} />,
-      path: sellerPath,
-    },
   ];
 
   return (
     <div className="bg-white mx-3 mt-6 p-5 rounded-2xl shadow-lg border border-gray-100 mb-6">
       <div className="grid grid-cols-4 gap-4 text-center">
         {customerMenuItems.map((item, i) => (
-          <button
-            key={i}
-            onClick={() => router.push(item.path)}
+  <button
+    key={i}
+    onClick={item.onClick}
             className="flex flex-col items-center text-gray-700 hover:text-orange-500 transition"
           >
             <div className="p-3 rounded-full shadow-sm mb-1 bg-gray-100">
