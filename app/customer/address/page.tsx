@@ -5,56 +5,41 @@ import { useRouter } from "next/navigation";
 import { countries } from "@/data/countries";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
-interface AddressForm {
+interface Address {
+  id: string;
   name: string;
   phone: string;
   address: string;
   country: string;
   countryCode: string;
+  is_default: boolean;
 }
+
+const emptyForm: Omit<Address, "id" | "is_default"> = {
+  name: "",
+  phone: "",
+  address: "",
+  country: "",
+  countryCode: "",
+};
 
 export default function CustomerAddressPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const [form, setForm] = useState<AddressForm>({
-    name: "",
-    phone: "",
-    address: "",
-    country: "",
-    countryCode: "",
-  });
-
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   /* ================================
-     LOAD ADDRESS FROM LOCALSTORAGE
+     LOAD ADDRESSES
   ================================= */
   useEffect(() => {
-    const saved = localStorage.getItem("shipping_info");
-
+    const saved = localStorage.getItem("addresses");
     if (saved) {
-      const data = JSON.parse(saved);
-      const countryData =
-        countries.find((c) => c.code === data.country) || countries[0];
-
-      setForm({
-        name: data.name || "",
-        phone: data.phone || "",
-        address: data.address || "",
-        country: data.country || countryData.code,
-        countryCode: countryData.dial,
-      });
-    } else {
-      const first = countries[0];
-      setForm({
-        name: "",
-        phone: "",
-        address: "",
-        country: first.code,
-        countryCode: first.dial,
-      });
+      setAddresses(JSON.parse(saved));
     }
   }, []);
 
@@ -74,9 +59,9 @@ export default function CustomerAddressPage() {
   };
 
   /* ================================
-     SAVE ADDRESS (NO AUTH)
+     SAVE ADDRESS
   ================================= */
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.name || !form.phone || !form.address) {
       setMessage("⚠️ " + t.fill_all_fields);
       return;
@@ -84,22 +69,40 @@ export default function CustomerAddressPage() {
 
     setSaving(true);
 
-    localStorage.setItem("shipping_info", JSON.stringify(form));
+    const newAddress: Address = {
+      id: crypto.randomUUID(),
+      ...form,
+      is_default: addresses.length === 0, // cái đầu tiên auto default
+    };
 
+    const updated = [...addresses, newAddress];
+    setAddresses(updated);
+    localStorage.setItem("addresses", JSON.stringify(updated));
+
+    setForm(emptyForm);
+    setShowForm(false);
     setMessage("✅ " + t.address_saved);
-
-    setTimeout(() => {
-      router.push("/checkout");
-    }, 500);
-
     setSaving(false);
+  };
+
+  /* ================================
+     SET DEFAULT
+  ================================= */
+  const setDefault = (id: string) => {
+    const updated = addresses.map((a) => ({
+      ...a,
+      is_default: a.id === id,
+    }));
+    setAddresses(updated);
+    localStorage.setItem("addresses", JSON.stringify(updated));
   };
 
   /* ================================
      UI
   ================================= */
   return (
-    <main className="min-h-screen bg-gray-100 pb-20 relative">
+    <main className="min-h-screen bg-gray-100 pb-24">
+      {/* Back */}
       <button
         onClick={() => router.back()}
         className="absolute top-3 left-3 text-orange-600 text-lg font-bold"
@@ -107,70 +110,110 @@ export default function CustomerAddressPage() {
         ←
       </button>
 
-      <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow mt-14">
+      <div className="max-w-md mx-auto p-4 mt-12">
         <h1 className="text-2xl font-bold text-center text-orange-600 mb-4">
           📍 {t.shipping_address}
         </h1>
 
-        {/* Country */}
-        <label className="block mb-2 font-medium">🌍 {t.country}</label>
-        <select
-          className="border p-2 w-full rounded mb-3"
-          value={form.country}
-          onChange={handleCountryChange}
-        >
-          {countries.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.flag} {c.name} ({c.dial})
-            </option>
+        {/* ADDRESS LIST */}
+        <div className="space-y-3 mb-4">
+          {addresses.length === 0 && (
+            <p className="text-center text-gray-500">
+              {t.no_address || "Chưa có địa chỉ"}
+            </p>
+          )}
+
+          {addresses.map((a) => (
+            <div
+              key={a.id}
+              className="bg-white p-4 rounded-lg shadow border"
+            >
+              <p className="font-semibold">
+                👤 {a.name}{" "}
+                {a.is_default && (
+                  <span className="text-xs text-green-600">
+                    (Mặc định)
+                  </span>
+                )}
+              </p>
+              <p>📞 {a.countryCode} {a.phone}</p>
+              <p>🏠 {a.address}</p>
+
+              {!a.is_default && (
+                <button
+                  onClick={() => setDefault(a.id)}
+                  className="mt-2 text-sm text-orange-600 font-semibold"
+                >
+                  Đặt làm mặc định
+                </button>
+              )}
+            </div>
           ))}
-        </select>
-
-        {/* Name */}
-        <label className="block mb-2 font-medium">👤 {t.full_name}</label>
-        <input
-          className="border p-2 w-full rounded mb-3"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-
-        {/* Phone */}
-        <label className="block mb-2 font-medium">📞 {t.phone_number}</label>
-        <div className="flex mb-3">
-          <span className="px-3 py-2 bg-gray-100 border rounded-l">
-            {form.countryCode}
-          </span>
-          <input
-            type="tel"
-            className="border p-2 w-full rounded-r"
-            value={form.phone}
-            placeholder={t.enter_phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
         </div>
 
-        {/* Address */}
-        <label className="block mb-2 font-medium">🏠 {t.address}</label>
-        <textarea
-          className="border p-2 w-full rounded mb-4"
-          rows={3}
-          value={form.address}
-          onChange={(e) => setForm({ ...form, address: e.target.value })}
-        />
-
-        {/* Save */}
+        {/* ADD BUTTON */}
         <button
-          onClick={handleSave}
-          disabled={saving}
-          className={`w-full py-3 rounded text-white font-semibold ${
-            saving ? "bg-gray-400" : "bg-orange-600 hover:bg-orange-700"
-          }`}
+          onClick={() => setShowForm(true)}
+          className="w-full py-3 border-2 border-dashed border-orange-500 rounded text-orange-600 font-semibold"
         >
-          {saving ? t.saving : "💾 " + t.save_address}
+          ➕ {t.add_address || "Thêm địa chỉ"}
         </button>
 
+        {/* ADD FORM */}
+        {showForm && (
+          <div className="mt-4 bg-white p-4 rounded-xl shadow">
+            {/* Country */}
+            <label className="block mb-1 font-medium">🌍 {t.country}</label>
+            <select
+              className="border p-2 w-full rounded mb-3"
+              value={form.country}
+              onChange={handleCountryChange}
+            >
+              {countries.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.flag} {c.name} ({c.dial})
+                </option>
+              ))}
+            </select>
+
+            <label className="block mb-1 font-medium">👤 {t.full_name}</label>
+            <input
+              className="border p-2 w-full rounded mb-3"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+
+            <label className="block mb-1 font-medium">📞 {t.phone_number}</label>
+            <input
+              className="border p-2 w-full rounded mb-3"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+
+            <label className="block mb-1 font-medium">🏠 {t.address}</label>
+            <textarea
+              className="border p-2 w-full rounded mb-3"
+              rows={3}
+              value={form.address}
+              onChange={(e) =>
+                setForm({ ...form, address: e.target.value })
+              }
+            />
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full py-3 bg-orange-600 text-white rounded font-semibold"
+            >
+              💾 {t.save_address}
+            </button>
+          </div>
+        )}
+
         {message && (
-          <p className="mt-3 text-center text-sm text-gray-700">{message}</p>
+          <p className="mt-3 text-center text-sm text-gray-600">
+            {message}
+          </p>
         )}
       </div>
     </main>
