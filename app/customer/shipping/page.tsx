@@ -2,23 +2,21 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/apiFetch";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/apiFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
-interface OrderItem {
-  name: string;
-  price: number;
-  quantity: number;
-}
 
 interface Order {
   id: number;
   total: number;
   status: string;
-  createdAt: string;
-  items?: OrderItem[];
 }
+
+type OrderStat = {
+  label: string;
+  count: number;
+  active?: boolean;
+};
 
 export default function CustomerShippingPage() {
   const router = useRouter();
@@ -28,34 +26,31 @@ export default function CustomerShippingPage() {
   const [loading, setLoading] = useState(true);
 
   /* =========================
-     LOAD ORDERS (BEARER AUTH)
+     LOAD SHIPPING ORDERS
   ========================= */
   useEffect(() => {
-    fetchOrders();
+    loadOrders();
   }, [lang]);
 
-  const fetchOrders = async () => {
+  const loadOrders = async () => {
     try {
       const res = await apiFetch("/api/orders");
-
       if (!res.ok) throw new Error("unauthorized");
 
       const data: Order[] = await res.json();
 
-      const statusByLang: Record<string, string[]> = {
+      const shippingStatusByLang: Record<string, string[]> = {
         vi: ["Đang giao", "Đang vận chuyển"],
-        en: ["Delivering", "Shipping"],
-        zh: ["配送中", "运输中"],
-        ja: ["配送中"],
-        ko: ["배송 중"],
-        fr: ["En livraison"],
+        en: ["Shipping", "Delivering"],
+        zh: ["配送中"],
       };
 
-      const allowStatus = statusByLang[lang] || statusByLang.en;
+      const allowStatus =
+        shippingStatusByLang[lang] || shippingStatusByLang.en;
 
       setOrders(data.filter((o) => allowStatus.includes(o.status)));
     } catch (err) {
-      console.error("❌ Load shipping orders error:", err);
+      console.error(err);
       setOrders([]);
     } finally {
       setLoading(false);
@@ -63,101 +58,102 @@ export default function CustomerShippingPage() {
   };
 
   /* =========================
-     CONFIRM RECEIVED
+     STATS
   ========================= */
-  const confirmReceived = async (id: number) => {
-    if (!confirm(t.confirm_received_message || "Xác nhận đã nhận hàng?")) return;
+  const totalPi = orders.reduce((s, o) => s + Number(o.total || 0), 0);
 
-    try {
-      const res = await apiFetch("/api/orders", {
-   method: "PUT",
-   body: JSON.stringify({
-    id,
-    status: t.status_completed || "Hoàn tất",
-    }),
-  });
-
-      if (!res.ok) throw new Error("update_failed");
-
-      alert(t.thanks_receive || "Cảm ơn bạn đã xác nhận!");
-      fetchOrders();
-    } catch {
-      alert(t.error_confirm || "Không thể xác nhận đơn hàng");
-    }
-  };
+  const stats: OrderStat[] = [
+    { label: t.payment || "Thanh toán", count: 0 },
+    { label: t.shipping || "Giao hàng", count: orders.length, active: true },
+    { label: t.received || "Nhận", count: 0 },
+    { label: t.rating || "Xếp hạng", count: 0 },
+    { label: t.completed || "Đã hoàn thành", count: 0 },
+  ];
 
   /* =========================
      UI
   ========================= */
-  if (loading)
-    return (
-      <p className="text-center mt-6 text-gray-500">
-        ⏳ {t.loading_orders || "Đang tải đơn hàng..."}
-      </p>
-    );
-
-  const totalOrders = orders.length;
-  const totalPi = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
-
   return (
-    <main className="p-4 max-w-4xl mx-auto bg-gray-50 min-h-screen pb-24">
-      {/* ===== Header ===== */}
-      <div className="flex items-center mb-4">
-        <button
-          onClick={() => router.back()}
-          className="text-orange-500 font-semibold text-lg mr-2"
-        >
-          ←
-        </button>
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          🚚 {t.shipping_orders || "Đơn hàng đang giao"}
-        </h1>
-      </div>
-
-      {/* ===== Summary ===== */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-white border rounded-lg p-4 text-center shadow">
-          <p className="text-gray-500 text-sm">{t.total_orders}</p>
-          <p className="text-2xl font-bold">{totalOrders}</p>
+    <main className="min-h-screen bg-gray-100 pb-24">
+      {/* ===== HEADER ===== */}
+      <div className="bg-orange-500 text-white px-4 py-4">
+        <div className="flex items-center gap-2">
+          <button onClick={() => router.back()} className="text-xl">
+            ←
+          </button>
+          <h1 className="font-semibold text-lg">1pi Mall — 派商城</h1>
         </div>
-        <div className="bg-white border rounded-lg p-4 text-center shadow">
-          <p className="text-gray-500 text-sm">{t.total_pi}</p>
-          <p className="text-2xl font-bold">{totalPi.toFixed(2)} Pi</p>
+
+        {/* ===== ORDER INFO ===== */}
+        <div className="mt-4 bg-orange-400 rounded-lg p-4 flex justify-between items-center">
+          <div>
+            <p className="text-sm opacity-90">
+              {t.order_info || "Thông tin đặt hàng"}
+            </p>
+            <p className="text-xs opacity-80 mt-1">
+              {t.orders || "Đặt hàng"}: {orders.length} &nbsp;
+              {t.total_amount || "Tổng số tiền"}: π{totalPi.toFixed(0)}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* ===== Orders ===== */}
-      {orders.length === 0 ? (
-        <p className="text-center text-gray-500">
-          {t.no_shipping_orders || "Không có đơn đang giao."}
-        </p>
-      ) : (
-        <div className="space-y-5">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white border rounded-lg p-4 shadow-sm"
-            >
-              <div className="flex justify-between mb-2">
-                <h2 className="font-semibold text-lg">🧾 #{order.id}</h2>
-                <span className="px-3 py-1 rounded bg-blue-100 text-blue-700 text-sm">
-                  {order.status}
-                </span>
-              </div>
-
-              <p>💰 <b>{t.total}:</b> {order.total} Pi</p>
-              <p>📅 <b>{t.created_at}:</b> {new Date(order.createdAt).toLocaleString()}</p>
-
-              <button
-                onClick={() => confirmReceived(order.id)}
-                className="mt-3 w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded"
+      {/* ===== STATUS TABS ===== */}
+      <div className="bg-white px-2 py-3 shadow-sm">
+        <div className="grid grid-cols-5 text-center text-sm">
+          {stats.map((s) => (
+            <div key={s.label}>
+              <p className="text-gray-700">{s.label}</p>
+              <p
+                className={`mt-1 ${
+                  s.active
+                    ? "text-orange-500 font-semibold"
+                    : "text-gray-500"
+                }`}
               >
-                {t.confirm_received || "Đã nhận hàng"}
-              </button>
+                {s.count}
+              </p>
+              {s.active && (
+                <div className="h-0.5 bg-orange-500 w-6 mx-auto mt-1 rounded" />
+              )}
             </div>
           ))}
         </div>
-      )}
+      </div>
+
+      {/* ===== CONTENT ===== */}
+      <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
+        {loading ? (
+          <p>⏳ {t.loading_orders || "Đang tải đơn hàng..."}</p>
+        ) : orders.length === 0 ? (
+          <>
+            <div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
+            <p>{t.no_orders || "Chưa có đơn hàng"}</p>
+          </>
+        ) : (
+          <div className="w-full px-4 space-y-3">
+            {orders.map((o) => (
+              <div
+                key={o.id}
+                className="bg-white rounded-lg p-4 shadow"
+              >
+                <div className="flex justify-between">
+                  <span className="font-semibold">#{o.id}</span>
+                  <span className="text-orange-500 text-sm">
+                    {o.status}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm">
+                  💰 {t.total || "Tổng"}: π{o.total}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ===== FLOAT BUTTON (like image) ===== */}
+      <button className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-orange-500 shadow-lg" />
     </main>
   );
 }
