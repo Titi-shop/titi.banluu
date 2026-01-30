@@ -31,17 +31,21 @@ export async function GET() {
         now <= end;
 
       return {
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        images: p.images,
-        category_id: p.category_id,
-        price: p.price,
-        sale_price: p.sale_price,
-        isSale,
-        finalPrice: isSale ? p.sale_price : p.price,
-      };
-    });
+  id: p.id,
+  name: p.name,
+  description: p.description,
+  images: p.images,
+  categoryId: p.category_id, // 🔴 đổi tên cho frontend
+  price: p.price,
+  sale_price: p.sale_price,
+  isSale,
+  finalPrice: isSale ? p.sale_price : p.price,
+
+  // 🔥 THÊM 2 DÒNG NÀY
+  views: p.views ?? 0,
+  sold: p.sold ?? 0,
+};
+  });
 
     return NextResponse.json(enriched);
   } catch (err) {
