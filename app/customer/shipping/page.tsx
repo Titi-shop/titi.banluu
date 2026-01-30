@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { apiFetch } from "@/lib/apiFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
@@ -12,21 +12,23 @@ interface Order {
   status: string;
 }
 
-type OrderStat = {
+interface TabItem {
   label: string;
   count: number;
-  active?: boolean;
-};
+  href: string;
+  active: boolean;
+}
 
 export default function CustomerShippingPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { t, lang } = useTranslation();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* =========================
-     LOAD SHIPPING ORDERS
+     LOAD ORDERS (ĐANG GIAO)
   ========================= */
   useEffect(() => {
     loadOrders();
@@ -58,17 +60,42 @@ export default function CustomerShippingPage() {
   };
 
   /* =========================
-     STATS
+     TABS CONFIG
   ========================= */
-  const totalPi = orders.reduce((s, o) => s + Number(o.total || 0), 0);
-
-  const stats: OrderStat[] = [
-    { label: t.payment || "Thanh toán", count: 0 },
-    { label: t.shipping || "Giao hàng", count: orders.length, active: true },
-    { label: t.received || "Nhận", count: 0 },
-    { label: t.rating || "Xếp hạng", count: 0 },
-    { label: t.completed || "Đã hoàn thành", count: 0 },
+  const tabs: TabItem[] = [
+    {
+      label: t.wait_confirm || "Chờ xác nhận",
+      count: 0,
+      href: "/customer/orders/pending",
+      active: false,
+    },
+    {
+      label: t.wait_pickup || "Chờ lấy hàng",
+      count: 0,
+      href: "/customer/orders/pickup",
+      active: false,
+    },
+    {
+      label: t.shipping || "Đang giao",
+      count: orders.length,
+      href: "/customer/shipping",
+      active: pathname === "/customer/shipping",
+    },
+    {
+      label: t.rating || "Đánh giá",
+      count: 0,
+      href: "/customer/orders/rating",
+      active: false,
+    },
+    {
+      label: t.received || "Đơn hàng nhận",
+      count: 0,
+      href: "/customer/orders/completed",
+      active: false,
+    },
   ];
+
+  const totalPi = orders.reduce((s, o) => s + Number(o.total || 0), 0);
 
   /* =========================
      UI
@@ -85,38 +112,39 @@ export default function CustomerShippingPage() {
         </div>
 
         {/* ===== ORDER INFO ===== */}
-        <div className="mt-4 bg-orange-400 rounded-lg p-4 flex justify-between items-center">
-          <div>
-            <p className="text-sm opacity-90">
-              {t.order_info || "Thông tin đặt hàng"}
-            </p>
-            <p className="text-xs opacity-80 mt-1">
-              {t.orders || "Đặt hàng"}: {orders.length} &nbsp;
-              {t.total_amount || "Tổng số tiền"}: π{totalPi.toFixed(0)}
-            </p>
-          </div>
+        <div className="mt-4 bg-orange-400 rounded-lg p-4">
+          <p className="text-sm opacity-90">
+            {t.order_info || "Thông tin đặt hàng"}
+          </p>
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders || "Đặt hàng"}: {orders.length} · π{totalPi.toFixed(0)}
+          </p>
         </div>
       </div>
 
       {/* ===== STATUS TABS ===== */}
-      <div className="bg-white px-2 py-3 shadow-sm">
+      <div className="bg-white shadow-sm">
         <div className="grid grid-cols-5 text-center text-sm">
-          {stats.map((s) => (
-            <div key={s.label}>
-              <p className="text-gray-700">{s.label}</p>
+          {tabs.map((tab) => (
+            <button
+              key={tab.label}
+              onClick={() => router.push(tab.href)}
+              className="py-3"
+            >
+              <p className="text-gray-700 leading-tight">{tab.label}</p>
               <p
                 className={`mt-1 ${
-                  s.active
+                  tab.active
                     ? "text-orange-500 font-semibold"
                     : "text-gray-500"
                 }`}
               >
-                {s.count}
+                {tab.count}
               </p>
-              {s.active && (
+              {tab.active && (
                 <div className="h-0.5 bg-orange-500 w-6 mx-auto mt-1 rounded" />
               )}
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -152,7 +180,7 @@ export default function CustomerShippingPage() {
         )}
       </div>
 
-      {/* ===== FLOAT BUTTON (like image) ===== */}
+      {/* ===== FLOAT BUTTON ===== */}
       <button className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-orange-500 shadow-lg" />
     </main>
   );
