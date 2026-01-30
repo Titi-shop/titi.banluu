@@ -85,13 +85,13 @@ export default function PendingOrdersPage() {
     {
       label: t.rating || "Đánh giá",
       count: 0,
-      href: "/customer/orders/rating",
+      href: "/customer/review",
       active: false,
     },
     {
       label: t.received || "Đơn hàng nhận",
       count: 0,
-      href: "/customer/orders/completed",
+      href: "/customer/orders",
       active: false,
     },
   ];
