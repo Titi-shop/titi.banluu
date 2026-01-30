@@ -217,7 +217,7 @@ export default function ProfilePage() {
           onClick={() => router.push("/customer/profile/edit")}
           className="btn-orange flex items-center gap-2"
         >
-          <Edit3 size={18} /> {t.edit_profile}
+          <Edit3 size={18} /> {t.edit}
         </button>
       </div>
     </main>
