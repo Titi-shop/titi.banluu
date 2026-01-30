@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { resolveRole } from "@/lib/auth/resolveRole";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function supabaseHeaders() {
   return {
@@ -16,10 +16,14 @@ function supabaseHeaders() {
   };
 }
 
-/* =========================
-   POST /api/seller/register
-========================= */
 export async function POST() {
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    return NextResponse.json(
+      { error: "SERVER_MISCONFIGURED" },
+      { status: 500 }
+    );
+  }
+
   /* 1️⃣ AUTH */
   const user = await getUserFromBearer();
   if (!user) {
@@ -29,13 +33,10 @@ export async function POST() {
     );
   }
 
-  /* 2️⃣ RBAC */
+  /* 2️⃣ CHECK ROLE */
   const role = await resolveRole(user);
   if (role === "seller" || role === "admin") {
-    return NextResponse.json({
-      success: true,
-      role,
-    });
+    return NextResponse.json({ success: true, role });
   }
 
   /* 3️⃣ UPDATE ROLE */
@@ -49,7 +50,8 @@ export async function POST() {
   );
 
   if (!res.ok) {
-    console.error("SELLER REGISTER FAIL", await res.text());
+    const text = await res.text();
+    console.error("Supabase error:", text);
     return NextResponse.json(
       { error: "FAILED_TO_REGISTER_SELLER" },
       { status: 500 }
