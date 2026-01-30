@@ -66,13 +66,13 @@ export default function CustomerShippingPage() {
     {
       label: t.wait_confirm || "Chờ xác nhận",
       count: 0,
-      href: "/customer/orders/pending",
+      href: "/customer/pending",
       active: false,
     },
     {
       label: t.wait_pickup || "Chờ lấy hàng",
       count: 0,
-      href: "/customer/orders/pickup",
+      href: "/customer/pickup",
       active: false,
     },
     {
@@ -84,13 +84,13 @@ export default function CustomerShippingPage() {
     {
       label: t.rating || "Đánh giá",
       count: 0,
-      href: "/customer/orders/rating",
+      href: "/customer/review",
       active: false,
     },
     {
       label: t.received || "Đơn hàng nhận",
       count: 0,
-      href: "/customer/orders/completed",
+      href: "/customer/orders",
       active: false,
     },
   ];
