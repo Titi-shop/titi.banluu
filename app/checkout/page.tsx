@@ -204,7 +204,7 @@ const piPayment: PiPayment = {
      UI
   ========================= */
   return (
-    <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col">
+    <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col pb-24">
       {/* HEADER */}
       <div className="flex items-center bg-white p-3 border-b sticky top-0 z-10">
         <button onClick={() => router.back()} className="flex items-center text-gray-700">
@@ -216,22 +216,28 @@ const piPayment: PiPayment = {
 
       {/* SHIPPING */}
       <div
-        className="bg-white p-4 border-b cursor-pointer"
-        onClick={() => router.push("/customer/address")}
-      >
-        {shipping ? (
-          <>
-            <p className="font-semibold">{shipping.name}</p>
-            <p className="text-sm text-gray-600">{shipping.phone}</p>
-            <p className="text-sm text-gray-500">
-              {shipping.country ? `${shipping.country}, ` : ""}
-              {shipping.address}
-            </p>
-          </>
-        ) : (
-          <p className="text-gray-500">➕ {t.add_shipping}</p>
-        )}
-      </div>
+  className="bg-white p-4 border-b cursor-pointer flex items-center justify-between"
+  onClick={() => router.push("/customer/address")}
+>
+  <div>
+    {shipping ? (
+      <>
+        <p className="font-semibold">{shipping.name}</p>
+        <p className="text-sm text-gray-600">{shipping.phone}</p>
+        <p className="text-sm text-gray-500">
+          {shipping.country ? `${shipping.country}, ` : ""}
+          {shipping.address}
+        </p>
+      </>
+    ) : (
+      <p className="text-gray-500">➕ {t.add_shipping}</p>
+    )}
+  </div>
+
+  <span className="text-orange-500 text-sm font-medium">
+    {t.change || "Thay đổi"}
+  </span>
+</div>
 
       {/* CART */}
       <div className="flex-1 overflow-y-auto bg-white mt-2">
@@ -256,7 +262,7 @@ const piPayment: PiPayment = {
       </div>
 
       {/* FOOTER */}
-      <div className="sticky bottom-0 bg-white border-t p-4 flex justify-between">
+      <div className="sticky bottom-[64px] bg-white border-t p-4 flex justify-between z-20">
         <div>
           <p className="text-sm">{t.total_label}</p>
           <p className="text-xl font-bold text-orange-600">
