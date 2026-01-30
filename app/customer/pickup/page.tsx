@@ -66,7 +66,7 @@ export default function CustomerPickupPage() {
     {
       label: t.wait_confirm || "Chờ xác nhận",
       count: 0,
-      href: "/customer/orders/pending",
+      href: "/customer/pending",
       active: false,
     },
     {
@@ -84,13 +84,13 @@ export default function CustomerPickupPage() {
     {
       label: t.rating || "Đánh giá",
       count: 0,
-      href: "/customer/orders/rating",
+      href: "/customer/review",
       active: false,
     },
     {
       label: t.received || "Đơn hàng nhận",
       count: 0,
-      href: "/customer/orders/completed",
+      href: "/customer/orders",
       active: false,
     },
   ];
