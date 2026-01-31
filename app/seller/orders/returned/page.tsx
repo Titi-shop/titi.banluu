@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface Order {
   id: string;
@@ -28,23 +28,23 @@ export default function ReturnedOrdersPage() {
   const [loading, setLoading] = useState(true);
 
   /* =========================
-     LOAD ORDERS (NETWORK–FIRST)
+     LOAD ORDERS (AUTH-CENTRIC)
   ========================= */
   const fetchOrders = async () => {
     try {
-      const res = await apiFetch(
-        "/api/seller/orders?status=Hoàn lại"
+      const res = await apiAuthFetch(
+        "/api/seller/orders?status=Hoàn lại",
+        { cache: "no-store" }
       );
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err?.error || "FAILED_TO_LOAD_ORDERS");
+        throw new Error("FAILED_TO_LOAD_ORDERS");
       }
 
-      const data: Order[] = await res.json();
-      setOrders(data);
+      const data: unknown = await res.json();
+      setOrders(Array.isArray(data) ? (data as Order[]) : []);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Load returned orders error:", err);
       alert(
         t.error_load_orders ||
           "❌ Không thể tải đơn hàng hoàn lại"
@@ -60,7 +60,6 @@ export default function ReturnedOrdersPage() {
   useEffect(() => {
     if (authLoading) return;
     fetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
   /* =========================
@@ -133,8 +132,7 @@ export default function ReturnedOrdersPage() {
               className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition"
             >
               <p>
-                🧾 <b>{t.order_id || "Mã đơn"}:</b> #
-                {order.id}
+                🧾 <b>{t.order_id || "Mã đơn"}:</b> #{order.id}
               </p>
 
               <p>
@@ -143,8 +141,7 @@ export default function ReturnedOrdersPage() {
               </p>
 
               <p className="text-sm text-gray-500">
-                📅{" "}
-                {new Date(order.created_at).toLocaleString()}
+                📅 {new Date(order.created_at).toLocaleString()}
               </p>
 
               <p className="font-semibold text-blue-600">
