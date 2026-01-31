@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
