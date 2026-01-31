@@ -1,3 +1,6 @@
+context/AuthContext.tsx
+
+// context/AuthContext.tsx
 "use client";
 
 import {
@@ -69,27 +72,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      INIT PI SDK (ONCE)
   ------------------------- */
   useEffect(() => {
-  if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
 
-  const checkPi = () => {
-    if (window.Pi) {
-      setPiReady(true);
-      return true;
+    if (window.Pi && !window.__pi_inited) {
+      window.Pi.init({
+        version: "2.0",
+        sandbox: process.env.NEXT_PUBLIC_PI_ENV === "testnet",
+      });
+      window.__pi_inited = true;
     }
-    return false;
-  };
 
-  // Nếu Pi đã có sẵn
-  if (checkPi()) return;
+    const timer = setInterval(() => {
+      if (window.Pi) {
+        setPiReady(true);
+        clearInterval(timer);
+      }
+    }, 300);
 
-  // Chờ Pi Browser inject SDK
-  const onLoad = () => {
-    checkPi();
-  };
+    return () => clearInterval(timer);
+  }, []);
 
-  window.addEventListener("load", onLoad);
-  return () => window.removeEventListener("load", onLoad);
-}, []);
   /* -------------------------
      LOAD LOCAL SESSION
      (AUTH-CENTRIC)
@@ -132,11 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Verify token with backend (NETWORK-FIRST)
       const res = await fetch("/api/pi/verify", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-});
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: token }),
+      });
 
       const data = await res.json();
 
