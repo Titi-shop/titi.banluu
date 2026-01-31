@@ -70,26 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      INIT PI SDK (ONCE)
   ------------------------- */
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (window.Pi && !window.__pi_inited) {
-      window.Pi.init({
-        version: "2.0",
-        sandbox: process.env.NEXT_PUBLIC_PI_ENV === "testnet",
-      });
-      window.__pi_inited = true;
-    }
-
-    const timer = setInterval(() => {
-      if (window.Pi) {
-        setPiReady(true);
-        clearInterval(timer);
-      }
-    }, 300);
-
-    return () => clearInterval(timer);
-  }, []);
-
+  if (typeof window !== "undefined" && window.Pi) {
+    setPiReady(true);
+  }
+}, []);
   /* -------------------------
      LOAD LOCAL SESSION
      (AUTH-CENTRIC)
@@ -132,10 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Verify token with backend (NETWORK-FIRST)
       const res = await fetch("/api/pi/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: token }),
-      });
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
 
       const data = await res.json();
 
