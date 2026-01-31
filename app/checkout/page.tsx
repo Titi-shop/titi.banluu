@@ -6,7 +6,6 @@ import { ArrowLeft } from "lucide-react";
 
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/lib/apiFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 
@@ -83,139 +82,152 @@ export default function CheckoutPage() {
   }, [loading, user, router]);
 
   /* =========================
-     LOAD SHIPPING
+     LOAD SHIPPING (FROM SUPABASE)
   ========================= */
-  /* =========================
-   LOAD SHIPPING (FROM SUPABASE)
-========================= */
-useEffect(() => {
-  const loadShipping = async () => {
-    try {
-      const token = await getPiAccessToken();
+  useEffect(() => {
+    const loadShipping = async () => {
+      try {
+        const token = await getPiAccessToken();
 
-      const res = await fetch("/api/address", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-
-      const def = data.items?.find(
-        (a: { is_default: boolean }) => a.is_default
-      );
-
-      if (def) {
-        setShipping({
-          name: def.name,
-          phone: def.phone,
-          address: def.address,
-          country: def.country,
+        const res = await fetch("/api/address", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
-      } else {
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        const def = data.items?.find(
+          (a: { is_default: boolean }) => a.is_default
+        );
+
+        if (def) {
+          setShipping({
+            name: def.name,
+            phone: def.phone,
+            address: def.address,
+            country: def.country,
+          });
+        } else {
+          setShipping(null);
+        }
+      } catch (err) {
+        console.error("LOAD SHIPPING ERROR", err);
         setShipping(null);
       }
-    } catch (err) {
-      console.error("LOAD SHIPPING ERROR", err);
-      setShipping(null);
-    }
-  };
+    };
 
-  if (!loading && user) {
-    loadShipping();
-  }
-}, [loading, user]);
+    if (!loading && user) {
+      loadShipping();
+    }
+  }, [loading, user]);
 
   /* =========================
      PAY WITH PI
   ========================= */
   const handlePayWithPi = async () => {
-  if (!window.Pi || !piReady) {
-    alert(t.pi_not_ready);
-    return;
-  }
+    if (!window.Pi || !piReady) {
+      alert(t.pi_not_ready);
+      return;
+    }
 
-  if (!user || !cart.length || !shipping) {
-    alert(t.transaction_failed);
-    return;
-  }
+    if (!user || !cart.length || !shipping) {
+      alert(t.transaction_failed);
+      return;
+    }
 
-  if (processing) return;
-  setProcessing(true);
+    if (processing) return;
+    setProcessing(true);
 
-  const orderId = `ORD-${Date.now()}`;
+    const orderId = `ORD-${Date.now()}`;
 
-  // ✅ PI SDK PAYMENT
-const piPayment: PiPayment = {
-  amount: Number(total.toFixed(2)),
-  memo: `${t.payment_for_order} #${orderId}`,
-  metadata: {          // ✅ ĐÚNG TÊN KEY
-    orderId,
-    buyer: user.username,
-    shipping,
-    items: cart,
-  },
-};
-
-  try {
-    await window.Pi.createPayment(piPayment, {
-      // 1️⃣ APPROVE
-      onReadyForServerApproval: async (paymentId) => {
-        const res = await apiFetch("/api/pi/approve", {
-          method: "POST",
-          body: JSON.stringify({ paymentId }),
-        });
-
-        if (!res.ok) throw new Error("APPROVE_FAILED");
+    const piPayment: PiPayment = {
+      amount: Number(total.toFixed(2)),
+      memo: `${t.payment_for_order} #${orderId}`,
+      metadata: {
+        orderId,
+        buyer: user.username,
+        shipping,
+        items: cart,
       },
+    };
 
-      // 2️⃣ COMPLETE
-      onReadyForServerCompletion: async (paymentId, txid) => {
-        await apiFetch("/api/orders", {
-          method: "POST",
-          body: JSON.stringify({
-            id: orderId,
-            buyer: user.username,
-            items: cart,
-            total,
-            txid,
-            shipping,
-            status: "paid",
-            createdAt: new Date().toISOString(),
-          }),
-        });
+    try {
+      await window.Pi.createPayment(piPayment, {
+        // 1️⃣ APPROVE
+        onReadyForServerApproval: async (paymentId) => {
+          const token = await getPiAccessToken();
 
-        await apiFetch("/api/pi/complete", {
-          method: "POST",
-          body: JSON.stringify({ paymentId, txid }),
-        });
+          const res = await fetch("/api/pi/approve", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ paymentId }),
+          });
 
-        clearCart();
-        alert(t.payment_success);
-        router.push("/customer/pending");
-      },
+          if (!res.ok) throw new Error("APPROVE_FAILED");
+        },
 
-      // 3️⃣ USER HUỶ
-      onCancel: () => {
-        alert(t.payment_canceled);
-        setProcessing(false);
-      },
+        // 2️⃣ COMPLETE
+        onReadyForServerCompletion: async (paymentId, txid) => {
+          const token = await getPiAccessToken();
 
-      // 4️⃣ ERROR
-      onError: (err) => {
-        console.error("❌ PI ERROR", err);
-        alert(t.payment_error);
-        setProcessing(false);
-      },
-    });
-  } catch (err) {
-    console.error("❌ CHECKOUT FAILED", err);
-    alert(t.transaction_failed);
-    setProcessing(false);
-  }
-};
+          await fetch("/api/orders", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              id: orderId,
+              buyer: user.username,
+              items: cart,
+              total,
+              txid,
+              shipping,
+              status: "paid",
+              createdAt: new Date().toISOString(),
+            }),
+          });
+
+          await fetch("/api/pi/complete", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ paymentId, txid }),
+          });
+
+          clearCart();
+          alert(t.payment_success);
+          router.push("/customer/pending");
+        },
+
+        // 3️⃣ USER HUỶ
+        onCancel: () => {
+          alert(t.payment_canceled);
+          setProcessing(false);
+        },
+
+        // 4️⃣ ERROR
+        onError: (err) => {
+          console.error("❌ PI ERROR", err);
+          alert(t.payment_error);
+          setProcessing(false);
+        },
+      });
+    } catch (err) {
+      console.error("❌ CHECKOUT FAILED", err);
+      alert(t.transaction_failed);
+      setProcessing(false);
+    }
+  };
+
   /* =========================
      HELPERS
   ========================= */
@@ -240,37 +252,44 @@ const piPayment: PiPayment = {
     <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col pb-24">
       {/* HEADER */}
       <div className="flex items-center bg-white p-3 border-b sticky top-0 z-10">
-        <button onClick={() => router.back()} className="flex items-center text-gray-700">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center text-gray-700"
+        >
           <ArrowLeft className="w-5 h-5 mr-1" />
           {t.back}
         </button>
-        <h1 className="flex-1 text-center font-semibold">{t.checkout}</h1>
+        <h1 className="flex-1 text-center font-semibold">
+          {t.checkout}
+        </h1>
       </div>
 
       {/* SHIPPING */}
       <div
-  className="bg-white p-4 border-b cursor-pointer flex items-center justify-between"
-  onClick={() => router.push("/customer/address")}
->
-  <div>
-    {shipping ? (
-      <>
-        <p className="font-semibold">{shipping.name}</p>
-        <p className="text-sm text-gray-600">{shipping.phone}</p>
-        <p className="text-sm text-gray-500">
-          {shipping.country ? `${shipping.country}, ` : ""}
-          {shipping.address}
-        </p>
-      </>
-    ) : (
-      <p className="text-gray-500">➕ {t.add_shipping}</p>
-    )}
-  </div>
+        className="bg-white p-4 border-b cursor-pointer flex items-center justify-between"
+        onClick={() => router.push("/customer/address")}
+      >
+        <div>
+          {shipping ? (
+            <>
+              <p className="font-semibold">{shipping.name}</p>
+              <p className="text-sm text-gray-600">{shipping.phone}</p>
+              <p className="text-sm text-gray-500">
+                {shipping.country ? `${shipping.country}, ` : ""}
+                {shipping.address}
+              </p>
+            </>
+          ) : (
+            <p className="text-gray-500">
+              ➕ {t.add_shipping}
+            </p>
+          )}
+        </div>
 
-  <span className="text-orange-500 text-sm font-medium">
-    {t.change || "Thay đổi"}
-  </span>
-</div>
+        <span className="text-orange-500 text-sm font-medium">
+          {t.change || "Thay đổi"}
+        </span>
+      </div>
 
       {/* CART */}
       <div className="flex-1 overflow-y-auto bg-white mt-2">
@@ -307,7 +326,9 @@ const piPayment: PiPayment = {
           onClick={handlePayWithPi}
           disabled={processing}
           className={`px-6 py-3 rounded-lg text-white font-semibold ${
-            processing ? "bg-gray-400" : "bg-orange-600 hover:bg-orange-700"
+            processing
+              ? "bg-gray-400"
+              : "bg-orange-600 hover:bg-orange-700"
           }`}
         >
           {processing ? t.processing : t.pay_now}
