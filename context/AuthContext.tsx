@@ -31,16 +31,6 @@ type PiAuthResult = {
   accessToken?: string;
 };
 
-declare global {
-  interface Window {
-    __pi_inited?: boolean;
-    Pi?: {
-      init: (options: { version: string; sandbox: boolean }) => void;
-      authenticate: (scopes: string[]) => Promise<PiAuthResult>;
-    };
-  }
-}
-
 /* =========================
    CONSTANTS (BOOTSTRAP)
 ========================= */
