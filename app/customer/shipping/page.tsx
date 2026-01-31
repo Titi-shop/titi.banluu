@@ -3,8 +3,8 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 interface Order {
   id: number;
@@ -36,10 +36,21 @@ export default function CustomerShippingPage() {
 
   const loadOrders = async () => {
     try {
-      const res = await apiFetch("/api/orders");
-      if (!res.ok) throw new Error("unauthorized");
+      const token = await getPiAccessToken();
 
-      const data: Order[] = await res.json();
+      const res = await fetch("/api/orders", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const raw: unknown = await res.json();
+      const list = Array.isArray(raw) ? (raw as Order[]) : [];
 
       const shippingStatusByLang: Record<string, string[]> = {
         vi: ["Đang giao", "Đang vận chuyển"],
@@ -50,9 +61,9 @@ export default function CustomerShippingPage() {
       const allowStatus =
         shippingStatusByLang[lang] || shippingStatusByLang.en;
 
-      setOrders(data.filter((o) => allowStatus.includes(o.status)));
+      setOrders(list.filter((o) => allowStatus.includes(o.status)));
     } catch (err) {
-      console.error(err);
+      console.error("❌ Load shipping orders error:", err);
       setOrders([]);
     } finally {
       setLoading(false);
@@ -60,7 +71,7 @@ export default function CustomerShippingPage() {
   };
 
   /* =========================
-     TABS CONFIG
+     TABS
   ========================= */
   const tabs: TabItem[] = [
     {
@@ -95,7 +106,10 @@ export default function CustomerShippingPage() {
     },
   ];
 
-  const totalPi = orders.reduce((s, o) => s + Number(o.total || 0), 0);
+  const totalPi = orders.reduce(
+    (s, o) => s + Number(o.total || 0),
+    0
+  );
 
   /* =========================
      UI
@@ -108,16 +122,18 @@ export default function CustomerShippingPage() {
           <button onClick={() => router.back()} className="text-xl">
             ←
           </button>
-          <h1 className="font-semibold text-lg">1pi Mall — 派商城</h1>
+          <h1 className="font-semibold text-lg">
+            1pi Mall — 派商城
+          </h1>
         </div>
 
-        {/* ===== ORDER INFO ===== */}
         <div className="mt-4 bg-orange-400 rounded-lg p-4">
           <p className="text-sm opacity-90">
             {t.order_info || "Thông tin đặt hàng"}
           </p>
           <p className="text-xs opacity-80 mt-1">
-            {t.orders || "Đặt hàng"}: {orders.length} · π{totalPi.toFixed(0)}
+            {t.orders || "Đặt hàng"}: {orders.length} · π
+            {totalPi.toFixed(0)}
           </p>
         </div>
       </div>
@@ -131,7 +147,9 @@ export default function CustomerShippingPage() {
               onClick={() => router.push(tab.href)}
               className="py-3"
             >
-              <p className="text-gray-700 leading-tight">{tab.label}</p>
+              <p className="text-gray-700 leading-tight">
+                {tab.label}
+              </p>
               <p
                 className={`mt-1 ${
                   tab.active
@@ -166,7 +184,9 @@ export default function CustomerShippingPage() {
                 className="bg-white rounded-lg p-4 shadow"
               >
                 <div className="flex justify-between">
-                  <span className="font-semibold">#{o.id}</span>
+                  <span className="font-semibold">
+                    #{o.id}
+                  </span>
                   <span className="text-orange-500 text-sm">
                     {o.status}
                   </span>
