@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface Order {
   id: string;
@@ -32,16 +32,23 @@ export default function OrdersSummaryPage() {
   ========================= */
   const fetchOrders = async () => {
     try {
-      const res = await apiFetch("/api/seller/orders");
+      const res = await apiAuthFetch("/api/seller/orders", {
+        cache: "no-store",
+      });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err?.error || "FAILED_TO_LOAD_ORDERS");
+        const raw: unknown = await res.json().catch(() => null);
+        throw new Error(
+          typeof raw === "object" && raw && "error" in raw
+            ? String((raw as { error?: unknown }).error)
+            : "FAILED_TO_LOAD_ORDERS"
+        );
       }
 
-      const data: Order[] = await res.json();
+      const data: unknown = await res.json();
+      const list = Array.isArray(data) ? (data as Order[]) : [];
 
-      const sorted = data.sort(
+      const sorted = list.sort(
         (a, b) =>
           new Date(b.created_at).getTime() -
           new Date(a.created_at).getTime()
@@ -49,8 +56,11 @@ export default function OrdersSummaryPage() {
 
       setOrders(sorted);
     } catch (err) {
-      console.error(err);
-      alert(t.error_load_orders || "❌ Không thể tải danh sách đơn hàng");
+      console.error("❌ Load orders summary failed:", err);
+      alert(
+        t.error_load_orders ||
+          "❌ Không thể tải danh sách đơn hàng"
+      );
     } finally {
       setLoading(false);
     }
