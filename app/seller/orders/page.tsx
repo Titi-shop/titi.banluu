@@ -7,7 +7,7 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface Order {
   orderId: string;
@@ -31,20 +31,28 @@ export default function OrdersTabs() {
   ========================= */
   const fetchOrders = async () => {
     try {
-      const res = await apiFetch("/api/seller/orders");
+      const res = await apiAuthFetch("/api/seller/orders", {
+        cache: "no-store",
+      });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "FAILED_TO_LOAD_ORDERS");
+        const err: unknown = await res.json();
+        throw new Error(
+          typeof err === "object" &&
+            err !== null &&
+            "error" in err
+            ? String((err as { error: unknown }).error)
+            : "FAILED_TO_LOAD_ORDERS"
+        );
       }
 
-      const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
+      const data: unknown = await res.json();
+      setOrders(Array.isArray(data) ? (data as Order[]) : []);
     } catch (err) {
       console.error("❌ Load orders failed:", err);
       alert(t.error_load_orders || "❌ Không thể tải đơn hàng");
     } finally {
-      setLoadingOrders(false); // ✅ FIX
+      setLoadingOrders(false);
     }
   };
 
@@ -61,11 +69,11 @@ export default function OrdersTabs() {
   ========================= */
   const calcStats = (status?: string) => {
     const filtered = status
-      ? orders.filter((o) => o.status === status)
+      ? orders.filter(o => o.status === status)
       : orders;
 
     const totalPi = filtered.reduce(
-      (sum, o) => sum + (Number(o.total) || 0),
+      (sum, o) => sum + Number(o.total || 0),
       0
     );
 
@@ -81,7 +89,7 @@ export default function OrdersTabs() {
   if (loadingOrders || authLoading) {
     return (
       <p className="text-center mt-10 text-gray-500">
-        ⏳ {t.loading}
+        ⏳ {t.loading || "Đang tải..."}
       </p>
     );
   }
@@ -91,7 +99,7 @@ export default function OrdersTabs() {
   ========================= */
   return (
     <main className="max-w-md mx-auto p-4 pb-24 bg-gray-50 min-h-screen">
-      {/* ===== HEADER ===== */}
+      {/* HEADER */}
       <div className="flex items-center mb-4">
         <button
           onClick={() => router.back()}
@@ -104,7 +112,7 @@ export default function OrdersTabs() {
         </h1>
       </div>
 
-      {/* ===== BUTTONS ===== */}
+      {/* BUTTONS */}
       <div className="flex flex-col gap-3 mt-4">
         <OrderButton
           label={t.all_orders || "📦 Tất cả"}
