@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface Order {
   id: string;
@@ -32,19 +32,24 @@ export default function CancelledOrdersPage() {
   ========================= */
   const fetchOrders = async () => {
     try {
-      const res = await apiFetch(
-        "/api/seller/orders?status=Đã hủy"
+      const res = await apiAuthFetch(
+        "/api/seller/orders?status=Đã hủy",
+        { cache: "no-store" }
       );
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err?.error || "FAILED_TO_LOAD_ORDERS");
+        const raw: unknown = await res.json().catch(() => null);
+        throw new Error(
+          typeof raw === "object" && raw && "error" in raw
+            ? String((raw as { error?: unknown }).error)
+            : "FAILED_TO_LOAD_ORDERS"
+        );
       }
 
-      const data: Order[] = await res.json();
-      setOrders(data);
+      const data: unknown = await res.json();
+      setOrders(Array.isArray(data) ? (data as Order[]) : []);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Load cancelled orders failed:", err);
       alert(
         t.error_load_orders ||
           "❌ Không thể tải đơn hàng đã hủy"
