@@ -1,12 +1,4 @@
 // app/api/pi/verify/route.ts
-/* =========================================================
-   PI TOKEN VERIFY API
-   - Identity Provider: Pi Network
-   - NETWORK–FIRST
-   - AUTH-CENTRIC
-   - NO COOKIE
-   - BOOTSTRAP MODE (Phase 1)
-========================================================= */
 
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
@@ -14,29 +6,26 @@ import { query } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================================================
-   TYPES
-========================================================= */
 type PiMeResponse = {
   uid?: string;
   username?: string;
   wallet_address?: string | null;
 };
 
-/* =========================================================
-   BLOCK UNSUPPORTED METHODS (avoid noisy logs)
-========================================================= */
 export async function GET() {
   return new Response("Method Not Allowed", { status: 405 });
 }
 
-/* =========================================================
-   POST /api/pi/verify
-========================================================= */
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const accessToken = body?.accessToken as string | undefined;
+    /* =====================================================
+       🔑 AUTH-CENTRIC: READ TOKEN FROM HEADER ONLY
+    ===================================================== */
+    const authHeader = req.headers.get("authorization");
+    const accessToken =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.slice(7)
+        : null;
 
     if (!accessToken) {
       return NextResponse.json(
@@ -78,7 +67,6 @@ export async function POST(req: Request) {
 
     /* =====================================================
        2️⃣ UPSERT USER (DB = SOURCE OF TRUTH)
-       - Bootstrap: only ensure existence
     ===================================================== */
     await query(
       `
@@ -92,7 +80,6 @@ export async function POST(req: Request) {
 
     /* =====================================================
        3️⃣ RESOLVE ROLE (DB FIRST)
-       - Bootstrap default = customer
     ===================================================== */
     const { rows } = await query(
       `
@@ -111,7 +98,7 @@ export async function POST(req: Request) {
         : "customer";
 
     /* =====================================================
-       4️⃣ RETURN VERIFIED SESSION (NO COOKIE)
+       4️⃣ RETURN VERIFIED USER (STATELESS)
     ===================================================== */
     return NextResponse.json({
       success: true,
