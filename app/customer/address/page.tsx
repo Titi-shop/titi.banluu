@@ -4,6 +4,7 @@ import { useEffect, useState, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { countries } from "@/data/countries";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 interface Address {
   id: string;
@@ -37,14 +38,20 @@ export default function CustomerAddressPage() {
      LOAD ADDRESSES
   ================================= */
   const loadAddresses = async () => {
-  const res = await fetch("/api/address", {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("pi_token")}`,
-    },
-  });
+  try {
+    const token = await getPiAccessToken();
 
-  const data = await res.json();
-  setAddresses(data.items || []);
+    const res = await fetch("/api/address", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    setAddresses(data.items || []);
+  } catch (err) {
+    console.error("LOAD ADDRESS ERROR", err);
+  }
 };
 
 useEffect(() => {
@@ -77,47 +84,56 @@ useEffect(() => {
 
   setSaving(true);
 
-  const res = await fetch("/api/address", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${localStorage.getItem("pi_token")}`,
-    },
-    body: JSON.stringify({
-      name: form.name,
-      phone: form.phone,
-      address: form.address,
-      country: form.country,
-    }),
-  });
+  try {
+    const token = await getPiAccessToken();
 
-  const data = await res.json();
+    const res = await fetch("/api/address", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name: form.name,
+        phone: form.phone,
+        address: form.address,
+        country: form.country,
+      }),
+    });
 
-  if (data.success) {
+    if (!res.ok) throw new Error("SAVE_FAILED");
+
     setShowForm(false);
     setForm(emptyForm);
     setMessage("✅ " + t.address_saved);
-    loadAddresses(); // reload từ Supabase
-  } else {
+    await loadAddresses();
+  } catch (err) {
+    console.error("SAVE ADDRESS ERROR", err);
     setMessage("❌ Lưu địa chỉ thất bại");
+  } finally {
+    setSaving(false);
   }
-
-  setSaving(false);
 };
   /* ================================
      SET DEFAULT
   ================================= */
   const setDefault = async (id: string) => {
-  await fetch("/api/address", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${localStorage.getItem("pi_token")}`,
-    },
-    body: JSON.stringify({ id }),
-  });
+  try {
+    const token = await getPiAccessToken();
 
-  loadAddresses();
+    await fetch("/api/address", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id }),
+    });
+
+    await loadAddresses();
+  } catch (err) {
+    console.error("SET DEFAULT ERROR", err);
+  }
 };
 
   /* ================================
