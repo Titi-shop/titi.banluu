@@ -3,9 +3,12 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
+/* =========================
+   TYPES
+========================= */
 interface Order {
   id: number;
   total: number;
@@ -42,8 +45,8 @@ export default function ReviewPage() {
 
   const loadOrders = async () => {
     try {
-      const res = await apiFetch("/api/orders");
-      if (!res.ok) throw new Error("unauthorized");
+      const res = await apiAuthFetch("/api/orders");
+      if (!res.ok) throw new Error("UNAUTHORIZED");
 
       const data: Order[] = await res.json();
 
@@ -83,12 +86,12 @@ export default function ReviewPage() {
 
     setSubmitting(orderId);
     try {
-      const res = await apiFetch("/api/reviews", {
+      const res = await apiAuthFetch("/api/reviews", {
         method: "POST",
         body: JSON.stringify({ orderId, rating, comment }),
       });
 
-      if (!res.ok) throw new Error("review_failed");
+      if (!res.ok) throw new Error("REVIEW_FAILED");
 
       setOrders((prev) => prev.filter((o) => o.id !== orderId));
       alert(t.review_success || "Đánh giá thành công!");
@@ -189,7 +192,9 @@ export default function ReviewPage() {
         ) : orders.length === 0 ? (
           <div className="flex flex-col items-center text-gray-400 mt-16">
             <div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
-            <p>{t.no_orders_to_review || "Không có đơn cần đánh giá"}</p>
+            <p>
+              {t.no_orders_to_review || "Không có đơn cần đánh giá"}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
