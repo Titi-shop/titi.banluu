@@ -159,15 +159,11 @@ export default function CustomerAddressPage() {
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-semibold text-gray-800">
-                    {a.name}
-                  </p>
+                  <p className="font-semibold text-gray-800">{a.name}</p>
                   <p className="text-sm text-gray-600">
                     {a.countryCode} {a.phone}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {a.address}
-                  </p>
+                  <p className="text-sm text-gray-500 mt-1">{a.address}</p>
                 </div>
 
                 {a.is_default && (
@@ -197,87 +193,94 @@ export default function CustomerAddressPage() {
           ➕ {t.add_address || "Thêm địa chỉ mới"}
         </button>
 
-        {/* ADD FORM */}
-     {/* OVERLAY */}
-{showForm && (
-  <div
-    className="fixed inset-0 bg-black/40 z-40"
-    onClick={() => setShowForm(false)}
-  />
-)}
+        {message && (
+          <p className="mt-4 text-center text-sm text-gray-500">
+            {message}
+          </p>
+        )}
+      </div>
 
-{/* BOTTOM SHEET */}
-<div
-  className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl
-    transition-transform duration-300
-    ${showForm ? "translate-y-0" : "translate-y-full"}
-  `}
-  style={{ height: "70vh" }}
->
-  {/* Drag handle */}
-  <div
-    className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-4"
-    onClick={() => setShowForm(false)}
-  />
+      {/* OVERLAY */}
+      {showForm && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40"
+          onClick={() => setShowForm(false)}
+        />
+      )}
 
-  <div className="px-4 overflow-y-auto h-full pb-28">
-    <h2 className="text-lg font-semibold text-center mb-4">
-      {t.add_address || "Thêm địa chỉ"}
-    </h2>
-
-    {/* Country */}
-    <label className="block text-sm font-medium mb-1">
-      {t.country}
-    </label>
-    <select
-      className="w-full border rounded-lg p-2 mb-3"
-      value={form.country}
-      onChange={handleCountryChange}
-    >
-      {countries.map((c) => (
-        <option key={c.code} value={c.code}>
-          {c.flag} {c.name} ({c.dial})
-        </option>
-      ))}
-    </select>
-
-    <input
-      className="w-full border rounded-lg p-2 mb-3"
-      placeholder={t.full_name}
-      value={form.name}
-      onChange={(e) =>
-        setForm({ ...form, name: e.target.value })
-      }
-    />
-
-    <input
-      className="w-full border rounded-lg p-2 mb-3"
-      placeholder={t.phone_number}
-      value={form.phone}
-      onChange={(e) =>
-        setForm({ ...form, phone: e.target.value })
-      }
-    />
-
-    <textarea
-      className="w-full border rounded-lg p-2 mb-4"
-      rows={3}
-      placeholder={t.address}
-      value={form.address}
-      onChange={(e) =>
-        setForm({ ...form, address: e.target.value })
-      }
-    />
-
-    {/* SAVE BUTTON FIXED */}
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full py-3 rounded-xl bg-orange-600 text-white font-semibold"
+      {/* BOTTOM SHEET */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl
+          transition-transform duration-300
+          ${showForm ? "translate-y-0" : "translate-y-full"}
+        `}
+        style={{ height: "70vh" }}
       >
-        {saving ? t.saving : t.save_address}
-      </button>
-    </div>
-  </div>
-</div>
+        <div
+          className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-4"
+          onClick={() => setShowForm(false)}
+        />
+
+        <div className="px-4 overflow-y-auto h-full pb-28">
+          <h2 className="text-lg font-semibold text-center mb-4">
+            {t.add_address || "Thêm địa chỉ"}
+          </h2>
+
+          <label className="block text-sm font-medium mb-1">
+            {t.country}
+          </label>
+          <select
+            className="w-full border rounded-lg p-2 mb-3"
+            value={form.country}
+            onChange={handleCountryChange}
+          >
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.name} ({c.dial})
+              </option>
+            ))}
+          </select>
+
+          <input
+            className="w-full border rounded-lg p-2 mb-3"
+            placeholder={t.full_name}
+            value={form.name}
+            onChange={(e) =>
+              setForm({ ...form, name: e.target.value })
+            }
+          />
+
+          <input
+            className="w-full border rounded-lg p-2 mb-3"
+            placeholder={t.phone_number}
+            value={form.phone}
+            onChange={(e) =>
+              setForm({ ...form, phone: e.target.value })
+            }
+          />
+
+          <textarea
+            className="w-full border rounded-lg p-2 mb-4"
+            rows={3}
+            placeholder={t.address}
+            value={form.address}
+            onChange={(e) =>
+              setForm({ ...form, address: e.target.value })
+            }
+          />
+        </div>
+
+        {/* SAVE BUTTON */}
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-4">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-3 rounded-xl bg-orange-600 text-white font-semibold"
+          >
+            {saving ? t.saving : t.save_address}
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+
