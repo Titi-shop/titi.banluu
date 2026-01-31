@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/lib/apiFetch";
 import Image from "next/image";
 import { UserCircle } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
+/* =========================
+   TYPES (NO any)
+========================= */
+interface Profile {
+  avatar: string | null;
+}
+
+/* =========================
+   COMPONENT
+========================= */
 export default function AccountHeader() {
   const { user } = useAuth();
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -13,20 +23,35 @@ export default function AccountHeader() {
   useEffect(() => {
     if (!user) return;
 
-    apiFetch("/api/profile")
-      .then(res => res.json())
-      .then(data => {
-        const url =
+    const loadProfile = async () => {
+      try {
+        const res = await apiAuthFetch("/api/profile", {
+          cache: "no-store",
+        });
+
+        if (!res.ok) return;
+
+        const data: unknown = await res.json();
+
+        if (
           typeof data === "object" &&
           data !== null &&
-          "profile" in data &&
-          typeof (data as any).profile?.avatar === "string"
-            ? (data as any).profile.avatar
-            : null;
+          "profile" in data
+        ) {
+          const profile = (data as { profile: Profile }).profile;
+          setAvatar(
+            typeof profile.avatar === "string"
+              ? profile.avatar
+              : null
+          );
+        }
+      } catch (err) {
+        console.error("Load profile failed:", err);
+        setAvatar(null);
+      }
+    };
 
-        setAvatar(url);
-      })
-      .catch(() => setAvatar(null));
+    loadProfile();
   }, [user]);
 
   if (!user) return null;
