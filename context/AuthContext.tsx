@@ -1,4 +1,3 @@
-// context/AuthContext.tsx
 "use client";
 
 import {
@@ -70,9 +69,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      INIT PI SDK (ONCE)
   ------------------------- */
   useEffect(() => {
-  if (typeof window !== "undefined" && window.Pi) {
-    setPiReady(true);
-  }
+  if (typeof window === "undefined") return;
+
+  const checkPi = () => {
+    if (window.Pi) {
+      setPiReady(true);
+      return true;
+    }
+    return false;
+  };
+
+  // Nếu Pi đã có sẵn
+  if (checkPi()) return;
+
+  // Chờ Pi Browser inject SDK
+  const onLoad = () => {
+    checkPi();
+  };
+
+  window.addEventListener("load", onLoad);
+  return () => window.removeEventListener("load", onLoad);
 }, []);
   /* -------------------------
      LOAD LOCAL SESSION
