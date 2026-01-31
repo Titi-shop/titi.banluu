@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface Order {
   id: string;
@@ -32,19 +32,24 @@ export default function PendingOrdersPage() {
   ========================= */
   const fetchOrders = async () => {
     try {
-      const res = await apiFetch(
-        "/api/seller/orders?status=Chờ xác nhận"
+      const res = await apiAuthFetch(
+        "/api/seller/orders?status=Chờ xác nhận",
+        { cache: "no-store" }
       );
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err?.error || "FAILED_TO_LOAD_ORDERS");
+        const raw: unknown = await res.json().catch(() => null);
+        throw new Error(
+          typeof raw === "object" && raw && "error" in raw
+            ? String((raw as { error?: unknown }).error)
+            : "FAILED_TO_LOAD_ORDERS"
+        );
       }
 
-      const data: Order[] = await res.json();
-      setOrders(data);
+      const data: unknown = await res.json();
+      setOrders(Array.isArray(data) ? (data as Order[]) : []);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Load pending orders failed:", err);
       alert(
         t.error_load_orders ||
           "❌ Không thể tải danh sách đơn chờ xác nhận"
@@ -133,8 +138,7 @@ export default function PendingOrdersPage() {
               className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition"
             >
               <p>
-                🧾 <b>{t.order_id || "Mã đơn"}:</b> #
-                {order.id}
+                🧾 <b>{t.order_id || "Mã đơn"}:</b> #{order.id}
               </p>
 
               <p>
