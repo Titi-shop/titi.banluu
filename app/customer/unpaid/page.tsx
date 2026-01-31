@@ -1,100 +1,184 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
+/* =========================
+   TYPES (NO any)
+========================= */
+interface UnpaidOrder {
+  id: string;
+  total: number;
+  status: string;
+  createdAt: string;
+}
+
+/* =========================
+   PAGE
+========================= */
 export default function UnpaidOrdersPage() {
-  const [orders, setOrders] = useState([]);
-  const [user, setUser] = useState("");
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { t } = useTranslation();
 
+  const [orders, setOrders] = useState<UnpaidOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  /* =========================
+     LOAD UNPAID ORDERS
+     - SERVER FILTER
+  ========================= */
   useEffect(() => {
-    const info = localStorage.getItem("pi_user");
-    if (info) {
-      const parsed = JSON.parse(info);
-      setUser(parsed?.user?.username || parsed?.username || "");
-    }
+    const load = async () => {
+      try {
+        const res = await apiAuthFetch("/api/orders/unpaid", {
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          throw new Error("LOAD_UNPAID_FAILED");
+        }
+
+        const data: unknown = await res.json();
+        setOrders(Array.isArray(data) ? (data as UnpaidOrder[]) : []);
+      } catch (err) {
+        console.error("❌ Load unpaid orders error:", err);
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, []);
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      const res = await fetch("/api/orders");
-      const all = await res.json();
-      const filtered = all.filter(
-        (o) =>
-          o.buyer?.toLowerCase() === user.toLowerCase() &&
-          ["Chưa thanh toán", "pending"].includes(o.status)
+  /* =========================
+     REPAY (SERVER HANDLES PI)
+  ========================= */
+  const repay = async (orderId: string) => {
+    if (processingId) return;
+    setProcessingId(orderId);
+
+    try {
+      const res = await apiAuthFetch(`/api/orders/${orderId}/repay`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        throw new Error("REPAY_FAILED");
+      }
+
+      alert(t.payment_processing || "Đang xử lý thanh toán");
+      router.push("/customer/pending");
+    } catch (err) {
+      console.error("❌ Repay failed:", err);
+      alert(t.payment_error || "Thanh toán thất bại");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  /* =========================
+     CANCEL ORDER
+  ========================= */
+  const cancelOrder = async (orderId: string) => {
+    if (!confirm(t.confirm_cancel_order || "Huỷ đơn hàng này?")) {
+      return;
+    }
+
+    try {
+      const res = await apiAuthFetch(
+        `/api/orders/${orderId}/cancel`,
+        { method: "POST" }
       );
-      setOrders(filtered);
-      setLoading(false);
-    };
-    if (user) fetchOrders();
-  }, [user]);
 
-  const repay = async (order) => {
-    alert(`🔄 Thanh toán lại đơn ${order.id}`);
-    // gọi SDK tạo payment lại
-    const payment = {
-      amount: order.total,
-      memo: `Thanh toán lại đơn #${order.id}`,
-      metadata: { orderId: order.id },
-    };
-    window.Pi.createPayment(payment, {
-      onReadyForServerApproval: async (pid) =>
-        await fetch("/api/pi/approve", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentId: pid }),
-        }),
-      onReadyForServerCompletion: async (pid, txid) =>
-        await fetch("/api/pi/complete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentId: pid, txid }),
-        }),
-    });
+      if (!res.ok) {
+        throw new Error("CANCEL_FAILED");
+      }
+
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      alert(t.order_canceled || "Đã huỷ đơn hàng");
+    } catch (err) {
+      console.error("❌ Cancel order error:", err);
+      alert(t.cancel_failed || "Không thể huỷ đơn");
+    }
   };
 
-  const cancelOrder = async (id) => {
-    if (!confirm(`Bạn có chắc muốn hủy đơn #${id}?`)) return;
-    await fetch(`/api/orders/cancel`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    alert("✅ Đã hủy đơn!");
-    location.reload();
-  };
+  /* =========================
+     UI STATES
+  ========================= */
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center text-gray-500">
+        ⏳ {t.loading || "Đang tải"}...
+      </main>
+    );
+  }
 
-  if (loading) return <p>Đang tải...</p>;
-
+  /* =========================
+     UI
+  ========================= */
   return (
-    <main className="p-6">
-      <h1 className="text-2xl font-bold text-red-600 mb-4">
-        🔴 Đơn chưa thanh toán
-      </h1>
+    <main className="min-h-screen bg-gray-100 p-4 pb-24">
+      <header className="flex items-center mb-4">
+        <button
+          onClick={() => router.back()}
+          className="text-orange-600 font-bold mr-3"
+        >
+          ←
+        </button>
+        <h1 className="text-lg font-semibold text-red-600">
+          🔴 {t.unpaid_orders || "Đơn chưa thanh toán"}
+        </h1>
+      </header>
+
       {orders.length === 0 ? (
-        <p>Không có đơn chưa thanh toán</p>
+        <p className="text-center text-gray-500 mt-12">
+          {t.no_unpaid_orders || "Không có đơn chưa thanh toán"}
+        </p>
       ) : (
-        orders.map((o) => (
-          <div key={o.id} className="p-4 border rounded mb-3 bg-white shadow">
-            <h2>🧾 Đơn #{o.id}</h2>
-            <p>💰 Tổng: {o.total} Pi</p>
-            <p>📅 Ngày tạo: {new Date(o.createdAt).toLocaleString()}</p>
-            <div className="mt-3 space-x-2">
-              <button
-                onClick={() => repay(o)}
-                className="bg-green-500 text-white px-3 py-1 rounded"
-              >
-                💳 Thanh toán lại
-              </button>
-              <button
-                onClick={() => cancelOrder(o.id)}
-                className="bg-gray-500 text-white px-3 py-1 rounded"
-              >
-                ❌ Hủy đơn
-              </button>
+        <div className="space-y-3">
+          {orders.map(o => (
+            <div
+              key={o.id}
+              className="bg-white p-4 rounded-lg shadow"
+            >
+              <div className="flex justify-between">
+                <span className="font-semibold">#{o.id}</span>
+                <span className="text-sm text-red-500">
+                  {o.status}
+                </span>
+              </div>
+
+              <p className="mt-2 text-sm">
+                💰 {t.total || "Tổng"}: π{o.total}
+              </p>
+
+              <p className="text-xs text-gray-500">
+                📅 {new Date(o.createdAt).toLocaleString()}
+              </p>
+
+              <div className="flex gap-2 mt-3">
+                <button
+                  disabled={processingId === o.id}
+                  onClick={() => repay(o.id)}
+                  className="flex-1 bg-green-500 text-white py-2 rounded disabled:opacity-50"
+                >
+                  💳 {t.pay_now || "Thanh toán"}
+                </button>
+
+                <button
+                  onClick={() => cancelOrder(o.id)}
+                  className="flex-1 bg-gray-400 text-white py-2 rounded"
+                >
+                  ❌ {t.cancel || "Huỷ"}
+                </button>
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
     </main>
   );
