@@ -6,6 +6,9 @@ import { countries } from "@/data/countries";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 
+/* =========================
+   TYPES
+========================= */
 interface Address {
   id: string;
   name: string;
@@ -24,6 +27,9 @@ const emptyForm: Omit<Address, "id" | "is_default"> = {
   countryCode: "",
 };
 
+/* =========================
+   PAGE
+========================= */
 export default function CustomerAddressPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -34,14 +40,16 @@ export default function CustomerAddressPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  /* ================================
+  /* =========================
      LOAD ADDRESSES
-  ================================= */
+  ========================= */
   const loadAddresses = async () => {
     try {
       const token = await getPiAccessToken();
       const res = await fetch("/api/address", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
       const data = await res.json();
       setAddresses(data.items || []);
@@ -54,12 +62,13 @@ export default function CustomerAddressPage() {
     loadAddresses();
   }, []);
 
-  /* ================================
+  /* =========================
      CHANGE COUNTRY
-  ================================= */
+  ========================= */
   const handleCountryChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const selected = countries.find((c) => c.code === e.target.value);
     if (!selected) return;
+
     setForm({
       ...form,
       country: selected.code,
@@ -67,9 +76,9 @@ export default function CustomerAddressPage() {
     });
   };
 
-  /* ================================
+  /* =========================
      SAVE ADDRESS
-  ================================= */
+  ========================= */
   const handleSave = async () => {
     if (!form.name || !form.phone || !form.address) {
       setMessage("⚠️ " + t.fill_all_fields);
@@ -85,7 +94,12 @@ export default function CustomerAddressPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          address: form.address,
+          country: form.country,
+        }),
       });
 
       if (!res.ok) throw new Error("SAVE_FAILED");
@@ -94,16 +108,17 @@ export default function CustomerAddressPage() {
       setForm(emptyForm);
       setMessage("✅ " + t.address_saved);
       await loadAddresses();
-    } catch {
+    } catch (err) {
+      console.error("SAVE ADDRESS ERROR", err);
       setMessage("❌ Lưu địa chỉ thất bại");
     } finally {
       setSaving(false);
     }
   };
 
-  /* ================================
+  /* =========================
      SET DEFAULT
-  ================================= */
+  ========================= */
   const setDefault = async (id: string) => {
     try {
       const token = await getPiAccessToken();
@@ -121,9 +136,9 @@ export default function CustomerAddressPage() {
     }
   };
 
-  /* ================================
+  /* =========================
      UI
-  ================================= */
+  ========================= */
   return (
     <main className="min-h-screen bg-gray-100 pb-28">
       {/* HEADER */}
@@ -141,6 +156,7 @@ export default function CustomerAddressPage() {
         </div>
       </div>
 
+      {/* CONTENT */}
       <div className="max-w-md mx-auto px-4 pt-20">
         {/* ADDRESS LIST */}
         <div className="space-y-4">
@@ -159,11 +175,15 @@ export default function CustomerAddressPage() {
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-semibold text-gray-800">{a.name}</p>
+                  <p className="font-semibold text-gray-800">
+                    {a.name}
+                  </p>
                   <p className="text-sm text-gray-600">
                     {a.countryCode} {a.phone}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">{a.address}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {a.address}
+                  </p>
                 </div>
 
                 {a.is_default && (
@@ -185,7 +205,7 @@ export default function CustomerAddressPage() {
           ))}
         </div>
 
-        {/* ADD ADDRESS BUTTON */}
+        {/* ADD BUTTON */}
         <button
           onClick={() => setShowForm(true)}
           className="mt-6 w-full py-3 rounded-xl bg-white border-2 border-dashed border-orange-400 text-orange-600 font-semibold"
@@ -216,11 +236,13 @@ export default function CustomerAddressPage() {
         `}
         style={{ height: "70vh" }}
       >
+        {/* DRAG HANDLE */}
         <div
           className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-4"
           onClick={() => setShowForm(false)}
         />
 
+        {/* FORM */}
         <div className="px-4 overflow-y-auto h-full pb-28">
           <h2 className="text-lg font-semibold text-center mb-4">
             {t.add_address || "Thêm địa chỉ"}
@@ -283,4 +305,4 @@ export default function CustomerAddressPage() {
       </div>
     </main>
   );
-
+}
