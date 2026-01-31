@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface Order {
   id: string;
@@ -45,19 +45,19 @@ export default function SellerOrderDetailPage({
   ========================= */
   const loadOrder = async () => {
     try {
-      const res = await apiFetch(
-        `/api/seller/orders/${id}`
+      const res = await apiAuthFetch(
+        `/api/seller/orders/${id}`,
+        { cache: "no-store" }
       );
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err?.error || "NOT_FOUND");
+        throw new Error("NOT_FOUND");
       }
 
-      const data: Order = await res.json();
-      setOrder(data);
+      const data: unknown = await res.json();
+      setOrder(data as Order);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Load order failed:", err);
       setOrder(null);
     } finally {
       setLoading(false);
@@ -70,7 +70,6 @@ export default function SellerOrderDetailPage({
   useEffect(() => {
     if (authLoading) return;
     loadOrder();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
   /* =========================
@@ -167,8 +166,7 @@ export default function SellerOrderDetailPage({
         </p>
 
         <p className="text-sm text-gray-500">
-          📅{" "}
-          {new Date(order.created_at).toLocaleString()}
+          📅 {new Date(order.created_at).toLocaleString()}
         </p>
       </div>
 
