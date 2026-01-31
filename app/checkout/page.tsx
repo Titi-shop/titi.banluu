@@ -8,6 +8,7 @@ import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 /* =========================
    PI SDK TYPES (NO any)
@@ -84,16 +85,48 @@ export default function CheckoutPage() {
   /* =========================
      LOAD SHIPPING
   ========================= */
-  useEffect(() => {
-    const raw = localStorage.getItem("shipping_info");
-    if (!raw) return;
-
+  /* =========================
+   LOAD SHIPPING (FROM SUPABASE)
+========================= */
+useEffect(() => {
+  const loadShipping = async () => {
     try {
-      setShipping(JSON.parse(raw) as ShippingInfo);
-    } catch {
+      const token = await getPiAccessToken();
+
+      const res = await fetch("/api/address", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      const def = data.items?.find(
+        (a: { is_default: boolean }) => a.is_default
+      );
+
+      if (def) {
+        setShipping({
+          name: def.name,
+          phone: def.phone,
+          address: def.address,
+          country: def.country,
+        });
+      } else {
+        setShipping(null);
+      }
+    } catch (err) {
+      console.error("LOAD SHIPPING ERROR", err);
       setShipping(null);
     }
-  }, []);
+  };
+
+  if (!loading && user) {
+    loadShipping();
+  }
+}, [loading, user]);
 
   /* =========================
      PAY WITH PI
