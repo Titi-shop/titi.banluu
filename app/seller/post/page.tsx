@@ -4,11 +4,10 @@ import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/lib/apiFetch";
-import { apiFetchForm } from "@/lib/apiFetchForm";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface Category {
   id: number;
@@ -31,8 +30,6 @@ export default function SellerPostPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-
-  // 🔥 nhiều ảnh – tối đa 6
   const [images, setImages] = useState<string[]>([]);
 
   const [message, setMessage] = useState<MessageState>({
@@ -55,7 +52,9 @@ export default function SellerPostPage() {
   useEffect(() => {
     fetch("/api/categories", { cache: "no-store" })
       .then((r) => r.json())
-      .then((data: Category[]) => setCategories(data || []))
+      .then((data: unknown) =>
+        setCategories(Array.isArray(data) ? (data as Category[]) : [])
+      )
       .catch(() => setCategories([]));
   }, []);
 
@@ -81,22 +80,26 @@ export default function SellerPostPage() {
 
     try {
       for (const file of files) {
-        const formData = new FormData();
-        formData.append("file", file);
+        const form = new FormData();
+        form.append("file", file);
 
-        const res = await apiFetchForm("/api/upload", {
+        const res = await apiAuthFetch("/api/upload", {
           method: "POST",
-          body: formData,
+          body: form,
         });
 
-        const data: { success: boolean; url?: string } =
-          await res.json();
+        const data: unknown = await res.json();
 
-        if (!res.ok || !data.success || !data.url) {
+        if (
+          !res.ok ||
+          typeof data !== "object" ||
+          data === null ||
+          !("url" in data)
+        ) {
           throw new Error("UPLOAD_FAILED");
         }
 
-        setImages((prev) => [...prev, data.url]);
+        setImages((prev) => [...prev, (data as { url: string }).url]);
       }
     } catch (err) {
       console.error(err);
@@ -120,15 +123,7 @@ export default function SellerPostPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!user) {
-      setMessage({
-        text: "⚠️ Bạn chưa đăng nhập Pi Network",
-        type: "error",
-      });
-      return;
-    }
-
-    if (user.role !== "seller") {
+    if (!user || user.role !== "seller") {
       setMessage({
         text: "⛔ Chỉ seller mới được đăng sản phẩm",
         type: "error",
@@ -150,42 +145,31 @@ export default function SellerPostPage() {
       name: (form.elements.namedItem("name") as HTMLInputElement)
         .value.trim(),
       price: Number(
-        (form.elements.namedItem("price") as HTMLInputElement)
-          .value
+        (form.elements.namedItem("price") as HTMLInputElement).value
       ),
       description: (
-        form.elements.namedItem(
-          "description"
-        ) as HTMLTextAreaElement
+        form.elements.namedItem("description") as HTMLTextAreaElement
       ).value,
       categoryId:
         Number(
-          (form.elements.namedItem(
-            "categoryId"
-          ) as HTMLSelectElement).value
+          (form.elements.namedItem("categoryId") as HTMLSelectElement).value
         ) || null,
-      images, // 🔥 6 ảnh
+      images,
       salePrice:
         Number(
-          (form.elements.namedItem(
-            "salePrice"
-          ) as HTMLInputElement).value
+          (form.elements.namedItem("salePrice") as HTMLInputElement).value
         ) || null,
       saleStart:
-        (form.elements.namedItem(
-          "saleStart"
-        ) as HTMLInputElement).value || null,
+        (form.elements.namedItem("saleStart") as HTMLInputElement).value ||
+        null,
       saleEnd:
-        (form.elements.namedItem(
-          "saleEnd"
-        ) as HTMLInputElement).value || null,
+        (form.elements.namedItem("saleEnd") as HTMLInputElement).value ||
+        null,
     };
 
     if (!payload.name || !payload.price) {
       setMessage({
-        text:
-          t.enter_valid_name_price ||
-          "⚠️ Nhập tên & giá hợp lệ!",
+        text: t.enter_valid_name_price || "⚠️ Nhập tên & giá hợp lệ!",
         type: "error",
       });
       return;
@@ -195,30 +179,26 @@ export default function SellerPostPage() {
     setMessage({ text: "", type: "" });
 
     try {
-      const res = await apiFetch("/api/products", {
+      const res = await apiAuthFetch("/api/products", {
         method: "POST",
         body: JSON.stringify(payload),
       });
 
-      const result: { error?: string } = await res.json();
+      const result: unknown = await res.json();
 
       if (res.ok) {
         setMessage({
-          text:
-            t.post_success ||
-            "🎉 Đăng sản phẩm thành công!",
+          text: t.post_success || "🎉 Đăng sản phẩm thành công!",
           type: "success",
         });
 
-        setTimeout(() => {
-          router.push("/seller/stock");
-        }, 800);
+        setTimeout(() => router.push("/seller/stock"), 800);
       } else {
         setMessage({
           text:
-            result.error ||
-            t.post_failed ||
-            "❌ Đăng thất bại",
+            typeof result === "object" && result && "error" in result
+              ? String((result as { error?: unknown }).error)
+              : t.post_failed || "❌ Đăng thất bại",
           type: "error",
         });
       }
@@ -273,105 +253,21 @@ export default function SellerPostPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          name="name"
-          placeholder={t.product_name}
-          className="w-full border p-2 rounded"
-        />
+        <input name="name" placeholder={t.product_name} className="w-full border p-2 rounded" />
+        <input name="price" type="number" placeholder={t.price_pi} className="w-full border p-2 rounded" />
 
-        <input
-          name="price"
-          type="number"
-          placeholder={t.price_pi}
-          className="w-full border p-2 rounded"
-        />
-
-        <select
-          name="categoryId"
-          className="w-full border p-2 rounded"
-        >
-          <option value="">
-            {t.select_category}
-          </option>
+        <select name="categoryId" className="w-full border p-2 rounded">
+          <option value="">{t.select_category}</option>
           {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
+            <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
 
-        {/* IMAGE UPLOAD */}
-        <div className="space-y-2">
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleImageChange}
-            className="w-full border p-2 rounded"
-          />
+        <input type="file" accept="image/*" multiple onChange={handleImageChange} />
 
-          <p className="text-sm text-gray-500">
-            {images.length}/6 ảnh
-          </p>
+        <textarea name="description" placeholder={t.description} className="w-full border p-2 rounded" />
 
-          {uploadingImage && (
-            <p className="text-sm text-gray-500">
-              ⏳ Đang upload ảnh...
-            </p>
-          )}
-
-          {images.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {images.map((url, i) => (
-                <div key={url} className="relative">
-                  <img
-                    src={url}
-                    alt={`image-${i}`}
-                    className="w-full h-24 object-cover rounded border"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <textarea
-          name="description"
-          placeholder={t.description}
-          className="w-full border p-2 rounded"
-        />
-
-        {/* SALE */}
-        <div className="p-3 bg-orange-50 border rounded">
-          <input
-            name="salePrice"
-            type="number"
-            placeholder={t.sale_price}
-            className="w-full border p-2 rounded mb-2"
-          />
-          <input
-            name="saleStart"
-            type="date"
-            className="w-full border p-2 rounded mb-2"
-          />
-          <input
-            name="saleEnd"
-            type="date"
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        <button
-          disabled={saving}
-          className="w-full bg-[#ff6600] text-white p-3 rounded-lg font-semibold"
-        >
+        <button disabled={saving} className="w-full bg-[#ff6600] text-white p-3 rounded-lg font-semibold">
           {saving ? t.posting : "💾 " + t.post_product}
         </button>
       </form>
