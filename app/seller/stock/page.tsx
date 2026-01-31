@@ -5,10 +5,10 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/lib/apiFetch";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface Product {
   id: string;
@@ -18,7 +18,6 @@ interface Product {
   saleStart?: string | null;
   saleEnd?: string | null;
   images?: string[];
-  sellerId: string;
 }
 
 interface Message {
@@ -32,7 +31,7 @@ interface Message {
 export default function SellerStockPage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { piToken, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
@@ -41,27 +40,29 @@ export default function SellerStockPage() {
     type: "",
   });
 
-  /* ============================================
-     📦 LOAD PRODUCTS (TOKEN FIRST)
-  ============================================ */
+  /* =========================
+     📦 LOAD PRODUCTS (AUTH-CENTRIC)
+  ========================= */
   async function loadProducts() {
     try {
-      const res = await apiFetch(
-  "/api/seller/products",
-  piToken
-);
+      const res = await apiAuthFetch("/api/seller/products", {
+        cache: "no-store",
+      });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err: unknown = await res.json();
         setMessage({
-          text: err.error || t.load_products_error,
+          text:
+            typeof err === "object" && err && "error" in err
+              ? String((err as { error?: unknown }).error)
+              : t.load_products_error,
           type: "error",
         });
         return;
       }
 
-      const data: Product[] = await res.json();
-      setProducts(data);
+      const data: unknown = await res.json();
+      setProducts(Array.isArray(data) ? (data as Product[]) : []);
     } catch {
       setMessage({
         text: t.load_products_error,
@@ -72,52 +73,51 @@ export default function SellerStockPage() {
     }
   }
 
-  /* ============================================
-     LOAD WHEN AUTH READY
-  ============================================ */
   useEffect(() => {
     if (!authLoading) {
       loadProducts();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, piToken]);
+  }, [authLoading]);
 
-  /* ============================================
-     ❌ DELETE PRODUCT (TOKEN FIRST)
-  ============================================ */
+  /* =========================
+     ❌ DELETE PRODUCT
+  ========================= */
   const handleDelete = async (id: string) => {
-  const product = products.find((p) => p.id === id);
-  if (!product) return;
+    const product = products.find((p) => p.id === id);
+    if (!product) return;
 
-  if (!confirm(`${t.confirm_delete} "${product.name}"?`)) return;
+    if (!confirm(`${t.confirm_delete} "${product.name}"?`)) return;
 
-  try {
-    const res = await apiFetch(`/api/products?id=${id}`, {
-      method: "DELETE",
-    });
+    try {
+      const res = await apiAuthFetch(`/api/products?id=${id}`, {
+        method: "DELETE",
+      });
 
-    const data = await res.json();
+      const data: unknown = await res.json();
 
-    if (res.ok) {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
-      setMessage({ text: t.delete_success, type: "success" });
-    } else {
+      if (res.ok) {
+        setProducts((prev) => prev.filter((p) => p.id !== id));
+        setMessage({ text: t.delete_success, type: "success" });
+      } else {
+        setMessage({
+          text:
+            typeof data === "object" && data && "error" in data
+              ? String((data as { error?: unknown }).error)
+              : t.delete_failed,
+          type: "error",
+        });
+      }
+    } catch {
       setMessage({
-        text: data.error || t.delete_failed,
+        text: t.delete_failed,
         type: "error",
       });
     }
-  } catch {
-    setMessage({
-      text: t.delete_failed,
-      type: "error",
-    });
-  }
-};
+  };
 
-  /* ============================================
-     ⏳ LOADING
-  ============================================ */
+  /* =========================
+     LOADING
+  ========================= */
   if (pageLoading || authLoading) {
     return (
       <main className="text-center p-8">
@@ -126,9 +126,9 @@ export default function SellerStockPage() {
     );
   }
 
-  /* ============================================
-     🎨 UI
-  ============================================ */
+  /* =========================
+     UI
+  ========================= */
   return (
     <main className="p-4 max-w-2xl mx-auto pb-28">
       <button
@@ -176,34 +176,12 @@ export default function SellerStockPage() {
               now >= start &&
               now <= end;
 
-            const salePercent =
-              isSale && product.salePrice
-                ? Math.round(
-                    ((product.price - product.salePrice) /
-                      product.price) *
-                      100
-                  )
-                : 0;
-
             return (
               <div
                 key={product.id}
-                className="flex gap-3 p-3 bg-white rounded-lg shadow border relative"
+                className="flex gap-3 p-3 bg-white rounded-lg shadow border"
               >
-                {/* SALE BADGE */}
-                {isSale && (
-                  <span className="absolute top-2 left-2 z-10 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
-                    -{salePercent}%
-                  </span>
-                )}
-
-                {/* IMAGE */}
-                <div
-                  className="w-24 h-24 relative rounded overflow-hidden cursor-pointer"
-                  onClick={() =>
-                    router.push(`/product/${product.id}`)
-                  }
-                >
+                <div className="w-24 h-24 relative rounded overflow-hidden">
                   {product.images?.[0] ? (
                     <Image
                       src={product.images[0]}
@@ -218,26 +196,14 @@ export default function SellerStockPage() {
                   )}
                 </div>
 
-                {/* INFO */}
                 <div className="flex-1">
                   <h3 className="font-semibold truncate">
                     {product.name}
                   </h3>
 
-                  {isSale ? (
-                    <>
-                      <p className="text-red-600 font-bold">
-                        {product.salePrice} π
-                      </p>
-                      <p className="text-xs text-gray-500 line-through">
-                        {product.price} π
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-[#ff6600] font-bold">
-                      {product.price} π
-                    </p>
-                  )}
+                  <p className="text-[#ff6600] font-bold">
+                    {isSale ? product.salePrice : product.price} π
+                  </p>
 
                   <div className="flex gap-4 mt-2">
                     <button
@@ -250,9 +216,7 @@ export default function SellerStockPage() {
                     </button>
 
                     <button
-                      onClick={() =>
-                        handleDelete(product.id)
-                      }
+                      onClick={() => handleDelete(product.id)}
                       className="text-red-600 underline"
                     >
                       {t.delete}
