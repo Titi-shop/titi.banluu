@@ -1,42 +1,23 @@
 "use client";
-
-import { useEffect, useRef } from "react";
-
-interface PiSDK {
-  init(options: { version: string; sandbox: boolean }): void;
-}
-
-declare global {
-  interface Window {
-    Pi?: PiSDK;
-  }
-}
+import { useEffect } from "react";
 
 export default function PiProvider() {
-  const initializedRef = useRef(false);
-
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const tryInit = () => {
-      if (!window.Pi) return;
-      if (initializedRef.current) return;
-
-      try {
-        window.Pi.init({
-          version: "2.0",
-          sandbox: process.env.NEXT_PUBLIC_PI_ENV === "testnet",
-        });
-        initializedRef.current = true;
-        console.log("✅ Pi SDK initialized");
-      } catch (err) {
-        console.error("❌ Pi init error:", err);
+    const timer = setInterval(() => {
+      if (typeof window !== "undefined" && window.Pi) {
+        if (!window.__pi_initialized) {
+          try {
+            // ⚠️ Dùng sandbox = false khi test trên Pi Testnet chính thức
+            window.Pi.init({ version: "2.0", sandbox: false });
+            window.__pi_initialized = true;
+            console.log("✅ Pi SDK initialized (Production/Testnet real browser context)");
+          } catch (err) {
+            console.error("❌ Lỗi init Pi SDK:", err);
+          }
+        }
+        clearInterval(timer);
       }
-    };
-
-    tryInit();                    // thử ngay
-    const timer = setInterval(tryInit, 300); // chờ Pi Browser inject
-
+    }, 500);
     return () => clearInterval(timer);
   }, []);
 
