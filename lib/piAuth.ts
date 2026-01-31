@@ -1,15 +1,15 @@
-export async function getPiAccessToken(): Promise<string> {
-  if (typeof window === "undefined" || !window.Pi) {
-    throw new Error("PI_NOT_AVAILABLE");
+const TOKEN_KEY = "pi_access_token";
+
+export function getPiAccessToken(): string {
+  if (typeof window === "undefined") {
+    throw new Error("NO_WINDOW");
   }
 
-  const scopes = ["username", "payments"];
+  const token = localStorage.getItem(TOKEN_KEY);
 
-  const auth = await window.Pi.authenticate(scopes, () => {});
-
-  if (!auth?.accessToken) {
-    throw new Error("PI_AUTH_FAILED");
+  if (!token) {
+    throw new Error("NO_PI_TOKEN");
   }
 
-  return auth.accessToken;
+  return token;
 }
