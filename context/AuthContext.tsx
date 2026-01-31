@@ -1,3 +1,4 @@
+// context/AuthContext.tsx
 "use client";
 
 import {
@@ -70,6 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ------------------------- */
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    if (window.Pi && !window.__pi_inited) {
+      window.Pi.init({
+        version: "2.0",
+        sandbox: process.env.NEXT_PUBLIC_PI_ENV === "testnet",
+      });
+      window.__pi_inited = true;
+    }
 
     const timer = setInterval(() => {
       if (window.Pi) {
