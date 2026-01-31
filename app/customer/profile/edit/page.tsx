@@ -2,12 +2,12 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/apiFetch";
 import { useRouter } from "next/navigation";
 import { countries } from "@/data/countries";
 import { provincesByCountry } from "@/data/provinces";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 /* =========================
    TYPES (NO any)
@@ -40,7 +40,7 @@ export default function EditProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   /* =========================
-     LOAD PROFILE (BEARER AUTH)
+     LOAD PROFILE (PI BEARER)
   ========================= */
   useEffect(() => {
     if (authLoading) return;
@@ -52,7 +52,15 @@ export default function EditProfilePage() {
 
     const loadProfile = async () => {
       try {
-        const res = await apiFetch("/api/profile");
+        const token = await getPiAccessToken();
+
+        const res = await fetch("/api/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
+        });
+
         if (!res.ok) throw new Error("UNAUTHORIZED");
 
         const raw: unknown = await res.json();
@@ -61,7 +69,6 @@ export default function EditProfilePage() {
             ? (raw as { profile: ProfileInfo }).profile
             : (raw as ProfileInfo);
 
-        // ✅ NORMALIZE DATA
         setInfo({
           display_name: profile.display_name ?? "",
           email: profile.email ?? "",
@@ -71,7 +78,7 @@ export default function EditProfilePage() {
           country: profile.country ?? "VN",
         });
       } catch (err) {
-        console.error(err);
+        console.error("LOAD PROFILE ERROR", err);
         setError(t.profile_error_loading);
       } finally {
         setLoading(false);
@@ -82,19 +89,27 @@ export default function EditProfilePage() {
   }, [authLoading, user, router, t]);
 
   /* =========================
-     SAVE PROFILE (BEARER AUTH)
+     SAVE PROFILE (PI BEARER)
   ========================= */
   const handleSave = async () => {
     if (!user) return;
 
     setSaving(true);
     try {
-      const res = await apiFetch("/api/profile", {
+      const token = await getPiAccessToken();
+
+      const res = await fetch("/api/profile", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(info),
+        cache: "no-store",
       });
 
       const data: unknown = await res.json();
+
       if (
         !res.ok ||
         typeof data !== "object" ||
@@ -106,7 +121,7 @@ export default function EditProfilePage() {
 
       router.push("/customer/profile");
     } catch (err) {
-      console.error(err);
+      console.error("SAVE PROFILE ERROR", err);
       alert(t.save_failed || "Save failed");
     } finally {
       setSaving(false);
@@ -142,7 +157,7 @@ export default function EditProfilePage() {
         <input
           className="w-full border px-3 py-2 rounded"
           value={info.display_name}
-          onChange={e =>
+          onChange={(e) =>
             setInfo({ ...info, display_name: e.target.value })
           }
           placeholder={t.app_name}
@@ -151,15 +166,14 @@ export default function EditProfilePage() {
         <input
           className="w-full border px-3 py-2 rounded"
           value={info.email}
-          onChange={e => setInfo({ ...info, email: e.target.value })}
+          onChange={(e) => setInfo({ ...info, email: e.target.value })}
           placeholder={t.email}
         />
 
-        {/* ✅ PHONE — ĐÃ BỔ SUNG */}
         <input
           className="w-full border px-3 py-2 rounded"
           value={info.phone}
-          onChange={e => setInfo({ ...info, phone: e.target.value })}
+          onChange={(e) => setInfo({ ...info, phone: e.target.value })}
           placeholder={t.phone}
           inputMode="tel"
         />
@@ -167,18 +181,18 @@ export default function EditProfilePage() {
         <textarea
           className="w-full border px-3 py-2 rounded"
           value={info.address}
-          onChange={e => setInfo({ ...info, address: e.target.value })}
+          onChange={(e) => setInfo({ ...info, address: e.target.value })}
           placeholder={t.address}
         />
 
         <select
           className="w-full border px-3 py-2 rounded"
           value={info.country}
-          onChange={e =>
+          onChange={(e) =>
             setInfo({ ...info, country: e.target.value, province: "" })
           }
         >
-          {countries.map(c => (
+          {countries.map((c) => (
             <option key={c.code} value={c.code}>
               {c.flag} {c.name}
             </option>
@@ -188,12 +202,12 @@ export default function EditProfilePage() {
         <select
           className="w-full border px-3 py-2 rounded"
           value={info.province}
-          onChange={e =>
+          onChange={(e) =>
             setInfo({ ...info, province: e.target.value })
           }
         >
           <option value="">{t.select_option}</option>
-          {provinceList.map(p => (
+          {provinceList.map((p) => (
             <option key={p} value={p}>
               {p}
             </option>
