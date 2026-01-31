@@ -1,4 +1,4 @@
-import { getPiAccessToken } from "@/lib/pi/piAuth";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 export async function apiAuthFetch(
   input: RequestInfo,
