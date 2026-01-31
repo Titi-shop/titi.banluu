@@ -156,22 +156,6 @@ export default function CheckoutPage() {
 
     try {
       await window.Pi.createPayment(piPayment, {
-        // 1️⃣ APPROVE
-        onReadyForServerApproval: async (paymentId) => {
-          const token = await getPiAccessToken();
-
-          const res = await fetch("/api/pi/approve", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ paymentId }),
-          });
-
-          if (!res.ok) throw new Error("APPROVE_FAILED");
-        },
-
         // 2️⃣ COMPLETE
         onReadyForServerCompletion: async (paymentId, txid) => {
           const token = await getPiAccessToken();
