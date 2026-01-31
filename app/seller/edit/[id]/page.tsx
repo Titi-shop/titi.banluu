@@ -2,8 +2,7 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
-import { apiFetchForm } from "@/lib/apiFetchForm";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
@@ -59,10 +58,7 @@ export default function EditProductPage() {
   const [loadingPage, setLoadingPage] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-
-  // 🔥 giống page post
   const [images, setImages] = useState<string[]>([]);
-
   const [message, setMessage] = useState<MessageState>({
     text: "",
     type: "",
@@ -79,7 +75,7 @@ export default function EditProductPage() {
       return;
     }
 
-    if (user.role !== "seller") {
+    if (user.role !== "seller" && user.role !== "admin") {
       router.replace("/account");
     }
   }, [authLoading, user, router]);
@@ -88,7 +84,7 @@ export default function EditProductPage() {
      LOAD CATEGORIES
   ========================= */
   useEffect(() => {
-    apiFetch("/api/categories")
+    apiAuthFetch("/api/categories")
       .then((r) => r.json())
       .then((data: Category[]) => setCategories(data || []))
       .catch(() => setCategories([]));
@@ -104,10 +100,10 @@ export default function EditProductPage() {
       return;
     }
 
-    apiFetch("/api/products")
+    apiAuthFetch("/api/products")
       .then((r) => r.json())
       .then((list: ProductData[]) => {
-        const p = list.find((x) => x.id == id);
+        const p = list.find((x) => String(x.id) === String(id));
         if (!p) {
           setMessage({ text: t.product_not_found, type: "error" });
           setTimeout(() => router.push("/seller/stock"), 1200);
@@ -126,7 +122,7 @@ export default function EditProductPage() {
     e: React.ChangeEvent<HTMLInputElement>
   ) {
     const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+    if (!files.length) return;
 
     if (images.length + files.length > 6) {
       setMessage({
@@ -144,19 +140,19 @@ export default function EditProductPage() {
         const form = new FormData();
         form.append("file", file);
 
-        const res = await apiFetchForm("/api/upload", {
+        const res = await apiAuthFetch("/api/upload", {
           method: "POST",
           body: form,
         });
 
-        const data: { success: boolean; url?: string } =
+        const data: { success?: boolean; url?: string } =
           await res.json();
 
-        if (!res.ok || !data.success || !data.url) {
+        if (!res.ok || !data?.url) {
           throw new Error("UPLOAD_FAILED");
         }
 
-        setImages((prev) => [...prev, data.url]);
+        setImages((prev) => [...prev, data.url!]);
       }
     } catch (err) {
       console.error(err);
@@ -181,7 +177,7 @@ export default function EditProductPage() {
     e.preventDefault();
     if (!product) return;
 
-    if (images.length === 0) {
+    if (!images.length) {
       setMessage({
         text: "⚠️ Sản phẩm cần ít nhất 1 ảnh",
         type: "error",
@@ -205,29 +201,21 @@ export default function EditProductPage() {
       ).value,
       categoryId:
         Number(
-          (form.elements.namedItem(
-            "categoryId"
-          ) as HTMLSelectElement).value
+          (form.elements.namedItem("categoryId") as HTMLSelectElement).value
         ) || null,
       salePrice:
         Number(
-          (form.elements.namedItem(
-            "salePrice"
-          ) as HTMLInputElement).value
+          (form.elements.namedItem("salePrice") as HTMLInputElement).value
         ) || null,
       saleStart:
-        (form.elements.namedItem(
-          "saleStart"
-        ) as HTMLInputElement).value || null,
+        (form.elements.namedItem("saleStart") as HTMLInputElement).value || null,
       saleEnd:
-        (form.elements.namedItem(
-          "saleEnd"
-        ) as HTMLInputElement).value || null,
+        (form.elements.namedItem("saleEnd") as HTMLInputElement).value || null,
       images,
     };
 
     try {
-      const res = await apiFetch("/api/products", {
+      const res = await apiAuthFetch("/api/products", {
         method: "PUT",
         body: JSON.stringify(payload),
       });
@@ -337,9 +325,7 @@ export default function EditProductPage() {
             className="w-full border p-2 rounded"
           />
 
-          <p className="text-sm text-gray-500">
-            {images.length}/6 ảnh
-          </p>
+          <p className="text-sm text-gray-500">{images.length}/6 ảnh</p>
 
           {uploadingImage && (
             <p className="text-sm text-gray-500">
