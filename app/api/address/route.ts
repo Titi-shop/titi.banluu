@@ -40,14 +40,14 @@ async function getPiUid(): Promise<string | null> {
    GET
 ========================= */
 export async function GET() {
-  const pi_uid = await getPiUid();
-  if (!pi_uid)
+  const user = await getUserFromBearer();
+  if (!user)
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
   const { data } = await supabaseAdmin
     .from("addresses")
     .select("*")
-    .eq("pi_uid", pi_uid)
+    .eq("pi_uid", user.pi_uid)
     .order("created_at", { ascending: false });
 
   return NextResponse.json({ success: true, items: data ?? [] });
