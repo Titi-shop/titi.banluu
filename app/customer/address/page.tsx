@@ -36,12 +36,20 @@ export default function CustomerAddressPage() {
   /* ================================
      LOAD ADDRESSES
   ================================= */
-  useEffect(() => {
-    const saved = localStorage.getItem("addresses");
-    if (saved) {
-      setAddresses(JSON.parse(saved));
-    }
-  }, []);
+  const loadAddresses = async () => {
+  const res = await fetch("/api/address", {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("pi_token")}`,
+    },
+  });
+
+  const data = await res.json();
+  setAddresses(data.items || []);
+};
+
+useEffect(() => {
+  loadAddresses();
+}, []);
 
   /* ================================
      CHANGE COUNTRY
@@ -61,41 +69,56 @@ export default function CustomerAddressPage() {
   /* ================================
      SAVE ADDRESS
   ================================= */
-  const handleSave = () => {
-    if (!form.name || !form.phone || !form.address) {
-      setMessage("⚠️ " + t.fill_all_fields);
-      return;
-    }
+  const handleSave = async () => {
+  if (!form.name || !form.phone || !form.address) {
+    setMessage("⚠️ " + t.fill_all_fields);
+    return;
+  }
 
-    setSaving(true);
+  setSaving(true);
 
-    const newAddress: Address = {
-      id: crypto.randomUUID(),
-      ...form,
-      is_default: addresses.length === 0, // cái đầu tiên auto default
-    };
+  const res = await fetch("/api/address", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("pi_token")}`,
+    },
+    body: JSON.stringify({
+      name: form.name,
+      phone: form.phone,
+      address: form.address,
+      country: form.country,
+    }),
+  });
 
-    const updated = [...addresses, newAddress];
-    setAddresses(updated);
-    localStorage.setItem("addresses", JSON.stringify(updated));
+  const data = await res.json();
 
-    setForm(emptyForm);
+  if (data.success) {
     setShowForm(false);
+    setForm(emptyForm);
     setMessage("✅ " + t.address_saved);
-    setSaving(false);
-  };
+    loadAddresses(); // reload từ Supabase
+  } else {
+    setMessage("❌ Lưu địa chỉ thất bại");
+  }
 
+  setSaving(false);
+};
   /* ================================
      SET DEFAULT
   ================================= */
-  const setDefault = (id: string) => {
-    const updated = addresses.map((a) => ({
-      ...a,
-      is_default: a.id === id,
-    }));
-    setAddresses(updated);
-    localStorage.setItem("addresses", JSON.stringify(updated));
-  };
+  const setDefault = async (id: string) => {
+  await fetch("/api/address", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("pi_token")}`,
+    },
+    body: JSON.stringify({ id }),
+  });
+
+  loadAddresses();
+};
 
   /* ================================
      UI
