@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 
@@ -32,9 +32,10 @@ export default function CompletedOrdersPage() {
   ========================= */
   const fetchOrders = async () => {
     try {
-      const res = await apiFetch(
-        "/api/seller/orders?status=Hoàn tất"
-      );
+     const res = await apiAuthFetch(
+  "/api/seller/orders?status=Hoàn tất",
+  { cache: "no-store" }
+);
 
       if (!res.ok) {
         const err = await res.json();
