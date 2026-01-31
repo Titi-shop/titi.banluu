@@ -2,13 +2,12 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/apiFetch";
-import { apiFetchForm } from "@/lib/apiFetchForm";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Upload, Edit3 } from "lucide-react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 /* =========================
    TYPES (NO any)
@@ -35,7 +34,7 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   /* =======================
-     LOAD PROFILE (BEARER AUTH)
+     LOAD PROFILE (PI BEARER)
   ======================= */
   useEffect(() => {
     if (authLoading) return;
@@ -47,7 +46,15 @@ export default function ProfilePage() {
 
     const loadProfile = async () => {
       try {
-        const res = await apiFetch("/api/profile");
+        const token = await getPiAccessToken();
+
+        const res = await fetch("/api/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
+        });
+
         if (!res.ok) throw new Error("UNAUTHORIZED");
 
         const raw: unknown = await res.json();
@@ -56,7 +63,6 @@ export default function ProfilePage() {
             ? (raw as { profile: ProfileData }).profile
             : (raw as ProfileData);
 
-        // ✅ NORMALIZE (QUAN TRỌNG – FIX PHONE)
         setProfile({
           display_name: data.display_name ?? null,
           email: data.email ?? null,
@@ -67,7 +73,7 @@ export default function ProfilePage() {
           avatar: data.avatar ?? null,
         });
       } catch (err) {
-        console.error(err);
+        console.error("LOAD PROFILE ERROR", err);
         setError(t.profile_error_loading);
       } finally {
         setLoading(false);
@@ -78,7 +84,7 @@ export default function ProfilePage() {
   }, [authLoading, user, t]);
 
   /* =======================
-     UPLOAD AVATAR (BEARER + FORM DATA)
+     UPLOAD AVATAR (PI BEARER)
   ======================= */
   const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -90,11 +96,16 @@ export default function ProfilePage() {
     setUploading(true);
 
     try {
+      const token = await getPiAccessToken();
+
       const form = new FormData();
       form.append("file", file);
 
-      const res = await apiFetchForm("/api/uploadAvatar", {
+      const res = await fetch("/api/uploadAvatar", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: form,
       });
 
@@ -107,14 +118,16 @@ export default function ProfilePage() {
         "avatar" in data &&
         typeof (data as { avatar: unknown }).avatar === "string"
       ) {
-        setProfile(prev =>
-          prev ? { ...prev, avatar: (data as { avatar: string }).avatar } : prev
+        setProfile((prev) =>
+          prev
+            ? { ...prev, avatar: (data as { avatar: string }).avatar }
+            : prev
         );
       }
 
       alert(t.profile_avatar_updated);
     } catch (err) {
-      console.error(err);
+      console.error("UPLOAD AVATAR ERROR", err);
       alert(t.upload_failed);
     } finally {
       setUploading(false);
@@ -195,7 +208,7 @@ export default function ProfilePage() {
           [
             ["display_name", t.app_name],
             ["email", t.email],
-            ["phone", t.phone],        // ✅ PHONE ĐÃ FIX
+            ["phone", t.phone],
             ["address", t.address],
             ["province", t.province],
             ["country", t.country],
