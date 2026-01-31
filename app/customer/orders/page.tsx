@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/apiFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 interface OrderItem {
   orderId: string;
@@ -28,11 +28,21 @@ export default function OrdersSummaryPage() {
 
   const loadOrders = async () => {
     try {
-      const res = await apiFetch("/api/seller/orders");
-      if (!res.ok) throw new Error("unauthorized");
+      const token = await getPiAccessToken();
 
-      const data: OrderItem[] = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
+      const res = await fetch("/api/seller/orders", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const data: unknown = await res.json();
+      setOrders(Array.isArray(data) ? (data as OrderItem[]) : []);
     } catch (err) {
       console.error("❌ Load orders error:", err);
       setOrders([]);
