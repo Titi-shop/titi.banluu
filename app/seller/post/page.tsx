@@ -168,23 +168,39 @@ const [detailImages, setDetailImages] = useState<string[]>([]);
       });
       return;
     }
-
+if (salePrice && (!saleStart || !saleEnd)) {
+  setMessage({
+    text: "⚠️ Sale cần có ngày bắt đầu và kết thúc",
+    type: "error",
+  });
+  return;
+}
     const form = e.currentTarget;
 
     const payload = {
-      name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
-      price: Number(
-        (form.elements.namedItem("price") as HTMLInputElement).value
-      ),
-      description: (
-        form.elements.namedItem("description") as HTMLTextAreaElement
-      ).value,
-      categoryId:
-        Number(
-          (form.elements.namedItem("categoryId") as HTMLSelectElement).value
-        ) || null,
-      images,
-    };
+  name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+  price: Number(
+    (form.elements.namedItem("price") as HTMLInputElement).value
+  ),
+
+  // SALE
+  salePrice: salePrice || null,
+  saleStart: salePrice ? saleStart || null : null,
+  saleEnd: salePrice ? saleEnd || null : null,
+
+  // CONTENT
+  description: (
+    form.elements.namedItem("description") as HTMLTextAreaElement
+  ).value,
+  detail,
+  images,
+  detailImages,
+
+  categoryId:
+    Number(
+      (form.elements.namedItem("categoryId") as HTMLSelectElement).value
+    ) || null,
+};
 
     if (!payload.name || !payload.price) {
       setMessage({
