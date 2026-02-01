@@ -61,8 +61,36 @@ export default function SellerStockPage() {
         return;
       }
 
-      const data: unknown = await res.json();
-      setProducts(Array.isArray(data) ? (data as Product[]) : []);
+      const raw: unknown = await res.json();
+
+if (!Array.isArray(raw)) {
+  setProducts([]);
+  return;
+}
+
+const mapped: Product[] = raw.map((item): Product => {
+  const p = item as RawProduct;
+
+  return {
+    id: String(p.id),
+    name: String(p.name),
+    price: Number(p.price),
+
+    // ✅ MAP CHUẨN SALE (QUAN TRỌNG)
+    salePrice:
+      typeof p.sale_price === "number" ? p.sale_price : null,
+    saleStart:
+      typeof p.sale_start === "string" ? p.sale_start : null,
+    saleEnd:
+      typeof p.sale_end === "string" ? p.sale_end : null,
+
+    images: Array.isArray(p.images)
+      ? p.images.filter((i): i is string => typeof i === "string")
+      : [],
+  };
+});
+
+setProducts(mapped);
     } catch {
       setMessage({
         text: t.load_products_error,
