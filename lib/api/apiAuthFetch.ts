@@ -1,16 +1,16 @@
-import { getPiAccessToken } from "@/lib/piAuth";
 
-export async function apiAuthFetch(
-  input: RequestInfo,
-  init?: RequestInit
-) {
-  const token = await getPiAccessToken();
+export async function getPiAccessToken(): Promise<string> {
+  if (typeof window === "undefined" || !window.Pi) {
+    throw new Error("PI_NOT_AVAILABLE");
+  }
 
-  return fetch(input, {
-    ...init,
-    headers: {
-      ...(init?.headers || {}),
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const scopes = ["username", "payments"];
+
+  const auth = await window.Pi.authenticate(scopes, () => {});
+
+  if (!auth?.accessToken) {
+    throw new Error("PI_AUTH_FAILED");
+  }
+
+  return auth.accessToken;
 }
