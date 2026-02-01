@@ -296,11 +296,14 @@ export default function EditProductPage() {
         />
 
         <input
-          name="price"
-          type="number"
-          defaultValue={product.price}
-          className="w-full border p-2 rounded"
-        />
+  name="price"
+  type="number"
+  step="any"
+  inputMode="decimal"
+  defaultValue={product.price}
+  placeholder="Giá Pi (vd: 0.00000001)"
+  className="w-full border p-2 rounded"
+/>
 
         <select
           name="categoryId"
@@ -369,11 +372,14 @@ export default function EditProductPage() {
             className="w-full border p-2 rounded mb-2"
           />
           <input
-            name="saleStart"
-            type="date"
-            defaultValue={formatDateToInput(product.saleStart || null)}
-            className="w-full border p-2 rounded mb-2"
-          />
+  name="salePrice"
+  type="number"
+  step="any"
+  inputMode="decimal"
+  defaultValue={product.salePrice || ""}
+  placeholder="Giá sale Pi"
+  className="w-full border p-2 rounded mb-2"
+/>
           <input
             name="saleEnd"
             type="date"
