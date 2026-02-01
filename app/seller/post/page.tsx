@@ -312,11 +312,14 @@ if (salePrice && (!saleStart || !saleEnd)) {
         />
 
         <input
-          name="price"
-          type="number"
-          placeholder={t.price_pi}
-          className="w-full border p-2 rounded"
-        />
+  name="price"
+  type="number"
+  step="any"
+  inputMode="decimal"
+  defaultValue={product.price}
+  placeholder="Giá Pi (vd: 0.00000001)"
+  className="w-full border p-2 rounded"
+/>
 
          <input
   type="number"
