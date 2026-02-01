@@ -244,9 +244,18 @@ export default function CustomerAddressPage() {
 
         {/* FORM */}
         <div className="px-4 overflow-y-auto h-full pb-28">
-          <h2 className="text-lg font-semibold text-center mb-4">
-            {t.add_address || "Thêm địa chỉ"}
-          </h2>
+          <div className="relative mb-4">
+  <button
+    onClick={() => setShowForm(false)}
+    className="absolute left-0 top-0 text-orange-600 font-semibold"
+  >
+    ← {t.back}
+  </button>
+
+  <h2 className="text-lg font-semibold text-center">
+    {t.add_address || "Thêm địa chỉ"}
+  </h2>
+</div>
 
           <label className="block text-sm font-medium mb-1">
             {t.country}
