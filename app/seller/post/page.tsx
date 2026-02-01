@@ -32,6 +32,14 @@ export default function SellerPostPage() {
   const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+   // SALE
+const [salePrice, setSalePrice] = useState<number | "">("");
+const [saleStart, setSaleStart] = useState<string>("");
+const [saleEnd, setSaleEnd] = useState<string>("");
+
+// DETAIL CONTENT
+const [detail, setDetail] = useState("");
+const [detailImages, setDetailImages] = useState<string[]>([]);
 
   const [message, setMessage] = useState<MessageState>({
     text: "",
@@ -110,6 +118,41 @@ export default function SellerPostPage() {
   function removeImage(index: number) {
     setImages((prev) => prev.filter((_, i) => i !== index));
   }
+   async function handleDetailImageChange(
+  e: React.ChangeEvent<HTMLInputElement>
+) {
+  const files = Array.from(e.target.files || []);
+  if (files.length === 0) return;
+
+  setUploadingImage(true);
+
+  try {
+    for (const file of files) {
+      const form = new FormData();
+      form.append("file", file);
+
+      const res = await apiAuthFetch("/api/upload", {
+        method: "POST",
+        body: form,
+      });
+
+      const data = (await res.json()) as { url?: string };
+      if (!res.ok || !data.url) {
+        throw new Error("UPLOAD_FAILED");
+      }
+
+      setDetailImages((prev) => [...prev, data.url]);
+    }
+  } catch {
+    setMessage({
+      text: "❌ Upload ảnh mô tả thất bại",
+      type: "error",
+    });
+  } finally {
+    setUploadingImage(false);
+    e.target.value = "";
+  }
+}
 
   /* =========================
      SUBMIT PRODUCT
@@ -259,6 +302,30 @@ export default function SellerPostPage() {
           className="w-full border p-2 rounded"
         />
 
+         <input
+  type="number"
+  placeholder="Giá sale (không bắt buộc)"
+  value={salePrice}
+  onChange={(e) =>
+    setSalePrice(e.target.value ? Number(e.target.value) : "")
+  }
+  className="w-full border p-2 rounded"
+/>
+
+<div className="grid grid-cols-2 gap-3">
+  <input
+    type="date"
+    value={saleStart}
+    onChange={(e) => setSaleStart(e.target.value)}
+    className="border p-2 rounded"
+  />
+  <input
+    type="date"
+    value={saleEnd}
+    onChange={(e) => setSaleEnd(e.target.value)}
+    className="border p-2 rounded"
+  />
+</div>
         <select
           name="categoryId"
           className="w-full border p-2 rounded"
@@ -276,7 +343,30 @@ export default function SellerPostPage() {
           placeholder={t.description}
           className="w-full border p-2 rounded"
         />
+<textarea
+  placeholder="Mô tả chi tiết sản phẩm"
+  value={detail}
+  onChange={(e) => setDetail(e.target.value)}
+  className="w-full border p-2 rounded min-h-[120px]"
+/>
+         <div className="grid grid-cols-3 gap-3">
+  {detailImages.map((url) => (
+    <div key={url} className="relative h-28">
+      <Image src={url} alt="" fill className="object-cover rounded" />
+    </div>
+  ))}
 
+  <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer text-gray-400 h-28">
+    {uploadingImage ? "⏳" : "＋"}
+    <input
+      type="file"
+      accept="image/*"
+      multiple
+      hidden
+      onChange={handleDetailImageChange}
+    />
+  </label>
+</div>
         <button
           disabled={saving}
           className="w-full bg-[#ff6600] text-white py-3 rounded-lg font-semibold"
