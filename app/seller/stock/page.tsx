@@ -178,10 +178,16 @@ export default function SellerStockPage() {
 
             return (
               <div
-                key={product.id}
-                className="flex gap-3 p-3 bg-white rounded-lg shadow border"
-              >
+  key={product.id}
+  onClick={() => router.push(`/product/${product.id}`)}
+  className="flex gap-3 p-3 bg-white rounded-lg shadow border cursor-pointer hover:bg-gray-50"
+>
                 <div className="w-24 h-24 relative rounded overflow-hidden">
+  {isSale && (
+    <span className="absolute top-1 left-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+      SALE
+    </span>
+  )}
                   {product.images?.[0] ? (
                     <Image
                       src={product.images[0]}
@@ -201,24 +207,41 @@ export default function SellerStockPage() {
                     {product.name}
                   </h3>
 
-                  <p className="text-[#ff6600] font-bold">
-                    {isSale ? product.salePrice : product.price} π
-                  </p>
+                  <div className="mt-1">
+  {isSale ? (
+    <>
+      <p className="text-sm text-gray-400 line-through">
+        {product.price} π
+      </p>
+      <p className="text-[#ff6600] font-bold">
+        {product.salePrice} π
+      </p>
+    </>
+  ) : (
+    <p className="text-[#ff6600] font-bold">
+      {product.price} π
+    </p>
+  )}
+</div>
 
                   <div className="flex gap-4 mt-2">
                     <button
-                      onClick={() =>
-                        router.push(`/seller/edit/${product.id}`)
-                      }
-                      className="text-green-600 underline"
-                    >
+  onClick={(e) => {
+    e.stopPropagation();
+    router.push(`/seller/edit/${product.id}`);
+  }}
+  className="text-green-600 underline"
+>
                       {t.edit}
                     </button>
 
                     <button
-                      onClick={() => handleDelete(product.id)}
-                      className="text-red-600 underline"
-                    >
+  onClick={(e) => {
+    e.stopPropagation();
+    handleDelete(product.id);
+  }}
+  className="text-red-600 underline"
+>
                       {t.delete}
                     </button>
                   </div>
