@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* =========================
-   TYPES (NO any)
+   TYPES
 ========================= */
 interface Category {
   id: number;
@@ -28,18 +28,20 @@ export default function SellerPostPage() {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
 
+  /* =========================
+     STATE
+  ========================= */
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<string[]>([]);
+  const [detailImages, setDetailImages] = useState<string[]>([]);
+  const [detail, setDetail] = useState("");
+
+  const [salePrice, setSalePrice] = useState<number | "">("");
+  const [saleStart, setSaleStart] = useState("");
+  const [saleEnd, setSaleEnd] = useState("");
+
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-   // SALE
-const [salePrice, setSalePrice] = useState<number | "">("");
-const [saleStart, setSaleStart] = useState<string>("");
-const [saleEnd, setSaleEnd] = useState<string>("");
-
-// DETAIL CONTENT
-const [detail, setDetail] = useState("");
-const [detailImages, setDetailImages] = useState<string[]>([]);
 
   const [message, setMessage] = useState<MessageState>({
     text: "",
@@ -47,7 +49,7 @@ const [detailImages, setDetailImages] = useState<string[]>([]);
   });
 
   /* =========================
-     🔒 SELLER GUARD
+     SELLER GUARD
   ========================= */
   useEffect(() => {
     if (!loading && (!user || user.role !== "seller")) {
@@ -68,25 +70,13 @@ const [detailImages, setDetailImages] = useState<string[]>([]);
   }, []);
 
   /* =========================
-     IMAGE UPLOAD (MAX 6)
+     IMAGE UPLOAD (REUSE)
   ========================= */
-  async function handleImageChange(
-    e: React.ChangeEvent<HTMLInputElement>
+  async function uploadImages(
+    files: File[],
+    setter: React.Dispatch<React.SetStateAction<string[]>>
   ) {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    if (images.length + files.length > 6) {
-      setMessage({
-        text: "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm",
-        type: "error",
-      });
-      return;
-    }
-
     setUploadingImage(true);
-    setMessage({ text: "", type: "" });
-
     try {
       for (const file of files) {
         const form = new FormData();
@@ -97,12 +87,10 @@ const [detailImages, setDetailImages] = useState<string[]>([]);
           body: form,
         });
 
-        const data: unknown = await res.json();
-        if (!res.ok || typeof data !== "object" || !data || !("url" in data)) {
-          throw new Error("UPLOAD_FAILED");
-        }
+        const data = (await res.json()) as { url?: string };
+        if (!res.ok || !data.url) throw new Error();
 
-        setImages((prev) => [...prev, (data as { url: string }).url]);
+        setter((prev) => [...prev, data.url!]);
       }
     } catch {
       setMessage({
@@ -111,98 +99,90 @@ const [detailImages, setDetailImages] = useState<string[]>([]);
       });
     } finally {
       setUploadingImage(false);
-      e.target.value = "";
     }
+  }
+
+  async function handleMainImageChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    if (images.length + files.length > 6) {
+      setMessage({
+        text: "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm",
+        type: "error",
+      });
+      return;
+    }
+
+    await uploadImages(files, setImages);
+    e.target.value = "";
+  }
+
+  async function handleDetailImageChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    await uploadImages(files, setDetailImages);
+    e.target.value = "";
   }
 
   function removeImage(index: number) {
     setImages((prev) => prev.filter((_, i) => i !== index));
   }
-   async function handleDetailImageChange(
-  e: React.ChangeEvent<HTMLInputElement>
-) {
-  const files = Array.from(e.target.files || []);
-  if (files.length === 0) return;
-
-  setUploadingImage(true);
-
-  try {
-    for (const file of files) {
-      const form = new FormData();
-      form.append("file", file);
-
-      const res = await apiAuthFetch("/api/upload", {
-        method: "POST",
-        body: form,
-      });
-
-      const data = (await res.json()) as { url?: string };
-      if (!res.ok || !data.url) {
-        throw new Error("UPLOAD_FAILED");
-      }
-
-      setDetailImages((prev) => [...prev, data.url]);
-    }
-  } catch {
-    setMessage({
-      text: "❌ Upload ảnh mô tả thất bại",
-      type: "error",
-    });
-  } finally {
-    setUploadingImage(false);
-    e.target.value = "";
-  }
-}
 
   /* =========================
-     SUBMIT PRODUCT
+     SUBMIT
   ========================= */
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!user || user.role !== "seller") return;
 
-    if (images.length === 0) {
+    if (!images.length) {
       setMessage({
         text: "⚠️ Cần ít nhất 1 ảnh sản phẩm",
         type: "error",
       });
       return;
     }
-if (salePrice && (!saleStart || !saleEnd)) {
-  setMessage({
-    text: "⚠️ Sale cần có ngày bắt đầu và kết thúc",
-    type: "error",
-  });
-  return;
-}
+
+    if (salePrice && (!saleStart || !saleEnd)) {
+      setMessage({
+        text: "⚠️ Sale cần có ngày bắt đầu và kết thúc",
+        type: "error",
+      });
+      return;
+    }
+
     const form = e.currentTarget;
 
     const payload = {
-  name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
-  price: Number(
-    (form.elements.namedItem("price") as HTMLInputElement).value
-  ),
+      name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+      price: Number(
+        (form.elements.namedItem("price") as HTMLInputElement).value
+      ),
 
-  // SALE
-  salePrice: salePrice || null,
-  saleStart: salePrice ? saleStart || null : null,
-  saleEnd: salePrice ? saleEnd || null : null,
+      salePrice: salePrice || null,
+      saleStart: salePrice ? saleStart || null : null,
+      saleEnd: salePrice ? saleEnd || null : null,
 
-  // CONTENT
-  description: (
-    form.elements.namedItem("description") as HTMLTextAreaElement
-  ).value,
-  detail,
-  images,
-  detailImages,
+      description: (
+        form.elements.namedItem("description") as HTMLTextAreaElement
+      ).value,
+      detail,
+      images,
+      detailImages,
 
-  categoryId:
-    Number(
-      (form.elements.namedItem("categoryId") as HTMLSelectElement).value
-    ) || null,
-};
+      categoryId:
+        Number(
+          (form.elements.namedItem("categoryId") as HTMLSelectElement).value
+        ) || null,
+    };
 
-    if (!payload.name || !payload.price) {
+    if (!payload.name || payload.price <= 0) {
       setMessage({
         text: t.enter_valid_name_price || "⚠️ Nhập tên & giá hợp lệ",
         type: "error",
@@ -219,14 +199,14 @@ if (salePrice && (!saleStart || !saleEnd)) {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("POST_FAILED");
+      if (!res.ok) throw new Error();
 
       setMessage({
         text: t.post_success || "🎉 Đăng sản phẩm thành công",
         type: "success",
       });
 
-      setTimeout(() => router.push("/seller/stock"), 700);
+      setTimeout(() => router.push("/seller/stock"), 800);
     } catch {
       setMessage({
         text: t.post_failed || "❌ Đăng thất bại",
@@ -246,11 +226,10 @@ if (salePrice && (!saleStart || !saleEnd)) {
   }
 
   /* =========================
-     UI – STOCK STYLE
+     UI
   ========================= */
   return (
     <main className="max-w-2xl mx-auto p-4 pb-28">
-      {/* HEADER */}
       <button
         onClick={() => router.back()}
         className="mb-4 text-blue-600 underline"
@@ -274,7 +253,7 @@ if (salePrice && (!saleStart || !saleEnd)) {
         </p>
       )}
 
-      {/* IMAGE GRID (LIKE STOCK) */}
+      {/* MAIN IMAGES */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         {images.map((url, i) => (
           <div key={url} className="relative h-28 rounded overflow-hidden">
@@ -297,7 +276,7 @@ if (salePrice && (!saleStart || !saleEnd)) {
               accept="image/*"
               multiple
               hidden
-              onChange={handleImageChange}
+              onChange={handleMainImageChange}
             />
           </label>
         )}
@@ -312,39 +291,41 @@ if (salePrice && (!saleStart || !saleEnd)) {
         />
 
         <input
-  name="price"
-  type="number"
-  step="any"
-  inputMode="decimal"
-  defaultValue={product.price}
-  placeholder="Giá Pi (vd: 0.00000001)"
-  className="w-full border p-2 rounded"
-/>
+          name="price"
+          type="number"
+          step="any"
+          inputMode="decimal"
+          placeholder="Giá Pi (vd: 0.00000001)"
+          className="w-full border p-2 rounded"
+        />
 
-         <input
-  type="number"
-  placeholder="Giá sale (không bắt buộc)"
-  value={salePrice}
-  onChange={(e) =>
-    setSalePrice(e.target.value ? Number(e.target.value) : "")
-  }
-  className="w-full border p-2 rounded"
-/>
+        <input
+          type="number"
+          step="any"
+          inputMode="decimal"
+          placeholder="Giá sale (không bắt buộc)"
+          value={salePrice}
+          onChange={(e) =>
+            setSalePrice(e.target.value ? Number(e.target.value) : "")
+          }
+          className="w-full border p-2 rounded"
+        />
 
-<div className="grid grid-cols-2 gap-3">
-  <input
-    type="date"
-    value={saleStart}
-    onChange={(e) => setSaleStart(e.target.value)}
-    className="border p-2 rounded"
-  />
-  <input
-    type="date"
-    value={saleEnd}
-    onChange={(e) => setSaleEnd(e.target.value)}
-    className="border p-2 rounded"
-  />
-</div>
+        <div className="grid grid-cols-2 gap-3">
+          <input
+            type="date"
+            value={saleStart}
+            onChange={(e) => setSaleStart(e.target.value)}
+            className="border p-2 rounded"
+          />
+          <input
+            type="date"
+            value={saleEnd}
+            onChange={(e) => setSaleEnd(e.target.value)}
+            className="border p-2 rounded"
+          />
+        </div>
+
         <select
           name="categoryId"
           className="w-full border p-2 rounded"
@@ -362,30 +343,34 @@ if (salePrice && (!saleStart || !saleEnd)) {
           placeholder={t.description}
           className="w-full border p-2 rounded"
         />
-<textarea
-  placeholder="Mô tả chi tiết sản phẩm"
-  value={detail}
-  onChange={(e) => setDetail(e.target.value)}
-  className="w-full border p-2 rounded min-h-[120px]"
-/>
-         <div className="grid grid-cols-3 gap-3">
-  {detailImages.map((url) => (
-    <div key={url} className="relative h-28">
-      <Image src={url} alt="" fill className="object-cover rounded" />
-    </div>
-  ))}
 
-  <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer text-gray-400 h-28">
-    {uploadingImage ? "⏳" : "＋"}
-    <input
-      type="file"
-      accept="image/*"
-      multiple
-      hidden
-      onChange={handleDetailImageChange}
-    />
-  </label>
-</div>
+        <textarea
+          placeholder="Mô tả chi tiết sản phẩm"
+          value={detail}
+          onChange={(e) => setDetail(e.target.value)}
+          className="w-full border p-2 rounded min-h-[120px]"
+        />
+
+        {/* DETAIL IMAGES */}
+        <div className="grid grid-cols-3 gap-3">
+          {detailImages.map((url) => (
+            <div key={url} className="relative h-28">
+              <Image src={url} alt="" fill className="object-cover rounded" />
+            </div>
+          ))}
+
+          <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer text-gray-400 h-28">
+            {uploadingImage ? "⏳" : "＋"}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={handleDetailImageChange}
+            />
+          </label>
+        </div>
+
         <button
           disabled={saving}
           className="w-full bg-[#ff6600] text-white py-3 rounded-lg font-semibold"
