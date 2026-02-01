@@ -31,21 +31,23 @@ export async function GET() {
         now <= end;
 
       return {
-  id: p.id,
-  name: p.name,
-  description: p.description,
-  images: p.images,
-  categoryId: p.category_id, // 🔴 đổi tên cho frontend
-  price: p.price,
-  sale_price: p.sale_price,
-  isSale,
-  finalPrice: isSale ? p.sale_price : p.price,
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        detail: p.detail ?? "",
+        images: p.images ?? [],
+        detailImages: p.detail_images ?? [],
 
-  // 🔥 THÊM 2 DÒNG NÀY
-  views: p.views ?? 0,
-  sold: p.sold ?? 0,
-};
-  });
+        categoryId: p.category_id,
+        price: p.price,
+        salePrice: p.sale_price,
+        isSale,
+        finalPrice: isSale ? p.sale_price : p.price,
+
+        views: p.views ?? 0,
+        sold: p.sold ?? 0,
+      };
+    });
 
     return NextResponse.json(enriched);
   } catch (err) {
@@ -77,7 +79,9 @@ export async function POST(req: Request) {
       name,
       price,
       description,
+      detail,
       images,
+      detailImages,
       categoryId,
       salePrice,
       saleStart,
@@ -93,13 +97,24 @@ export async function POST(req: Request) {
 
     const product = await createProduct(auth.user.pi_uid, {
       name: name.trim(),
-      price,
+      price, // Pi decimal nhỏ OK
       description: typeof description === "string" ? description : "",
-      images: Array.isArray(images) ? images.filter(i => typeof i === "string") : [],
-      category_id: typeof categoryId === "string" ? categoryId : null,
+      detail: typeof detail === "string" ? detail : "",
+
+      images: Array.isArray(images)
+        ? images.filter((i) => typeof i === "string")
+        : [],
+
+      detail_images: Array.isArray(detailImages)
+        ? detailImages.filter((i) => typeof i === "string")
+        : [],
+
+      category_id: typeof categoryId === "number" ? categoryId : null,
+
       sale_price: typeof salePrice === "number" ? salePrice : null,
       sale_start: typeof saleStart === "string" ? saleStart : null,
       sale_end: typeof saleEnd === "string" ? saleEnd : null,
+
       views: 0,
       sold: 0,
     });
@@ -135,7 +150,9 @@ export async function PUT(req: Request) {
       name,
       price,
       description,
+      detail,
       images,
+      detailImages,
       categoryId,
       salePrice,
       saleStart,
@@ -143,10 +160,16 @@ export async function PUT(req: Request) {
     } = body as Record<string, unknown>;
 
     if (
-      typeof id !== "string" ||
-      typeof name !== "string" ||
-      typeof price !== "number"
+      typeof id !== "string" &&
+      typeof id !== "number"
     ) {
+      return NextResponse.json(
+        { error: "INVALID_PRODUCT_ID" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof name !== "string" || typeof price !== "number") {
       return NextResponse.json(
         { error: "INVALID_PAYLOAD" },
         { status: 400 }
@@ -155,13 +178,23 @@ export async function PUT(req: Request) {
 
     const updated = await updateProductBySeller(
       auth.user.pi_uid,
-      id,
+      String(id),
       {
         name: name.trim(),
         price,
         description: typeof description === "string" ? description : "",
-        images: Array.isArray(images) ? images.filter(i => typeof i === "string") : [],
-        category_id: typeof categoryId === "string" ? categoryId : null,
+        detail: typeof detail === "string" ? detail : "",
+
+        images: Array.isArray(images)
+          ? images.filter((i) => typeof i === "string")
+          : [],
+
+        detail_images: Array.isArray(detailImages)
+          ? detailImages.filter((i) => typeof i === "string")
+          : [],
+
+        category_id: typeof categoryId === "number" ? categoryId : null,
+
         sale_price: typeof salePrice === "number" ? salePrice : null,
         sale_start: typeof saleStart === "string" ? saleStart : null,
         sale_end: typeof saleEnd === "string" ? saleEnd : null,
@@ -184,9 +217,9 @@ export async function PUT(req: Request) {
     );
   }
 }
+
 /* =========================================================
    DELETE — DELETE PRODUCT (SELLER ONLY)
-   DELETE /api/products?id=PRODUCT_ID
 ========================================================= */
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
@@ -236,4 +269,3 @@ export async function DELETE(req: Request) {
     );
   }
 }
-
