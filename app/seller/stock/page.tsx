@@ -14,10 +14,20 @@ interface Product {
   id: string;
   name: string;
   price: number;
-  salePrice?: number | null;
-  saleStart?: string | null;
-  saleEnd?: string | null;
-  images?: string[];
+  salePrice: number | null;
+  saleStart: string | null;
+  saleEnd: string | null;
+  images: string[];
+}
+
+interface RawProduct {
+  id: unknown;
+  name: unknown;
+  price: unknown;
+  sale_price?: unknown;
+  sale_start?: unknown;
+  sale_end?: unknown;
+  images?: unknown;
 }
 
 interface Message {
@@ -63,34 +73,36 @@ export default function SellerStockPage() {
 
       const raw: unknown = await res.json();
 
-if (!Array.isArray(raw)) {
-  setProducts([]);
-  return;
-}
+      if (!Array.isArray(raw)) {
+        setProducts([]);
+        return;
+      }
 
-const mapped: Product[] = raw.map((item): Product => {
-  const p = item as RawProduct;
+      const mapped: Product[] = raw.map((item): Product => {
+        const p = item as RawProduct;
 
-  return {
-    id: String(p.id),
-    name: String(p.name),
-    price: Number(p.price),
+        return {
+          id: String(p.id),
+          name: String(p.name),
+          price: Number(p.price),
 
-    // ✅ MAP CHUẨN SALE (QUAN TRỌNG)
-    salePrice:
-      typeof p.sale_price === "number" ? p.sale_price : null,
-    saleStart:
-      typeof p.sale_start === "string" ? p.sale_start : null,
-    saleEnd:
-      typeof p.sale_end === "string" ? p.sale_end : null,
+          // 🔑 MAP SALE (snake_case → camelCase)
+          salePrice:
+            typeof p.sale_price === "number" ? p.sale_price : null,
+          saleStart:
+            typeof p.sale_start === "string" ? p.sale_start : null,
+          saleEnd:
+            typeof p.sale_end === "string" ? p.sale_end : null,
 
-    images: Array.isArray(p.images)
-      ? p.images.filter((i): i is string => typeof i === "string")
-      : [],
-  };
-});
+          images: Array.isArray(p.images)
+            ? p.images.filter(
+                (i): i is string => typeof i === "string"
+              )
+            : [],
+        };
+      });
 
-setProducts(mapped);
+      setProducts(mapped);
     } catch {
       setMessage({
         text: t.load_products_error,
@@ -206,17 +218,20 @@ setProducts(mapped);
 
             return (
               <div
-  key={product.id}
-  onClick={() => router.push(`/product/${product.id}`)}
-  className="flex gap-3 p-3 bg-white rounded-lg shadow border cursor-pointer hover:bg-gray-50"
->
+                key={product.id}
+                onClick={() =>
+                  router.push(`/product/${product.id}`)
+                }
+                className="flex gap-3 p-3 bg-white rounded-lg shadow border cursor-pointer hover:bg-gray-50"
+              >
                 <div className="w-24 h-24 relative rounded overflow-hidden">
-  {isSale && (
-    <span className="absolute top-1 left-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
-      SALE
-    </span>
-  )}
-                  {product.images?.[0] ? (
+                  {isSale && (
+                    <span className="absolute top-1 left-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                      SALE
+                    </span>
+                  )}
+
+                  {product.images[0] ? (
                     <Image
                       src={product.images[0]}
                       alt={product.name}
@@ -236,40 +251,42 @@ setProducts(mapped);
                   </h3>
 
                   <div className="mt-1">
-  {isSale ? (
-    <>
-      <p className="text-sm text-gray-400 line-through">
-        {product.price} π
-      </p>
-      <p className="text-[#ff6600] font-bold">
-        {product.salePrice} π
-      </p>
-    </>
-  ) : (
-    <p className="text-[#ff6600] font-bold">
-      {product.price} π
-    </p>
-  )}
-</div>
+                    {isSale ? (
+                      <>
+                        <p className="text-sm text-gray-400 line-through">
+                          {product.price} π
+                        </p>
+                        <p className="text-[#ff6600] font-bold">
+                          {product.salePrice} π
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-[#ff6600] font-bold">
+                        {product.price} π
+                      </p>
+                    )}
+                  </div>
 
                   <div className="flex gap-4 mt-2">
                     <button
-  onClick={(e) => {
-    e.stopPropagation();
-    router.push(`/seller/edit/${product.id}`);
-  }}
-  className="text-green-600 underline"
->
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(
+                          `/seller/edit/${product.id}`
+                        );
+                      }}
+                      className="text-green-600 underline"
+                    >
                       {t.edit}
                     </button>
 
                     <button
-  onClick={(e) => {
-    e.stopPropagation();
-    handleDelete(product.id);
-  }}
-  className="text-red-600 underline"
->
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(product.id);
+                      }}
+                      className="text-red-600 underline"
+                    >
                       {t.delete}
                     </button>
                   </div>
