@@ -16,10 +16,12 @@ interface ApiProduct {
   price: number;
   finalPrice?: number;
   description?: string;
+  detail?: string;
   views?: number;
   sold?: number;
   images?: string[];
-  category_id?: string | null;
+  detailImages?: string[];
+  categoryId?: string | null;
 }
 
 interface Product {
@@ -29,9 +31,11 @@ interface Product {
   finalPrice: number;
   isSale: boolean;
   description: string;
+  detail: string;
   views: number;
   sold: number;
   images: string[];
+  detailImages: string[];
   categoryId: string | null;
 }
 
@@ -58,35 +62,37 @@ export default function ProductDetail() {
     async function loadProduct() {
       try {
         const res = await fetch("/api/products");
-        const data: ApiProduct[] = await res.json();
+        const data: unknown = await res.json();
+
+        if (!Array.isArray(data)) return;
 
         const normalized: Product[] = data.map((p) => {
+          const api = p as ApiProduct;
           const finalPrice =
-            typeof p.finalPrice === "number"
-              ? p.finalPrice
-              : p.price;
+            typeof api.finalPrice === "number"
+              ? api.finalPrice
+              : api.price;
 
           return {
-            id: p.id,
-            name: p.name,
-            price: p.price,
+            id: api.id,
+            name: api.name,
+            price: api.price,
             finalPrice,
-            isSale: finalPrice < p.price,
-            description: p.description ?? "",
-            views: p.views ?? 0,
-            sold: p.sold ?? 0,
-            images: Array.isArray(p.images) ? p.images : [],
-            categoryId: p.category_id ?? null,
+            isSale: finalPrice < api.price,
+            description: api.description ?? "",
+            detail: api.detail ?? "",
+            views: api.views ?? 0,
+            sold: api.sold ?? 0,
+            images: Array.isArray(api.images) ? api.images : [],
+            detailImages: Array.isArray(api.detailImages)
+              ? api.detailImages
+              : [],
+            categoryId: api.categoryId ?? null,
           };
         });
 
-        const found = normalized.find(
-          (p) => p.id === id
-        );
-
-        if (found) {
-          setProduct(found);
-        }
+        const found = normalized.find((p) => p.id === id);
+        if (found) setProduct(found);
       } finally {
         setLoading(false);
       }
@@ -154,14 +160,12 @@ export default function ProductDetail() {
           {product.name}
         </h1>
 
-        <button
-          onClick={() => router.push("/cart")}
-        >
+        <button onClick={() => router.push("/cart")}>
           <ShoppingCart size={20} />
         </button>
       </div>
 
-      {/* Images */}
+      {/* MAIN IMAGES */}
       <div className="mt-14 relative w-full h-80 bg-white">
         <img
           src={images[currentIndex]}
@@ -200,7 +204,7 @@ export default function ProductDetail() {
         )}
       </div>
 
-      {/* Info */}
+      {/* INFO */}
       <div className="bg-white p-4 flex justify-between">
         <h2 className="text-lg font-medium">
           {product.name}
@@ -219,7 +223,7 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Meta */}
+      {/* META */}
       <div className="bg-white px-4 pb-4 flex gap-4 text-gray-600 text-sm">
         <span>👁 {product.views}</span>
         <span>
@@ -227,12 +231,31 @@ export default function ProductDetail() {
         </span>
       </div>
 
-      {/* Description */}
+      {/* SHORT DESCRIPTION */}
       <div className="bg-white p-4">
         {product.description || t.no_description}
       </div>
 
-      {/* Actions */}
+      {/* DETAIL IMAGES (VERTICAL) */}
+      {product.detailImages.length > 0 && (
+        <div className="bg-white mt-2 space-y-2">
+          {product.detailImages.map((url, i) => (
+            <img
+              key={i}
+              src={url}
+              alt={`detail-${i}`}
+              className="w-full object-cover"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* DETAIL CONTENT */}
+      <div className="bg-white p-4 mt-2 whitespace-pre-line">
+        {product.detail || t.no_description}
+      </div>
+
+      {/* ACTIONS */}
       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
         <button
           onClick={add}
