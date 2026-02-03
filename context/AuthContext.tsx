@@ -1,108 +1,171 @@
+// context/AuthContext.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import { UserCircle } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 
 /* =========================
-   TYPES (NO any)
+   TYPES
 ========================= */
-interface Profile {
-  avatar?: string | null;
-  avatar_url?: string | null;
-}
+export type PiUser = {
+  pi_uid: string;
+  username: string;
+  wallet_address?: string | null;
+  role: "customer" | "seller" | "admin";
+};
+
+type AuthContextType = {
+  user: PiUser | null;
+  loading: boolean;
+  piReady: boolean;
+  pilogin: () => Promise<void>;
+  logout: () => void;
+};
+
+type PiAuthResult = {
+  accessToken?: string;
+};
 
 /* =========================
-   COMPONENT
+   CONSTANTS (BOOTSTRAP)
 ========================= */
-export default function AccountHeader() {
-  const { user } = useAuth();
-  const { t } = useTranslation();
-  const [avatar, setAvatar] = useState<string | null>(null);
+const TOKEN_KEY = "pi_access_token";
+const USER_KEY = "pi_user";
 
-  /* =========================
-     LOAD PROFILE (AVATAR)
-  ========================= */
+/* =========================
+   CONTEXT
+========================= */
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  piReady: false,
+  pilogin: async () => {},
+  logout: () => {},
+});
+
+/* =========================
+   PROVIDER
+========================= */
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<PiUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [piReady, setPiReady] = useState(false);
+
+  /* -------------------------
+     INIT PI SDK (ONCE)
+  ------------------------- */
   useEffect(() => {
-    if (!user) return;
+    if (typeof window === "undefined") return;
 
-    const loadProfile = async () => {
-      try {
-        const res = await apiAuthFetch("/api/profile", {
-          cache: "no-store",
-        });
-
-        if (!res.ok) return;
-
-        const data: unknown = await res.json();
-
-        if (
-          typeof data === "object" &&
-          data !== null &&
-          "profile" in data
-        ) {
-          const profile = (data as {
-            profile?: Profile;
-          }).profile;
-
-          if (profile) {
-            setAvatar(
-              profile.avatar_url ??
-              profile.avatar ??
-              null
-            );
-          }
-        }
-      } catch (err) {
-        console.error("Load profile failed:", err);
-        setAvatar(null);
+    const timer = setInterval(() => {
+      if (window.Pi) {
+        setPiReady(true);
+        clearInterval(timer);
       }
-    };
+    }, 300);
 
-    loadProfile();
-  }, [user]);
+    return () => clearInterval(timer);
+  }, []);
 
-  if (!user) return null;
+  /* -------------------------
+     LOAD LOCAL SESSION
+     (AUTH-CENTRIC)
+  ------------------------- */
+  useEffect(() => {
+    try {
+      const rawUser = localStorage.getItem(USER_KEY);
+      const token = localStorage.getItem(TOKEN_KEY);
 
-  /* =========================
-     RENDER
-  ========================= */
+      if (rawUser && token) {
+        setUser(JSON.parse(rawUser));
+      }
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /* -------------------------
+     LOGIN WITH PI
+     (ONLY PLACE CALL authenticate)
+  ------------------------- */
+  const pilogin = async () => {
+    if (!window.Pi) {
+      alert("⚠️ Vui lòng mở ứng dụng trong Pi Browser");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const auth = await window.Pi.authenticate(["username"]);
+      if (!auth?.accessToken) {
+        alert("❌ Không lấy được accessToken");
+        return;
+      }
+
+      const token = auth.accessToken;
+
+      // Verify token with backend (NETWORK-FIRST)
+      const res = await fetch("/api/pi/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: token }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success || !data?.user) {
+        alert("❌ Pi verify thất bại");
+        return;
+      }
+
+      const verifiedUser: PiUser = data.user;
+
+      // Persist session (BOOTSTRAP: localStorage)
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
+
+      setUser(verifiedUser);
+    } catch (err) {
+      console.error("❌ Pi login error:", err);
+      alert("❌ Lỗi đăng nhập Pi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* -------------------------
+     LOGOUT
+  ------------------------- */
+  const logout = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    setUser(null);
+  };
+
   return (
-    <section className="bg-orange-500 text-white p-6 text-center shadow">
-      {/* AVATAR */}
-      <div className="w-24 h-24 bg-white rounded-full mx-auto overflow-hidden shadow flex items-center justify-center">
-        {avatar ? (
-          <Image
-            src={avatar}
-            alt="Avatar"
-            width={96}
-            height={96}
-            className="object-cover"
-          />
-        ) : (
-          <UserCircle
-            size={56}
-            className="text-orange-500"
-          />
-        )}
-      </div>
-
-      {/* USERNAME */}
-      <p className="mt-3 text-lg font-semibold">
-        @{user.username}
-      </p>
-
-      {/* ROLE (I18N SAFE) */}
-      <p className="text-xs opacity-90">
-        {user.role === "seller"
-          ? t.seller
-          : user.role === "admin"
-          ? t.admin
-          : t.customer}
-      </p>
-    </section>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        piReady,
+        pilogin,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
 }
+
+/* =========================
+   HOOK
+========================= */
+export const useAuth = () => useContext(AuthContext);
