@@ -27,16 +27,6 @@ export default function AccountPage() {
     }
   }, [loading, user, router]);
 
-  /* =========================
-     LOADING / NOT LOGIN
-  ========================= */
-  if (loading || !user) {
-    return (
-      <main className="min-h-screen flex items-center justify-center text-gray-500">
-        ⏳ {t.checking_account}
-      </main>
-    );
-  }
 
   /* =========================
      UI
