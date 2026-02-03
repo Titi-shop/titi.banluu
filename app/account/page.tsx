@@ -30,6 +30,10 @@ export default function AccountPage() {
   /* =========================
      LOADING / NOT LOGIN
   ========================= */
+if (!user) {
+  return null;
+}
+   
   /* =========================
      UI
   ========================= */
