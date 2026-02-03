@@ -1,3 +1,5 @@
+Hướng dẫn giúp tôi loại bỏ thế nào cho sạch đẹp .
+
 "use client";
 
 import { useEffect } from "react";
@@ -27,6 +29,12 @@ export default function AccountPage() {
     }
   }, [loading, user, router]);
 
+  /* =========================
+     LOADING / NOT LOGIN
+  ========================= */
+  if (!user) {
+  return null;
+}
 
   /* =========================
      UI
