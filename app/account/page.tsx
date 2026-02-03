@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 import AccountHeader from "@/components/AccountHeader";
 import OrderSummary from "@/components/OrderSummary";
@@ -15,7 +14,6 @@ import CustomerMenu from "@/components/customerMenu";
 ========================= */
 export default function AccountPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const { user, loading, logout } = useAuth();
 
   /* =========================
@@ -28,12 +26,12 @@ export default function AccountPage() {
   }, [loading, user, router]);
 
   /* =========================
-     LOADING / NOT LOGIN
+     LOADING STATE (NO TEXT)
   ========================= */
   if (loading || !user) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-gray-500">
-        ⏳ {t.checking_account}
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-gray-300 border-t-orange-500 rounded-full animate-spin" />
       </main>
     );
   }
@@ -55,7 +53,7 @@ export default function AccountPage() {
             flex items-center justify-center gap-3 font-semibold text-lg shadow"
         >
           <LogOut size={22} />
-          {t.logout}
+          Đăng xuất
         </button>
       </section>
     </main>
