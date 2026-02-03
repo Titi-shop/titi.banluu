@@ -17,7 +17,7 @@ export default function PiLoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   /* =========================
-     AUTO REDIRECT IF LOGGED
+     REDIRECT WHEN LOGGED
   ========================= */
   useEffect(() => {
     if (!loading && user) {
@@ -31,19 +31,20 @@ export default function PiLoginPage() {
   const handleLogin = async () => {
     if (!agreed || !piReady || submitting) return;
 
+    setSubmitting(true);
     try {
-      setSubmitting(true);
       await pilogin();
-      // redirect sẽ được effect phía trên xử lý
+      // redirect sẽ do effect xử lý
     } finally {
-      setSubmitting(false);
+      // KHÔNG setSubmitting(false) nữa
+      // vì user sẽ được set → redirect
     }
   };
 
   /* =========================
-     LOADING (SILENT)
+     BLOCK UI WHEN LOGGING / LOGGED
   ========================= */
-  if (loading) {
+  if (loading || submitting || user) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-gray-300 border-t-orange-500 rounded-full animate-spin" />
@@ -52,15 +53,14 @@ export default function PiLoginPage() {
   }
 
   /* =========================
-     UI
+     UI LOGIN
   ========================= */
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-white px-6 text-center">
 
-      {/* LOGIN BUTTON */}
       <button
         onClick={handleLogin}
-        disabled={!agreed || !piReady || submitting}
+        disabled={!agreed || !piReady}
         className={`${
           agreed && piReady
             ? "bg-orange-500 hover:bg-orange-600"
@@ -70,7 +70,6 @@ export default function PiLoginPage() {
         {t.login_with_pi}
       </button>
 
-      {/* TERMS */}
       <div className="mt-4 flex items-center space-x-2 text-sm text-gray-600">
         <input
           type="checkbox"
@@ -98,7 +97,6 @@ export default function PiLoginPage() {
         </label>
       </div>
 
-      {/* FOOTER */}
       <footer className="absolute bottom-6 text-gray-400 text-xs">
         © 1Pi.app 2023 — {t.all_rights_reserved}
       </footer>
