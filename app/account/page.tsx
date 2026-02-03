@@ -1,5 +1,3 @@
-Hướng dẫn giúp tôi loại bỏ thế nào cho sạch đẹp .
-
 "use client";
 
 import { useEffect } from "react";
