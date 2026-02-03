@@ -67,7 +67,7 @@ export default function PiLoginPage() {
             : "bg-gray-300"
         } text-white font-semibold py-3 px-10 rounded-full text-lg shadow-md transition`}
       >
-        {t.login_with_pi}
+        {t.login}
       </button>
 
       <div className="mt-4 flex items-center space-x-2 text-sm text-gray-600">
