@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { UserCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+import { getPiAccessToken } from "@/lib/piAuth";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* =========================
@@ -24,29 +24,32 @@ export default function AccountHeader() {
   const [avatar, setAvatar] = useState<string | null>(null);
 
   /* =========================
-     LOAD PROFILE (AVATAR)
+     LOAD PROFILE (NETWORK–FIRST)
   ========================= */
   useEffect(() => {
     if (!user) return;
 
     const loadProfile = async () => {
       try {
-        const res = await apiAuthFetch("/api/profile", {
+        const token = await getPiAccessToken();
+
+        const res = await fetch("/api/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
           cache: "no-store",
         });
 
         if (!res.ok) return;
 
-        const data: unknown = await res.json();
+        const raw: unknown = await res.json();
 
         if (
-          typeof data === "object" &&
-          data !== null &&
-          "profile" in data
+          typeof raw === "object" &&
+          raw !== null &&
+          "profile" in raw
         ) {
-          const profile = (data as {
-            profile?: Profile;
-          }).profile;
+          const profile = (raw as { profile?: Profile }).profile;
 
           if (profile) {
             setAvatar(
@@ -83,10 +86,7 @@ export default function AccountHeader() {
             className="object-cover"
           />
         ) : (
-          <UserCircle
-            size={56}
-            className="text-orange-500"
-          />
+          <UserCircle size={56} className="text-orange-500" />
         )}
       </div>
 
@@ -95,7 +95,7 @@ export default function AccountHeader() {
         @{user.username}
       </p>
 
-      {/* ROLE (I18N SAFE) */}
+      {/* ROLE */}
       <p className="text-xs opacity-90">
         {user.role === "seller"
           ? t.seller
