@@ -7,6 +7,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 
+/* =========================
+   TYPES
+========================= */
 interface Order {
   id: number;
   total: number;
@@ -20,20 +23,23 @@ interface TabItem {
   active: boolean;
 }
 
+/* =========================
+   PAGE
+========================= */
 export default function PendingOrdersPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* =========================
-     LOAD ORDERS (CHỜ XÁC NHẬN)
+     LOAD ORDERS (PENDING)
   ========================= */
   useEffect(() => {
     loadOrders();
-  }, [lang]);
+  }, []);
 
   const loadOrders = async () => {
     try {
@@ -46,23 +52,13 @@ export default function PendingOrdersPage() {
         cache: "no-store",
       });
 
-      if (!res.ok) {
-        throw new Error("UNAUTHORIZED");
-      }
+      if (!res.ok) throw new Error("UNAUTHORIZED");
 
       const data: unknown = await res.json();
       const list = Array.isArray(data) ? (data as Order[]) : [];
 
-      const pendingStatusByLang: Record<string, string[]> = {
-        vi: ["Chờ xác nhận", "Đã thanh toán", "Chờ xác minh"],
-        en: ["Pending", "Paid", "Waiting for verification"],
-        zh: ["待确认", "已付款", "待核实"],
-      };
-
-      const allowStatus =
-        pendingStatusByLang[lang] || pendingStatusByLang.vi;
-
-      setOrders(list.filter((o) => allowStatus.includes(o.status)));
+      // ✅ FILTER BẰNG STATUS KỸ THUẬT
+      setOrders(list.filter(o => o.status === "pending"));
     } catch (err) {
       console.error("❌ Load pending orders error:", err);
       setOrders([]);
@@ -72,35 +68,35 @@ export default function PendingOrdersPage() {
   };
 
   /* =========================
-     TABS
+     TABS (I18N)
   ========================= */
   const tabs: TabItem[] = [
     {
-      label: t.wait_confirm || "Chờ xác nhận",
+      label: t.pending_orders,
       count: orders.length,
       href: "/customer/pending",
       active: pathname === "/customer/pending",
     },
     {
-      label: t.wait_pickup || "Chờ lấy hàng",
+      label: t.pickup_orders,
       count: 0,
       href: "/customer/pickup",
       active: false,
     },
     {
-      label: t.shipping || "Đang giao",
+      label: t.shipping_orders,
       count: 0,
       href: "/customer/shipping",
       active: false,
     },
     {
-      label: t.rating || "Đánh giá",
+      label: t.review_orders,
       count: 0,
       href: "/customer/review",
       active: false,
     },
     {
-      label: t.received || "Đơn hàng nhận",
+      label: t.orders_received,
       count: 0,
       href: "/customer/orders",
       active: false,
@@ -117,40 +113,35 @@ export default function PendingOrdersPage() {
   ========================= */
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
-      {/* ===== HEADER ===== */}
+      {/* HEADER */}
       <div className="bg-orange-500 text-white px-4 py-4">
         <div className="flex items-center gap-2">
-          <button onClick={() => router.back()} className="text-xl">
-            ←
-          </button>
+          <button onClick={() => router.back()}>←</button>
           <h1 className="font-semibold text-lg">
-            1pi Mall — 派商城
+            1Pi Mall
           </h1>
         </div>
 
         <div className="mt-4 bg-orange-400 rounded-lg p-4">
           <p className="text-sm opacity-90">
-            {t.order_info || "Thông tin đặt hàng"}
+            {t.order_info}
           </p>
           <p className="text-xs opacity-80 mt-1">
-            {t.orders || "Đặt hàng"}: {orders.length} · π
-            {totalPi.toFixed(0)}
+            {t.orders}: {orders.length} · π{totalPi}
           </p>
         </div>
       </div>
 
-      {/* ===== STATUS TABS ===== */}
+      {/* TABS */}
       <div className="bg-white shadow-sm">
         <div className="grid grid-cols-5 text-center text-sm">
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <button
-              key={tab.label}
+              key={tab.href}
               onClick={() => router.push(tab.href)}
               className="py-3"
             >
-              <p className="text-gray-700 leading-tight">
-                {tab.label}
-              </p>
+              <p>{tab.label}</p>
               <p
                 className={`mt-1 ${
                   tab.active
@@ -168,18 +159,18 @@ export default function PendingOrdersPage() {
         </div>
       </div>
 
-      {/* ===== CONTENT ===== */}
+      {/* CONTENT */}
       <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
         {loading ? (
-          <p>⏳ {t.loading_orders || "Đang tải đơn hàng..."}</p>
+          <p>{t.loading_orders}</p>
         ) : orders.length === 0 ? (
           <>
             <div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
-            <p>{t.no_orders || "Chưa có đơn hàng"}</p>
+            <p>{t.no_pending_orders}</p>
           </>
         ) : (
           <div className="w-full px-4 space-y-3">
-            {orders.map((o) => (
+            {orders.map(o => (
               <div
                 key={o.id}
                 className="bg-white rounded-lg p-4 shadow"
@@ -189,20 +180,17 @@ export default function PendingOrdersPage() {
                     #{o.id}
                   </span>
                   <span className="text-orange-500 text-sm">
-                    {o.status}
+                    {t[`status_${o.status}`] || o.status}
                   </span>
                 </div>
                 <p className="mt-2 text-sm">
-                  💰 {t.total || "Tổng"}: π{o.total}
+                  {t.total}: π{o.total}
                 </p>
               </div>
             ))}
           </div>
         )}
       </div>
-
-      {/* ===== FLOAT BUTTON ===== */}
-      <button className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-orange-500 shadow-lg" />
     </main>
   );
 }
