@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -10,47 +9,40 @@ import AccountHeader from "@/components/AccountHeader";
 import OrderSummary from "@/components/OrderSummary";
 import CustomerMenu from "@/components/customerMenu";
 
-/* =========================
-   PAGE
-========================= */
 export default function AccountPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading, logout } = useAuth();
 
   /* =========================
-     AUTH GUARD
+     LOADING
   ========================= */
   if (loading) {
-  return null;
-}
-
-if (!user) {
-  return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-6">
-      <h1 className="text-xl font-semibold mb-4">
-        {t.account}
-      </h1>
-
-      <button
-        onClick={() => router.push("/pilogin")}
-        className="bg-orange-500 text-white px-8 py-3 rounded-full font-semibold shadow"
-      >
-        {t.login}
-      </button>
-    </main>
-  );
-}
+    return null;
+  }
 
   /* =========================
-     LOADING / NOT LOGIN
+     NOT LOGGED IN → SHOW LOGIN
   ========================= */
-if (!user) {
-  return null;
-}
-   
+  if (!user) {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-6">
+        <h1 className="text-xl font-semibold mb-4">
+          {t.account}
+        </h1>
+
+        <button
+          onClick={() => router.push("/pilogin")}
+          className="bg-orange-500 text-white px-8 py-3 rounded-full font-semibold shadow"
+        >
+          {t.login}
+        </button>
+      </main>
+    );
+  }
+
   /* =========================
-     UI
+     LOGGED IN → DASHBOARD
   ========================= */
   return (
     <main className="bg-gray-100 pb-32 space-y-4">
@@ -58,7 +50,6 @@ if (!user) {
       <OrderSummary />
       <CustomerMenu />
 
-      {/* LOGOUT */}
       <section className="mx-4">
         <button
           onClick={logout}
