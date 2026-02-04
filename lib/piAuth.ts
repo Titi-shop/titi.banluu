@@ -1,15 +1,35 @@
-const TOKEN_KEY = "pi_access_token";
+let cachedToken: string | null = null;
+let authPromise: Promise<string> | null = null;
 
-export function getPiAccessToken(): string {
-  if (typeof window === "undefined") {
-    throw new Error("NO_WINDOW");
+export async function getPiAccessToken(): Promise<string> {
+  // ✅ Nếu đã có token → dùng luôn
+  if (cachedToken) {
+    return cachedToken;
   }
 
-  const token = localStorage.getItem(TOKEN_KEY);
-
-  if (!token) {
-    throw new Error("NO_PI_TOKEN");
+  // ✅ Chặn gọi authenticate song song
+  if (authPromise) {
+    return authPromise;
   }
 
-  return token;
+  if (typeof window === "undefined" || !window.Pi) {
+    throw new Error("PI_NOT_AVAILABLE");
+  }
+
+  const scopes = ["username", "payments"];
+
+  authPromise = (async () => {
+    const auth = await window.Pi.authenticate(scopes, () => {});
+
+    if (!auth?.accessToken) {
+      authPromise = null;
+      throw new Error("PI_AUTH_FAILED");
+    }
+
+    cachedToken = auth.accessToken;
+    authPromise = null;
+    return cachedToken;
+  })();
+
+  return authPromise;
 }
