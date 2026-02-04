@@ -20,15 +20,14 @@ export async function POST(req: Request) {
     }
 
     const res = await fetch(
-      `${getPiApiBase()}/${paymentId}/approve`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Key ${process.env.PI_API_KEY}`,
-        },
-      }
-    );
-
+  `https://api.minepi.com/v2/payments/${paymentId}/approve`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Key ${process.env.PI_API_KEY}`,
+    },
+  }
+);
     const text = await res.text();
     return new NextResponse(text, { status: res.status });
   } catch (err) {
