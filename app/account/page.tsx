@@ -58,7 +58,7 @@ export default function AccountPage() {
             <label className="text-left">
               {t.i_agree}{" "}
               <a
-                href="https://www.termsfeed.com/live/7eae894b-14dd-431c-99da-0f94cab5b9ac"
+                href="https://www.termsfeed.com/live/8e33a9fd-71e7-4536-8033-9c8b329f3f25"
                 target="_blank"
                 className="text-orange-500 underline"
               >
