@@ -1,16 +1,17 @@
-import { getPiAccessToken } from "@/lib/piAuth";
-
 export async function apiAuthFetch(
-  input: RequestInfo,
-  init?: RequestInit
+  url: string,
+  options: RequestInit = {}
 ) {
   const token = await getPiAccessToken();
 
-  return fetch(input, {
-    ...init,
+  const isFormData = options.body instanceof FormData;
+
+  return fetch(url, {
+    ...options,
     headers: {
-      ...(init?.headers || {}),
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
     },
   });
 }
