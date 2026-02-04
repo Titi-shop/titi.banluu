@@ -20,16 +20,16 @@ export async function POST(req: Request) {
     }
 
     const res = await fetch(
-      `${getPiApiBase()}/${paymentId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json", // 🔴 BẮT BUỘC
-          Authorization: `Key ${process.env.PI_API_KEY}`,
-        },
-        body: JSON.stringify({ txid }),
-      }
-    );
+  `https://api.minepi.com/v2/payments/${paymentId}/complete`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Key ${process.env.PI_API_KEY}`,
+    },
+    body: JSON.stringify({ txid }),
+  }
+);
 
     const text = await res.text();
     return new NextResponse(text, { status: res.status });
