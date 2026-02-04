@@ -21,11 +21,26 @@ export default function AccountPage() {
   /* =========================
      AUTH GUARD
   ========================= */
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/pilogin");
-    }
-  }, [loading, user, router]);
+  if (loading) {
+  return null;
+}
+
+if (!user) {
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-6">
+      <h1 className="text-xl font-semibold mb-4">
+        {t.account}
+      </h1>
+
+      <button
+        onClick={() => router.push("/pilogin")}
+        className="bg-orange-500 text-white px-8 py-3 rounded-full font-semibold shadow"
+      >
+        {t.login}
+      </button>
+    </main>
+  );
+}
 
   /* =========================
      LOADING / NOT LOGIN
