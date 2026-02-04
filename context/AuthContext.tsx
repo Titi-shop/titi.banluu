@@ -7,6 +7,7 @@ import {
   useState,
   ReactNode,
 } from "react";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 /* =========================
    TYPES
@@ -26,19 +27,8 @@ type AuthContextType = {
   logout: () => void;
 };
 
-type PiAuthResult = {
-  accessToken?: string;
-};
-
-/* =========================
-   CONSTANTS (BOOTSTRAP)
-========================= */
-const TOKEN_KEY = "pi_access_token";
 const USER_KEY = "pi_user";
 
-/* =========================
-   CONTEXT
-========================= */
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
@@ -47,16 +37,13 @@ const AuthContext = createContext<AuthContextType>({
   logout: () => {},
 });
 
-/* =========================
-   PROVIDER
-========================= */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PiUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [piReady, setPiReady] = useState(false);
 
   /* -------------------------
-     INIT PI SDK (ONCE)
+     INIT PI SDK
   ------------------------- */
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -72,19 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /* -------------------------
-     LOAD LOCAL SESSION
-     (AUTH-CENTRIC)
+     LOAD USER (BOOTSTRAP)
   ------------------------- */
   useEffect(() => {
     try {
       const rawUser = localStorage.getItem(USER_KEY);
-      const token = localStorage.getItem(TOKEN_KEY);
-
-      if (rawUser && token) {
+      if (rawUser) {
         setUser(JSON.parse(rawUser));
       }
-    } catch {
-      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -92,26 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* -------------------------
      LOGIN WITH PI
-     (ONLY PLACE CALL authenticate)
+     (CALL piAuth ONLY)
   ------------------------- */
   const pilogin = async () => {
-    if (!window.Pi) {
-      alert("⚠️ Vui lòng mở ứng dụng trong Pi Browser");
-      return;
-    }
-
     try {
       setLoading(true);
 
-      const auth = await window.Pi.authenticate(["username"]);
-      if (!auth?.accessToken) {
-        alert("❌ Không lấy được accessToken");
-        return;
-      }
+      const token = await getPiAccessToken();
 
-      const token = auth.accessToken;
-
-      // Verify token with backend (NETWORK-FIRST)
       const res = await fetch("/api/pi/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,10 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const verifiedUser: PiUser = data.user;
 
-      // Persist session (BOOTSTRAP: localStorage)
-      localStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
-
       setUser(verifiedUser);
     } catch (err) {
       console.error("❌ Pi login error:", err);
@@ -144,26 +111,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      LOGOUT
   ------------------------- */
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setUser(null);
   };
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        piReady,
-        pilogin,
-        logout,
-      }}
+      value={{ user, loading, piReady, pilogin, logout }}
     >
       {children}
     </AuthContext.Provider>
   );
 }
 
+export const useAuth = () => useContext(AuthContext);
 /* =========================
    HOOK
 ========================= */
