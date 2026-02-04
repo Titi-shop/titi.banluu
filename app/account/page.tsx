@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -10,9 +9,8 @@ import OrderSummary from "@/components/OrderSummary";
 import CustomerMenu from "@/components/customerMenu";
 
 export default function AccountPage() {
-  const router = useRouter();
   const { t } = useTranslation();
-  const { user, loading, logout } = useAuth();
+  const { user, loading, pilogin, logout, piReady } = useAuth();
 
   /* =========================
      LOADING
@@ -22,18 +20,23 @@ export default function AccountPage() {
   }
 
   /* =========================
-     NOT LOGGED IN → SHOW LOGIN
+     NOT LOGGED IN → LOGIN HERE
   ========================= */
   if (!user) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-6">
+      <main className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-6 text-center">
         <h1 className="text-xl font-semibold mb-4">
           {t.account}
         </h1>
 
         <button
-          onClick={() => router.push("/pilogin")}
-          className="bg-orange-500 text-white px-8 py-3 rounded-full font-semibold shadow"
+          onClick={pilogin}
+          disabled={!piReady}
+          className={`px-8 py-3 rounded-full font-semibold shadow text-white ${
+            piReady
+              ? "bg-orange-500 hover:bg-orange-600"
+              : "bg-gray-300"
+          }`}
         >
           {t.login}
         </button>
