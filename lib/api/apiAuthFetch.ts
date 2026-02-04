@@ -1,17 +1,23 @@
 export async function apiAuthFetch(
-  url: string,
-  options: RequestInit = {}
+  input: RequestInfo,
+  init: RequestInit = {}
 ) {
-  const token = await getPiAccessToken();
+  const headers = new Headers(init.headers);
 
-  const isFormData = options.body instanceof FormData;
+  // ✅ Ưu tiên token sẵn có
+  if (!headers.has("Authorization")) {
+    const token = await getPiAccessToken();
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
-  return fetch(url, {
-    ...options,
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {}),
-    },
+  const isFormData = init.body instanceof FormData;
+
+  if (!isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return fetch(input, {
+    ...init,
+    headers,
   });
 }
