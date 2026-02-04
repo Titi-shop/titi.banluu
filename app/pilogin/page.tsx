@@ -4,26 +4,15 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-/* =========================
-   AUTH GATE ONLY
-========================= */
 export default function PiLoginPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   useEffect(() => {
-    if (loading) return;
-
-    // 👉 ĐÃ LOGIN → VÀO ACCOUNT
-    if (user) {
+    if (!loading) {
       router.replace("/account");
-      return;
     }
+  }, [loading, router]);
 
-    // 👉 CHƯA LOGIN → VÀO ACCOUNT ĐỂ LOGIN
-    router.replace("/account");
-  }, [loading, user, router]);
-
-  // ❌ Không UI
   return null;
 }
