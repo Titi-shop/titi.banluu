@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -12,6 +13,8 @@ export default function AccountPage() {
   const { t } = useTranslation();
   const { user, loading, pilogin, logout, piReady } = useAuth();
 
+  const [agreed, setAgreed] = useState(false);
+
   /* =========================
      LOADING
   ========================= */
@@ -20,26 +23,58 @@ export default function AccountPage() {
   }
 
   /* =========================
-     NOT LOGGED IN → LOGIN HERE
+     NOT LOGGED IN
   ========================= */
   if (!user) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-6 text-center">
-        <h1 className="text-xl font-semibold mb-4">
-          {t.account}
-        </h1>
+      <main className="min-h-screen flex items-center justify-center bg-gray-100 px-6">
+        <div className="w-full max-w-sm text-center">
+          <h1 className="text-xl font-semibold mb-6">
+            {t.account}
+          </h1>
 
-        <button
-          onClick={pilogin}
-          disabled={!piReady}
-          className={`px-8 py-3 rounded-full font-semibold shadow text-white ${
-            piReady
-              ? "bg-orange-500 hover:bg-orange-600"
-              : "bg-gray-300"
-          }`}
-        >
-          {t.login}
-        </button>
+          {/* LOGIN BUTTON */}
+          <button
+            onClick={pilogin}
+            disabled={!piReady || !agreed}
+            className={`w-full py-3 rounded-full font-semibold text-white shadow transition
+              ${
+                piReady && agreed
+                  ? "bg-orange-500 hover:bg-orange-600"
+                  : "bg-gray-300 cursor-not-allowed"
+              }`}
+          >
+            {t.login}
+          </button>
+
+          {/* TERMS CHECKBOX */}
+          <div className="mt-4 flex items-start justify-center space-x-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={() => setAgreed(v => !v)}
+              className="mt-1 w-4 h-4 accent-orange-500"
+            />
+            <label className="text-left">
+              {t.i_agree}{" "}
+              <a
+                href="https://www.termsfeed.com/live/7eae894b-14dd-431c-99da-0f94cab5b9ac"
+                target="_blank"
+                className="text-orange-500 underline"
+              >
+                {t.terms_of_use}
+              </a>{" "}
+              {t.and}{" "}
+              <a
+                href="https://www.termsfeed.com/live/32e8bf86-ceaf-4eb6-990e-cd1fa0b0775e"
+                target="_blank"
+                className="text-orange-500 underline"
+              >
+                {t.privacy_policy}
+              </a>
+            </label>
+          </div>
+        </div>
       </main>
     );
   }
