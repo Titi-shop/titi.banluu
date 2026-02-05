@@ -189,9 +189,6 @@ export default function CustomerPickupPage() {
           </div>
         )}
       </section>
-
-      {/* FLOAT BUTTON */}
-      <button className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-orange-500 shadow-lg" />
     </main>
   );
 }
