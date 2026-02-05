@@ -10,7 +10,7 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 
 /* =========================
-   PI SDK TYPES (NO any)
+   PI SDK TYPES 
 ========================= */
 interface PiPayment {
   amount: number;
