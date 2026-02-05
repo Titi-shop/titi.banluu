@@ -3,43 +3,77 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-export default function CategoryDetailPage({ params }: any) {
+type PageParams = {
+  params: {
+    slug: string;
+  };
+};
+
+type Category = {
+  id: number | string;
+  name: string;
+};
+
+type Product = {
+  id: number | string;
+  name: string;
+  price: number;
+  finalPrice?: number;
+  isSale?: boolean;
+  images?: string[];
+  categoryId: number | string;
+  createdAt: string;
+};
+
+export default function CategoryDetailPage({ params }: PageParams) {
   const categoryId = Number(params.slug);
 
-  const [products, setProducts] = useState<any[]>([]);
-  const [category, setCategory] = useState<any>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [category, setCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (Number.isNaN(categoryId)) {
+      setLoading(false);
+      return;
+    }
+
     async function loadData() {
       try {
         /* ============================
-            ⭐ LẤY TẤT CẢ SẢN PHẨM
+            ⭐ LẤY SẢN PHẨM
         ============================ */
         const resProducts = await fetch("/api/products", {
           cache: "no-store",
         });
-        let allProducts = await resProducts.json();
+        if (!resProducts.ok) throw new Error("API products lỗi");
 
-        // ⭐ Lọc theo danh mục
-        let filtered = allProducts.filter(
-          (p: any) => Number(p.categoryId) === categoryId
-        );
+        const allProducts: Product[] = await resProducts.json();
 
-        // ⭐ Sắp xếp mới nhất
-        filtered = filtered.sort(
-          (a: any, b: any) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+        const filtered = allProducts
+          .filter(
+            (p) => Number(p.categoryId) === categoryId
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() -
+              new Date(a.createdAt).getTime()
+          );
 
         setProducts(filtered);
 
         /* ============================
-            ⭐ LẤY THÔNG TIN DANH MỤC
+            ⭐ LẤY DANH MỤC
         ============================ */
-        const resCate = await fetch("/api/categories");
-        const categories = await resCate.json();
-        const cate = categories.find((c: any) => Number(c.id) === categoryId);
+        const resCate = await fetch("/api/categories", {
+          cache: "no-store",
+        });
+        if (!resCate.ok) throw new Error("API categories lỗi");
+
+        const categories: Category[] = await resCate.json();
+        const cate = categories.find(
+          (c) => Number(c.id) === categoryId
+        );
 
         setCategory(cate || null);
       } catch (err) {
@@ -54,7 +88,6 @@ export default function CategoryDetailPage({ params }: any) {
 
   return (
     <main className="p-4 max-w-6xl mx-auto">
-
       {/* 🔙 QUAY LẠI */}
       <Link
         href="/categories"
@@ -65,10 +98,9 @@ export default function CategoryDetailPage({ params }: any) {
 
       {/* ⭐ TÊN DANH MỤC */}
       <h1 className="text-2xl font-bold mb-4 text-orange-600">
-        {category ? category.name : "Danh mục"}
+        {category?.name || "Danh mục"}
       </h1>
 
-      {/* Loading */}
       {loading ? (
         <p>Đang tải...</p>
       ) : products.length === 0 ? (
@@ -86,9 +118,11 @@ export default function CategoryDetailPage({ params }: any) {
                 className="w-full h-32 object-cover rounded"
               />
 
-              <h3 className="font-bold text-sm mt-2 truncate">{p.name}</h3>
+              <h3 className="font-bold text-sm mt-2 truncate">
+                {p.name}
+              </h3>
 
-              {p.isSale ? (
+              {p.isSale && typeof p.finalPrice === "number" ? (
                 <>
                   <p className="text-red-600 font-bold">
                     {p.finalPrice.toLocaleString()} Pi
