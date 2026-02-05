@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { resolveRole } from "@/lib/auth/resolveRole";
+import { verifyPiAccessToken } from "@/lib/piAuth";
 import {
   getOrdersByBuyerSafe,
   createOrderSafe,
@@ -17,20 +18,28 @@ export const dynamic = "force-dynamic";
    - customer xem đơn của mình
    - BOOTSTRAP SAFE: chưa có user → []
 ========================= */
-export async function GET() {
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  const auth = req.headers.get("authorization");
+
+  if (!auth?.startsWith("Bearer ")) {
+    return NextResponse.json(
+      { error: "MISSING_TOKEN" },
+      { status: 403 }
+    );
   }
 
-  const role = await resolveRole(user);
-  if (role !== "customer") {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const token = auth.replace("Bearer ", "");
+
+  const piUser = await verifyPiAccessToken(token);
+
+  if (!piUser) {
+    return NextResponse.json(
+      { error: "INVALID_TOKEN" },
+      { status: 403 }
+    );
   }
 
-  const orders = await getOrdersByBuyerSafe(user.pi_uid);
-  return NextResponse.json(orders);
-}
+  const buyerId = piUser.uid; // hoặc piUser.sub
 
 /* =========================
    POST /api/orders
