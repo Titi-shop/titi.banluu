@@ -17,10 +17,10 @@ interface Order {
 }
 
 interface TabItem {
+  key: string;
   label: string;
-  count: number;
   href: string;
-  active: boolean;
+  count?: number;
 }
 
 /* =========================
@@ -70,44 +70,34 @@ export default function PendingOrdersPage() {
   /* =========================
      TABS (I18N)
   ========================= */
-  const tabs: TabItem[] = [
-    {
-      label: t.pending_orders,
-      count: orders.length,
-      href: "/customer/pending",
-      active: pathname === "/customer/pending",
-    },
-    {
-      label: t.pickup_orders,
-      count: 0,
-      href: "/customer/pickup",
-      active: false,
-    },
-    {
-      label: t.shipping_orders,
-      count: 0,
-      href: "/customer/shipping",
-      active: false,
-    },
-    {
-      label: t.review_orders,
-      count: 0,
-      href: "/customer/review",
-      active: false,
-    },
-    {
-      label: t.orders_received,
-      count: 0,
-      href: "/customer/orders",
-      active: false,
-    },
-  ];
-
-  const totalPi = orders.reduce(
-    (s, o) => s + Number(o.total || 0),
-    0
-  );
-
+const tabs: TabItem[] = [
+  {
+    key: "pending",
+    label: t.order_pending,
+    href: "/customer/pending",
+    count: orders.length,
+  },
+  {
+    key: "pickup",
+    label: t.order_pickup,
+    href: "/customer/pickup",
+  },
+  {
+    key: "shipping",
+    label: t.order_shipping,
+    href: "/customer/shipping",
+  },
+  {
+    key: "review",
+    label: t.order_review,
+    href: "/customer/review",
+  },
+  {
+    key: "received",
+    label: t.order_received,
+    href: "/customer/orders",
+  },
+];
   /* =========================
      UI
   ========================= */
@@ -134,31 +124,43 @@ export default function PendingOrdersPage() {
 
       {/* TABS */}
       <div className="bg-white shadow-sm">
-        <div className="grid grid-cols-5 text-center text-sm">
-          {tabs.map(tab => (
-            <button
-              key={tab.href}
-              onClick={() => router.push(tab.href)}
-              className="py-3"
-            >
-              <p>{tab.label}</p>
-              <p
-                className={`mt-1 ${
-                  tab.active
-                    ? "text-orange-500 font-semibold"
-                    : "text-gray-500"
-                }`}
-              >
-                {tab.count}
-              </p>
-              {tab.active && (
-                <div className="h-0.5 bg-orange-500 w-6 mx-auto mt-1 rounded" />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+  <div className="grid grid-cols-5 text-center text-xs">
+    {tabs.map((tab) => {
+      const active = pathname === tab.href;
 
+      return (
+        <button
+          key={tab.key}
+          onClick={() => router.push(tab.href)}
+          className="flex flex-col items-center justify-center py-3"
+        >
+          {/* LABEL */}
+          <div className="h-8 flex items-center justify-center px-1">
+            <span className="leading-tight text-gray-700 text-center">
+              {tab.label}
+            </span>
+          </div>
+
+          {/* COUNT */}
+          <div
+            className={`h-5 flex items-center justify-center mt-1 ${
+              active
+                ? "text-orange-500 font-semibold"
+                : "text-gray-400"
+            }`}
+          >
+            {tab.count ?? 0}
+          </div>
+
+          {/* ACTIVE BAR */}
+          {active && (
+            <div className="h-0.5 w-6 bg-orange-500 mt-1 rounded" />
+          )}
+        </button>
+      );
+    })}
+  </div>
+</div>
       {/* CONTENT */}
       <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
         {loading ? (
