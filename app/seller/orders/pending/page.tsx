@@ -33,7 +33,7 @@ export default function PendingOrdersPage() {
   const fetchOrders = async () => {
     try {
       const res = await apiAuthFetch(
-        "/api/seller/orders?status=Chờ xác nhận",
+        "/api/seller/orders?status=pending",
         { cache: "no-store" }
       );
 
