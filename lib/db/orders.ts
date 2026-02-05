@@ -72,7 +72,7 @@ export async function getOrdersBySeller(
   status?: string
 ) {
   const statusFilter = status
-    ? `&status=eq.${status.toLowerCase()}`
+    ? `&status=eq.${status}`
     : "";
 
   const res = await fetch(
@@ -89,7 +89,7 @@ export async function getOrdersBySeller(
           seller:seller_id(pi_uid)
         )
       )
-      &items.product.seller_id.pi_uid=eq.${sellerPiUid}
+      &items.product.seller.pi_uid=eq.${sellerPiUid}
       ${statusFilter}
       &order=created_at.desc
     `,
