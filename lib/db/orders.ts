@@ -149,6 +149,7 @@ export async function createOrderSafe({
   }>;
   total: number;
 }) {
+  /* 1️⃣ CREATE ORDER */
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders`,
     {
@@ -165,8 +166,21 @@ export async function createOrderSafe({
     }
   );
 
-  const [order] = await orderRes.json();
+  if (!orderRes.ok) {
+    const err = await orderRes.text();
+    throw new Error("CREATE_ORDER_FAILED: " + err);
+  }
 
+  const orderData = await orderRes.json();
+
+  // ✅ FIX CHÍNH Ở ĐÂY
+  if (!Array.isArray(orderData) || !orderData[0]) {
+    throw new Error("ORDER_NOT_RETURNED");
+  }
+
+  const order = orderData[0];
+
+  /* 2️⃣ CREATE ORDER ITEMS */
   const orderItems = items.map((i) => ({
     order_id: order.id,
     product_id: i.product_id,
@@ -174,11 +188,19 @@ export async function createOrderSafe({
     price: i.price,
   }));
 
-  await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(orderItems),
-  });
+  const itemsRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/order_items`,
+    {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(orderItems),
+    }
+  );
+
+  if (!itemsRes.ok) {
+    const err = await itemsRes.text();
+    throw new Error("CREATE_ORDER_ITEMS_FAILED: " + err);
+  }
 
   return order;
 }
