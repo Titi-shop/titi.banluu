@@ -144,12 +144,12 @@ export default function CustomerReviewPage() {
     <main className="min-h-screen bg-gray-100 pb-24">
       {/* ===== HEADER ===== */}
       <header className="bg-orange-500 text-white px-4 py-4">
-  <div className="bg-orange-400 rounded-lg p-4">
+  <div className="bg-orange-400 rounded-lg p-4 text-center">
     <p className="text-sm opacity-90">
-      {t.order_info}
+      {t.order_review || "Đánh giá đơn hàng"}
     </p>
     <p className="text-xs opacity-80 mt-1">
-      {t.orders}: {orders.length} · π{totalPi}
+      {orders.length} {t.orders || "đơn"}
     </p>
   </div>
 </header>
