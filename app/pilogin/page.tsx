@@ -6,13 +6,20 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function PiLoginPage() {
   const router = useRouter();
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
 
   useEffect(() => {
-    if (!loading) {
+    if (loading) return;
+
+    if (user) {
       router.replace("/account");
     }
-  }, [loading, router]);
+    // ❗ nếu chưa login → stay ở /pilogin
+  }, [loading, user, router]);
 
-  return null;
+  return (
+    <div className="flex items-center justify-center min-h-[60vh] text-gray-500">
+      ⏳ Đang kiểm tra đăng nhập Pi...
+    </div>
+  );
 }
