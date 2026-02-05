@@ -68,40 +68,40 @@ export async function getOrderById(
 ===================================================== */
 
 export async function getOrdersBySeller(
-  sellerPiUid: string,
-  status?: string
+  sellerPiUid: string
 ) {
-  const statusFilter = status
-    ? `&status=eq.${status}`
-    : "";
-
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/orders?select=
-      id,
-      status,
-      total,
-      created_at,
-      buyer:buyer_id(pi_uid),
-      items:order_items(
-        quantity,
-        price,
-        product:product_id(
-          seller:seller_id(pi_uid)
-        )
+  // 1️⃣ Lấy tất cả order_items của seller
+  const itemsRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/order_items?select=
+      order_id,
+      product:product_id(
+        seller_id
       )
-      &items.product.seller.pi_uid=eq.${sellerPiUid}
-      ${statusFilter}
-      &order=created_at.desc
+      &product.seller_id=eq.${sellerPiUid}
     `,
     { headers: headers(), cache: "no-store" }
   );
 
-  if (!res.ok) {
-    console.warn("getOrdersBySeller failed");
-    return [];
-  }
+  if (!itemsRes.ok) return [];
 
-  return await res.json();
+  const items = await itemsRes.json();
+  const orderIds = Array.from(
+    new Set(items.map((i: { order_id: string }) => i.order_id))
+  );
+
+  if (orderIds.length === 0) return [];
+
+  // 2️⃣ Lấy orders theo order_id
+  const ids = orderIds.map(id => `"${id}"`).join(",");
+
+  const ordersRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/orders?id=in.(${ids})&order=created_at.desc`,
+    { headers: headers(), cache: "no-store" }
+  );
+
+  if (!ordersRes.ok) return [];
+
+  return await ordersRes.json();
 }
 
 /* =====================================================
