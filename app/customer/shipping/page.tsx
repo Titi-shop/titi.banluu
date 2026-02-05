@@ -6,6 +6,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 
+/* =========================
+   TYPES
+========================= */
 interface Order {
   id: number;
   total: number;
@@ -13,31 +16,33 @@ interface Order {
 }
 
 interface TabItem {
+  key: string;
   label: string;
-  count: number;
   href: string;
-  active: boolean;
+  count?: number;
 }
 
+/* =========================
+   PAGE
+========================= */
 export default function CustomerShippingPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* =========================
-     LOAD ORDERS (ĐANG GIAO)
+     LOAD ORDERS (SHIPPING)
   ========================= */
   useEffect(() => {
     loadOrders();
-  }, [lang]);
+  }, []);
 
   const loadOrders = async () => {
     try {
       const token = await getPiAccessToken();
-
       const res = await fetch("/api/orders", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -45,23 +50,13 @@ export default function CustomerShippingPage() {
         cache: "no-store",
       });
 
-      if (!res.ok) {
-        throw new Error("UNAUTHORIZED");
-      }
+      if (!res.ok) throw new Error("UNAUTHORIZED");
 
-      const raw: unknown = await res.json();
-      const list = Array.isArray(raw) ? (raw as Order[]) : [];
+      const data: unknown = await res.json();
+      const list = Array.isArray(data) ? (data as Order[]) : [];
 
-      const shippingStatusByLang: Record<string, string[]> = {
-        vi: ["Đang giao", "Đang vận chuyển"],
-        en: ["Shipping", "Delivering"],
-        zh: ["配送中"],
-      };
-
-      const allowStatus =
-        shippingStatusByLang[lang] || shippingStatusByLang.en;
-
-      setOrders(list.filter((o) => allowStatus.includes(o.status)));
+      // ✅ FILTER THEO STATUS KỸ THUẬT
+      setOrders(list.filter((o) => o.status === "shipping"));
     } catch (err) {
       console.error("❌ Load shipping orders error:", err);
       setOrders([]);
@@ -71,43 +66,39 @@ export default function CustomerShippingPage() {
   };
 
   /* =========================
-     TABS
+     TABS (UI ONLY)
   ========================= */
   const tabs: TabItem[] = [
     {
-      label: t.wait_confirm || "Chờ xác nhận",
-      count: 0,
+      key: "pending",
+      label: t.order_pending,
       href: "/customer/pending",
-      active: false,
     },
     {
-      label: t.wait_pickup || "Chờ lấy hàng",
-      count: 0,
+      key: "pickup",
+      label: t.order_pickup,
       href: "/customer/pickup",
-      active: false,
     },
     {
-      label: t.shipping || "Đang giao",
-      count: orders.length,
+      key: "shipping",
+      label: t.order_shipping,
       href: "/customer/shipping",
-      active: pathname === "/customer/shipping",
+      count: orders.length,
     },
     {
-      label: t.rating || "Đánh giá",
-      count: 0,
+      key: "review",
+      label: t.order_review,
       href: "/customer/review",
-      active: false,
     },
     {
-      label: t.received || "Đơn hàng nhận",
-      count: 0,
+      key: "received",
+      label: t.order_received,
       href: "/customer/orders",
-      active: false,
     },
   ];
 
   const totalPi = orders.reduce(
-    (s, o) => s + Number(o.total || 0),
+    (sum, o) => sum + Number(o.total || 0),
     0
   );
 
@@ -117,64 +108,74 @@ export default function CustomerShippingPage() {
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
       {/* ===== HEADER ===== */}
-      <div className="bg-orange-500 text-white px-4 py-4">
+      <header className="bg-orange-500 text-white px-4 py-4">
         <div className="flex items-center gap-2">
           <button onClick={() => router.back()} className="text-xl">
             ←
           </button>
           <h1 className="font-semibold text-lg">
-            1pi Mall — 派商城
+            1Pi Mall
           </h1>
         </div>
 
         <div className="mt-4 bg-orange-400 rounded-lg p-4">
           <p className="text-sm opacity-90">
-            {t.order_info || "Thông tin đặt hàng"}
+            {t.order_info}
           </p>
           <p className="text-xs opacity-80 mt-1">
-            {t.orders || "Đặt hàng"}: {orders.length} · π
-            {totalPi.toFixed(0)}
+            {t.orders}: {orders.length} · π{totalPi}
           </p>
         </div>
-      </div>
+      </header>
 
-      {/* ===== STATUS TABS ===== */}
-      <div className="bg-white shadow-sm">
-        <div className="grid grid-cols-5 text-center text-sm">
-          {tabs.map((tab) => (
-            <button
-              key={tab.label}
-              onClick={() => router.push(tab.href)}
-              className="py-3"
-            >
-              <p className="text-gray-700 leading-tight">
-                {tab.label}
-              </p>
-              <p
-                className={`mt-1 ${
-                  tab.active
-                    ? "text-orange-500 font-semibold"
-                    : "text-gray-500"
-                }`}
+      {/* ===== TABS ===== */}
+      <nav className="bg-white shadow-sm">
+        <div className="grid grid-cols-5 text-center text-xs">
+          {tabs.map((tab) => {
+            const active = pathname === tab.href;
+
+            return (
+              <button
+                key={tab.key}
+                onClick={() => router.push(tab.href)}
+                className="flex flex-col items-center justify-center py-3"
               >
-                {tab.count}
-              </p>
-              {tab.active && (
-                <div className="h-0.5 bg-orange-500 w-6 mx-auto mt-1 rounded" />
-              )}
-            </button>
-          ))}
+                {/* LABEL */}
+                <div className="h-8 flex items-center justify-center px-1">
+                  <span className="leading-tight text-gray-700 text-center">
+                    {tab.label}
+                  </span>
+                </div>
+
+                {/* COUNT */}
+                <div
+                  className={`h-5 flex items-center justify-center mt-1 ${
+                    active
+                      ? "text-orange-500 font-semibold"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {tab.count ?? 0}
+                </div>
+
+                {/* ACTIVE BAR */}
+                {active && (
+                  <div className="h-0.5 w-6 bg-orange-500 mt-1 rounded" />
+                )}
+              </button>
+            );
+          })}
         </div>
-      </div>
+      </nav>
 
       {/* ===== CONTENT ===== */}
-      <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
+      <section className="flex flex-col items-center justify-center mt-20 text-gray-400">
         {loading ? (
-          <p>⏳ {t.loading_orders || "Đang tải đơn hàng..."}</p>
+          <p>⏳ {t.loading_orders}</p>
         ) : orders.length === 0 ? (
           <>
             <div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
-            <p>{t.no_orders || "Chưa có đơn hàng"}</p>
+            <p>{t.no_shipping_orders}</p>
           </>
         ) : (
           <div className="w-full px-4 space-y-3">
@@ -184,23 +185,21 @@ export default function CustomerShippingPage() {
                 className="bg-white rounded-lg p-4 shadow"
               >
                 <div className="flex justify-between">
-                  <span className="font-semibold">
-                    #{o.id}
-                  </span>
+                  <span className="font-semibold">#{o.id}</span>
                   <span className="text-orange-500 text-sm">
-                    {o.status}
+                    {t.status_shipping}
                   </span>
                 </div>
                 <p className="mt-2 text-sm">
-                  💰 {t.total || "Tổng"}: π{o.total}
+                  {t.total}: π{o.total}
                 </p>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* ===== FLOAT BUTTON ===== */}
+      {/* FLOAT BUTTON */}
       <button className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-orange-500 shadow-lg" />
     </main>
   );
