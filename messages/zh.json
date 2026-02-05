@@ -1,12 +1,10 @@
-
 {
-
   "order_pending": "待确认",
   "order_pickup": "待取货",
   "order_shipping": "运输中",
   "order_review": "评价",
-  "order_received": "已收货"
-  
+  "order_received": "已收货",
+
   "phone": "电话",
   "admin": "管理员",
   "back": "返回",
@@ -74,7 +72,7 @@
   "verify_failed": "账号验证失败，请重新登录。",
 
   "pay_now": "立即支付",
-  "pi_not_ready_warning": " Pi SDK 尚未准备好，请在 Pi 浏览器中打开！",
+  "pi_not_ready_warning": "Pi SDK 尚未准备好，请在 Pi 浏览器中打开！",
   "must_login_before_pay": "请先登录 Pi 再继续付款！",
   "cart_empty": "🛒 购物车为空！",
   "must_fill_shipping": "请填写完整收货地址！",
@@ -82,7 +80,7 @@
   "payment_for_order": "订单付款",
   "paid": "已支付",
   "payment_success_icon": "付款成功！",
-  "payment_canceled_icon": " 交易已取消。",
+  "payment_canceled_icon": "交易已取消。",
   "payment_error_icon": "支付错误：",
   "transaction_failed": "交易失败或已取消。",
 
@@ -93,11 +91,11 @@
   "no_products": "没有商品。",
   "total_label": "总计：",
 
-  "loading_initial": " 正在加载...",
-  "welcome": " 欢迎",
+  "loading_initial": "正在加载...",
+  "welcome": "欢迎",
   "must_agree_terms": "请先同意使用条款再登录。",
   "pi_not_ready_initial": "Pi SDK 尚未准备好，请稍候...",
-  "authenticating": " 正在验证...",
+  "authenticating": "正在验证...",
   "checking_session": "正在检查登录状态...",
   "i_agree": "我同意",
   "terms_of_use": "使用条款",
@@ -110,7 +108,6 @@
   "category_3": "女装",
   "category_4": "鞋子",
   "category_5": "美容护肤",
-  "category_20": "家具家居",
   "category_7": "母婴用品",
   "category_8": "电子设备",
   "category_9": "家用电器",
@@ -121,8 +118,9 @@
   "category_14": "电器",
   "category_15": "图书",
   "category_16": "手表",
-  "category_19": "玩具",
   "category_18": "相机与无人机",
+  "category_19": "玩具",
+  "category_20": "家具家居",
 
   "language": "中文",
   "welcome_to_store": "欢迎来到 TiTi 商城",
@@ -131,6 +129,7 @@
   "register": "注册",
   "username": "用户名",
   "password": "密码",
+
   "wallet": "Pi 网络钱包",
   "wallet_address": "钱包地址",
   "link_wallet": "连接钱包",
@@ -162,6 +161,7 @@
   "server_error": "服务器连接错误。",
   "login_required_return": "您需要登录才能申请退货。",
   "login_now": "立即登录",
+
   "return_request": "退货申请",
   "select_order": "选择需要退货的订单",
   "select_order_placeholder": "-- 请选择订单 --",
@@ -177,7 +177,7 @@
   "status": "状态",
   "created_at": "创建时间",
 
-  "profile_error_not_logged_in": " 无法加载个人资料。您尚未登录。",
+  "profile_error_not_logged_in": "无法加载个人资料。您尚未登录。",
   "invalid_email": "邮箱格式无效！",
   "profile_saved": "资料已保存！",
   "save_error": "保存资料时出错。",
@@ -263,6 +263,7 @@
   "pi_wallet": "Pi 钱包",
   "messages": "消息",
   "support": "客服支持",
+
   "seller_channel": "🛒 卖家平台",
   "post_product": "发布商品",
   "stock": "库存",
