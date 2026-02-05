@@ -10,7 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getPiAccessToken } from "@/lib/piAuth";
 
 /* =========================
-   TYPES (NO any)
+   TYPES 
 ========================= */
 interface ProfileData {
   display_name: string | null;
