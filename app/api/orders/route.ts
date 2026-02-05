@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { resolveRole } from "@/lib/auth/resolveRole";
 import { verifyPiAccessToken } from "@/lib/piAuth";
 import {
   getOrdersByBuyerSafe,
@@ -16,7 +17,6 @@ export const dynamic = "force-dynamic";
 /* =========================
    GET /api/orders
    - customer xem đơn của mình
-   - BOOTSTRAP SAFE: chưa có user → []
 ========================= */
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
@@ -29,7 +29,6 @@ export async function GET(req: NextRequest) {
   }
 
   const token = auth.replace("Bearer ", "");
-
   const piUser = await verifyPiAccessToken(token);
 
   if (!piUser) {
@@ -39,7 +38,11 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const buyerId = piUser.uid; // hoặc piUser.sub
+  const buyerId = piUser.uid; // ✅ PI UID
+
+  const orders = await getOrdersByBuyerSafe(buyerId);
+  return NextResponse.json(orders);
+}
 
 /* =========================
    POST /api/orders
@@ -47,18 +50,25 @@ export async function GET(req: NextRequest) {
 ========================= */
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
+
   if (!user) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return NextResponse.json(
+      { error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
   }
 
   const body = await req.json();
   const { items, total } = body;
 
   if (!Array.isArray(items) || typeof total !== "number") {
-    return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+    return NextResponse.json(
+      { error: "INVALID_BODY" },
+      { status: 400 }
+    );
   }
 
-  // ✅ THÊM ĐOẠN NÀY NGAY TẠI ĐÂY
+  // ✅ VALIDATE ITEM
   for (const i of items) {
     if (!i.product_id) {
       return NextResponse.json(
