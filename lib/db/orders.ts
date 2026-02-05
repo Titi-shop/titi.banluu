@@ -1,5 +1,6 @@
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const PI_BASE = 1_000_000; // hỗ trợ tới 0.000001 Pi
 
 function headers() {
   return {
@@ -158,11 +159,11 @@ export async function createOrderSafe({
         ...headers(),
         Prefer: "return=representation",
       },
-      body: JSON.stringify({
-        buyer_id: buyerPiUid,
-        total,
-        status: "pending",
-      }),
+       body: JSON.stringify({
+  buyer_id: buyerPiUid,
+  total: Math.round(total * PI_BASE), // ✅ INTEGER
+  status: "pending",
+}),
     }
   );
 
@@ -182,11 +183,11 @@ export async function createOrderSafe({
 
   /* 2️⃣ CREATE ORDER ITEMS */
   const orderItems = items.map((i) => ({
-    order_id: order.id,
-    product_id: i.product_id,
-    quantity: i.quantity,
-    price: i.price,
-  }));
+  order_id: order.id,
+  product_id: i.product_id,
+  quantity: i.quantity,
+  price: Math.round(i.price * PI_BASE), // ✅ INTEGER
+}));
 
   const itemsRes = await fetch(
     `${SUPABASE_URL}/rest/v1/order_items`,
