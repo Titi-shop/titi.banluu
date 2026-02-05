@@ -173,40 +173,23 @@ export default function CheckoutPage() {
         },
 
         // 2️⃣ COMPLETE
-        onReadyForServerCompletion: async (paymentId, txid) => {
-          const token = await getPiAccessToken();
-
-          await fetch("/api/orders", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              id: orderId,
-              buyer: user.username,
-              items: cart,
-              total,
-              txid,
-              shipping,
-              status: "paid",
-              createdAt: new Date().toISOString(),
-            }),
-          });
-
-          await fetch("/api/pi/complete", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ paymentId, txid }),
-          });
-
-          clearCart();
-          alert(t.payment_success);
-          router.push("/customer/pending");
-        },
+        await fetch("/api/orders", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify({
+    id: orderId,
+    buyer: user.username,
+    items: cart,
+    total,
+    txid,
+    shipping,
+    status: "paid",
+    createdAt: new Date().toISOString(),
+  }),
+});
 
         // 3️⃣ USER HUỶ
         onCancel: () => {
