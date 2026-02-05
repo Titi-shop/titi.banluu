@@ -12,15 +12,18 @@ import CustomerMenu from "@/components/customerMenu";
 export default function AccountPage() {
   const { t } = useTranslation();
   const { user, loading, pilogin, logout, piReady } = useAuth();
+
   const [agreed, setAgreed] = useState(false);
 
   /* =========================
      LOADING
   ========================= */
-  if (loading) return null;
+  if (loading) {
+    return null;
+  }
 
   /* =========================
-     NOT LOGGED IN → SHOW LOGIN
+     NOT LOGGED IN
   ========================= */
   if (!user) {
     return (
@@ -44,7 +47,7 @@ export default function AccountPage() {
             {t.login}
           </button>
 
-          {/* TERMS */}
+          {/* TERMS CHECKBOX */}
           <div className="mt-4 flex items-start justify-center space-x-2 text-sm text-gray-600">
             <input
               type="checkbox"
@@ -55,7 +58,7 @@ export default function AccountPage() {
             <label className="text-left">
               {t.i_agree}{" "}
               <a
-                href="https://www.termsfeed.com/live/7eae894b-14dd-431c-99da-0f94cab5b9ac"
+                href="https://www.termsfeed.com/live/8e33a9fd-71e7-4536-8033-9c8b329f3f25"
                 target="_blank"
                 className="text-orange-500 underline"
               >
