@@ -203,7 +203,7 @@
   "total_pi": "Pi 总额",
   "total_orders": "订单总数",
 
-  "pickup_orders": " 待取货订单",
+  "pickup_orders": "待取货订单",
   "no_pickup_orders": "您当前没有待取货的订单。",
   "order_code": "订单编号",
 
@@ -215,16 +215,16 @@
   "cancel_success": "订单已成功取消！",
   "cancel_failed": "取消失败",
 
-  "return_orders": " 退货订单",
+  "return_orders": "退货订单",
   "no_return_orders": "没有退货订单。",
 
-  "completed_orders": " 已完成订单",
+  "completed_orders": "已完成订单",
   "no_completed_orders": "没有已完成的订单。",
 
   "orders_summary": "订单汇总",
   "order_summary": "订单总览",
   "order_id": "订单编号",
-  "error_load_orders_general": " 无法加载订单！",
+  "error_load_orders_general": "无法加载订单！",
 
   "orders": "订单",
   "unpaid_orders": "未支付订单",
@@ -246,7 +246,7 @@
   "loading_categories": "正在加载分类...",
   "highest_price": "最高价格",
   "newest_products": "最新商品",
-  "discount_products": " 促销商品",
+  "discount_products": "促销商品",
   "all_products": "全部商品",
   "loading_products": "正在加载商品...",
   "views": "次浏览",
@@ -272,14 +272,14 @@
   "post_success": "商品发布成功！",
   "posting": "正在发布...",
 
-  "my_stock": " 我的商品库存",
+  "my_stock": "我的商品库存",
   "no_seller_products": "你还没有发布任何商品。",
   "confirm_delete": "你确定要删除此商品？",
-  "delete_success": " 删除成功！",
+  "delete_success": "删除成功！",
   "delete_failed": "删除失败！",
 
   "orders_list": "订单分类",
-  "all_orders": " 全部订单",
+  "all_orders": "全部订单",
   "cancelled_orders": "已取消",
   "returned_orders": "已退货",
   "review_orders": "评价",
