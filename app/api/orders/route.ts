@@ -1,52 +1,29 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { getOrdersByBuyerSafe, createOrderSafe } from "@/lib/db/orders";
 
-import {
-  getOrdersByBuyerSafe,
-  createOrderSafe,
-} from "@/lib/db/orders";
-
-/* =========================
-   CONFIG
-========================= */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================
    GET /api/orders
-   - customer xem đơn của mình
 ========================= */
-export async function GET(req: NextRequest) {
-  const auth = req.headers.get("authorization");
+export async function GET() {
+  const user = await getUserFromBearer();
 
-  if (!auth?.startsWith("Bearer ")) {
+  if (!user) {
     return NextResponse.json(
-      { error: "MISSING_TOKEN" },
-      { status: 403 }
+      { error: "UNAUTHORIZED" },
+      { status: 401 }
     );
   }
 
-  const token = auth.replace("Bearer ", "");
-  const piUser = await verifyPiAccessToken(token);
-
-  if (!piUser) {
-    return NextResponse.json(
-      { error: "INVALID_TOKEN" },
-      { status: 403 }
-    );
-  }
-
-  const buyerId = piUser.uid; // ✅ PI UID
-
-  const orders = await getOrdersByBuyerSafe(buyerId);
+  const orders = await getOrdersByBuyerSafe(user.pi_uid);
   return NextResponse.json(orders);
 }
 
 /* =========================
    POST /api/orders
-   - chỉ gọi SAU KHI PI PAYMENT COMPLETE
 ========================= */
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
@@ -58,8 +35,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const body = await req.json();
-  const { items, total } = body;
+  const { items, total } = await req.json();
 
   if (!Array.isArray(items) || typeof total !== "number") {
     return NextResponse.json(
@@ -68,7 +44,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // ✅ VALIDATE ITEM
   for (const i of items) {
     if (!i.product_id) {
       return NextResponse.json(
