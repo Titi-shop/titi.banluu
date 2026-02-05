@@ -181,12 +181,16 @@ export default function CheckoutPage() {
             }
 
             const orderRes = await apiAuthFetch("/api/orders", {
-              method: "POST",
-              body: JSON.stringify({
-                items: cart,
-                total,
-              }),
-            });
+  method: "POST",
+  body: JSON.stringify({
+    items: cart.map((i) => ({
+      product_id: i.id,        // 🔴 QUAN TRỌNG
+      quantity: i.quantity,
+      price: i.price,
+    })),
+    total,
+  }),
+});
 
             if (!orderRes.ok) {
               throw new Error("CREATE_ORDER_FAILED");
