@@ -34,9 +34,6 @@ export default function PendingOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /* =========================
-     LOAD ORDERS (PENDING)
-  ========================= */
   useEffect(() => {
     loadOrders();
   }, []);
@@ -44,28 +41,29 @@ export default function PendingOrdersPage() {
   const loadOrders = async () => {
     try {
       const token = await getPiAccessToken();
-
       const res = await fetch("/api/orders", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
 
       if (!res.ok) throw new Error("UNAUTHORIZED");
 
-      const data: unknown = await res.json();
-      const list = Array.isArray(data) ? (data as Order[]) : [];
-
-      // ✅ FILTER BẰNG STATUS KỸ THUẬT
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
       setOrders(list.filter(o => o.status === "pending"));
     } catch (err) {
-      console.error("❌ Load pending orders error:", err);
+      console.error(err);
       setOrders([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // ✅ FIX Ở ĐÂY
+  const totalPi = orders.reduce(
+    (sum, o) => sum + Number(o.total || 0),
+    0
+  );
 
   /* =========================
      TABS (I18N)
