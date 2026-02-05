@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { verifyPiAccessToken } from "@/lib/piAuth";
+
 import {
   getOrdersByBuyerSafe,
   createOrderSafe,
