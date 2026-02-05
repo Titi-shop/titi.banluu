@@ -39,8 +39,8 @@ export default function PendingOrdersPage() {
      LOAD ORDERS (PENDING)
   ========================= */
   useEffect(() => {
-    loadOrders();
-  }, []);
+  loadOrders();
+}, [pathname]);
 
   const loadOrders = async () => {
     try {
