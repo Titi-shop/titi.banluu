@@ -42,14 +42,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const role = await resolveRole(user);
-  if (role !== "customer") {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  }
+  // ⚠️ KHÔNG resolveRole ở bước tạo đơn
+  // Checkout flow = customer by definition
 
   const body = await req.json();
-
   const { items, total } = body;
+
   if (!Array.isArray(items) || typeof total !== "number") {
     return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
   }
