@@ -8,7 +8,8 @@ import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
-import { apiAuthFetch } from "@/lib/app/apiAuthFetch";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+
 /* =========================
    PI SDK TYPES 
 ========================= */
@@ -51,14 +52,6 @@ interface ShippingInfo {
   country?: string;
 }
 
-interface CartItem {
-  name: string;
-  price: number;
-  quantity: number;
-  image?: string;
-  images?: string[];
-}
-
 /* =========================
    PAGE
 ========================= */
@@ -73,7 +66,7 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false);
 
   /* =========================
-     REQUIRE AUTH (CLIENT)
+     REQUIRE AUTH
   ========================= */
   useEffect(() => {
     if (!loading && !user) {
@@ -82,12 +75,13 @@ export default function CheckoutPage() {
   }, [loading, user, router]);
 
   /* =========================
-     LOAD SHIPPING (FROM SUPABASE)
+     LOAD SHIPPING
   ========================= */
   useEffect(() => {
     const loadShipping = async () => {
       try {
         const token = await getPiAccessToken();
+        if (!token) return;
 
         const res = await fetch("/api/address", {
           headers: {
@@ -98,7 +92,6 @@ export default function CheckoutPage() {
         if (!res.ok) return;
 
         const data = await res.json();
-
         const def = data.items?.find(
           (a: { is_default: boolean }) => a.is_default
         );
@@ -148,7 +141,6 @@ export default function CheckoutPage() {
       memo: `${t.payment_for_order} #${orderId}`,
       metadata: {
         orderId,
-        buyer: user.username,
         shipping,
         items: cart,
       },
@@ -159,6 +151,7 @@ export default function CheckoutPage() {
         // 1️⃣ APPROVE
         onReadyForServerApproval: async (paymentId) => {
           const token = await getPiAccessToken();
+          if (!token) throw new Error("NO_TOKEN");
 
           const res = await fetch("/api/pi/approve", {
             method: "POST",
@@ -172,44 +165,62 @@ export default function CheckoutPage() {
           if (!res.ok) throw new Error("APPROVE_FAILED");
         },
 
+        // 2️⃣ COMPLETE
         onReadyForServerCompletion: async (paymentId, txid) => {
-  try {
-    // 1️⃣ COMPLETE PI TRƯỚC
-    const completeRes = await fetch("/api/pi/complete", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ paymentId, txid }),
-    });
+          try {
+            const completeRes = await fetch("/api/pi/complete", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ paymentId, txid }),
+            });
 
-    if (!completeRes.ok) {
-      throw new Error("PI_COMPLETE_FAILED");
+            if (!completeRes.ok) {
+              throw new Error("PI_COMPLETE_FAILED");
+            }
+
+            const orderRes = await apiAuthFetch("/api/orders", {
+              method: "POST",
+              body: JSON.stringify({
+                items: cart,
+                total,
+              }),
+            });
+
+            if (!orderRes.ok) {
+              throw new Error("CREATE_ORDER_FAILED");
+            }
+
+            clearCart();
+            alert(t.payment_success);
+            router.push("/customer/pending");
+          } catch (err) {
+            console.error("❌ COMPLETE FLOW FAILED", err);
+            alert(t.transaction_failed);
+            setProcessing(false);
+          }
+        },
+
+        // 3️⃣ CANCEL
+        onCancel: () => {
+          alert(t.payment_canceled);
+          setProcessing(false);
+        },
+
+        // 4️⃣ ERROR
+        onError: (err) => {
+          console.error("❌ PI ERROR", err);
+          alert(t.payment_error);
+          setProcessing(false);
+        },
+      });
+    } catch (err) {
+      console.error("❌ CHECKOUT FAILED", err);
+      alert(t.transaction_failed);
+      setProcessing(false);
     }
-
-    // 2️⃣ TẠO ORDER (AUTH-CENTRIC)
-    const orderRes = await apiAuthFetch("/api/orders", {
-      method: "POST",
-      body: JSON.stringify({
-        items: cart,
-        total,
-      }),
-    });
-
-    if (!orderRes.ok) {
-      throw new Error("CREATE_ORDER_FAILED");
-    }
-
-    // 3️⃣ DONE
-    clearCart();
-    alert(t.payment_success);
-    router.push("/customer/pending");
-  } catch (err) {
-    console.error("❌ COMPLETE FLOW FAILED", err);
-    alert(t.transaction_failed);
-    setProcessing(false);
-  }
-},
+  };
 
   /* =========================
      HELPERS
