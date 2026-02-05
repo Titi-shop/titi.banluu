@@ -144,15 +144,15 @@ export default function CustomerReviewPage() {
     <main className="min-h-screen bg-gray-100 pb-24">
       {/* ===== HEADER ===== */}
       <header className="bg-orange-500 text-white px-4 py-4">
-        <div className="flex items-center gap-2">
-          <button onClick={() => router.back()} className="text-xl">
-            ←
-          </button>
-          <h1 className="font-semibold text-lg">
-            ⭐ {t.order_review}
-          </h1>
-        </div>
-      </header>
+  <div className="bg-orange-400 rounded-lg p-4">
+    <p className="text-sm opacity-90">
+      {t.order_info}
+    </p>
+    <p className="text-xs opacity-80 mt-1">
+      {t.orders}: {orders.length} · π{totalPi}
+    </p>
+  </div>
+</header>
 
       {/* ===== TABS ===== */}
       <nav className="bg-white shadow-sm">
