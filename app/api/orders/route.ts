@@ -42,14 +42,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  // ⚠️ KHÔNG resolveRole ở bước tạo đơn
-  // Checkout flow = customer by definition
-
   const body = await req.json();
   const { items, total } = body;
 
   if (!Array.isArray(items) || typeof total !== "number") {
     return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+  }
+
+  // ✅ THÊM ĐOẠN NÀY NGAY TẠI ĐÂY
+  for (const i of items) {
+    if (!i.product_id) {
+      return NextResponse.json(
+        { error: "INVALID_ORDER_ITEM", item: i },
+        { status: 400 }
+      );
+    }
   }
 
   const order = await createOrderSafe({
