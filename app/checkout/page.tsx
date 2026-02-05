@@ -8,7 +8,7 @@ import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
-
+import { apiAuthFetch } from "@/lib/app/apiAuthFetch";
 /* =========================
    PI SDK TYPES 
 ========================= */
@@ -172,44 +172,44 @@ export default function CheckoutPage() {
           if (!res.ok) throw new Error("APPROVE_FAILED");
         },
 
-        // 2️⃣ COMPLETE
-        await fetch("/api/orders", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  },
-  body: JSON.stringify({
-    id: orderId,
-    buyer: user.username,
-    items: cart,
-    total,
-    txid,
-    shipping,
-    status: "paid",
-    createdAt: new Date().toISOString(),
-  }),
-});
+        onReadyForServerCompletion: async (paymentId, txid) => {
+  try {
+    // 1️⃣ COMPLETE PI TRƯỚC
+    const completeRes = await fetch("/api/pi/complete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ paymentId, txid }),
+    });
 
-        // 3️⃣ USER HUỶ
-        onCancel: () => {
-          alert(t.payment_canceled);
-          setProcessing(false);
-        },
-
-        // 4️⃣ ERROR
-        onError: (err) => {
-          console.error("❌ PI ERROR", err);
-          alert(t.payment_error);
-          setProcessing(false);
-        },
-      });
-    } catch (err) {
-      console.error("❌ CHECKOUT FAILED", err);
-      alert(t.transaction_failed);
-      setProcessing(false);
+    if (!completeRes.ok) {
+      throw new Error("PI_COMPLETE_FAILED");
     }
-  };
+
+    // 2️⃣ TẠO ORDER (AUTH-CENTRIC)
+    const orderRes = await apiAuthFetch("/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        items: cart,
+        total,
+      }),
+    });
+
+    if (!orderRes.ok) {
+      throw new Error("CREATE_ORDER_FAILED");
+    }
+
+    // 3️⃣ DONE
+    clearCart();
+    alert(t.payment_success);
+    router.push("/customer/pending");
+  } catch (err) {
+    console.error("❌ COMPLETE FLOW FAILED", err);
+    alert(t.transaction_failed);
+    setProcessing(false);
+  }
+},
 
   /* =========================
      HELPERS
