@@ -1,117 +1,201 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
+/* =========================
+   TYPES
+========================= */
 type Category = {
   id: number | string;
   name: string;
   icon?: string | null;
 };
 
-export default function CategoryPage() {
+type Product = {
+  id: number | string;
+  name: string;
+  price: number;
+  finalPrice?: number;
+  isSale?: boolean;
+  images?: string[];
+  categoryId: number | string;
+  createdAt: string;
+};
+
+/* =========================
+   PAGE
+========================= */
+export default function CategoriesPage() {
   const { t } = useTranslation();
+
   const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [activeCategoryId, setActiveCategoryId] = useState<
+    number | string | null
+  >(null);
   const [loading, setLoading] = useState(true);
 
+  /* =========================
+     LOAD DATA
+  ========================= */
   useEffect(() => {
-    async function loadCategories() {
+    async function loadData() {
       try {
-        const res = await fetch("/api/categories", { cache: "no-store" });
-        if (!res.ok) throw new Error("API lỗi");
+        const [resCate, resProd] = await Promise.all([
+          fetch("/api/categories", { cache: "no-store" }),
+          fetch("/api/products", { cache: "no-store" }),
+        ]);
 
-        const data: Category[] = await res.json();
+        if (!resCate.ok || !resProd.ok) {
+          throw new Error("API lỗi");
+        }
 
-        const sorted = [...data].sort(
-          (a, b) => Number(a.id) - Number(b.id)
+        const cateData: Category[] = await resCate.json();
+        const prodData: Product[] = await resProd.json();
+
+        setCategories(
+          [...cateData].sort(
+            (a, b) => Number(a.id) - Number(b.id)
+          )
         );
 
-        setCategories(sorted);
+        setProducts(
+          [...prodData].sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() -
+              new Date(a.createdAt).getTime()
+          )
+        );
       } catch (err) {
-        console.error("❌ Lỗi tải danh mục:", err);
+        console.error("❌ Load categories/products error:", err);
       } finally {
         setLoading(false);
       }
     }
 
-    loadCategories();
+    loadData();
   }, []);
 
+  /* =========================
+     FILTER PRODUCTS
+  ========================= */
+  const visibleProducts = useMemo(() => {
+    if (!activeCategoryId) return products;
+    return products.filter(
+      (p) => String(p.categoryId) === String(activeCategoryId)
+    );
+  }, [products, activeCategoryId]);
+
   return (
-    <main className="p-4 max-w-6xl mx-auto">
-      <button
-        onClick={() => window.history.back()}
-        className="text-orange-600 font-bold text-lg mb-3"
-      >
-        ←
-      </button>
-
-      <h1 className="text-2xl font-bold mb-4 text-orange-600">
-        {t["category_title"] || "Danh mục sản phẩm"}
-      </h1>
-
-      {/* DANH MỤC TRƯỢT NGANG */}
-      <div className="flex overflow-x-auto space-x-5 py-3 px-2 scrollbar-hide">
-        {loading ? (
-          <p className="text-gray-600">{t["loading"] || "Đang tải..."}</p>
-        ) : categories.length === 0 ? (
-          <p className="text-gray-500">
-            {t["no_category"] || "Không có danh mục"}
-          </p>
-        ) : (
-          categories.map((c) => {
-            const key = "category_" + c.id;
-            return (
-              <Link
-                key={c.id}
-                href={`/category/${c.id}`}
-                className="flex flex-col items-center min-w-[90px]"
-              >
-                <img
-                  src={c.icon || "/placeholder.png"}
-                  alt={t[key] || c.name}
-                  className="w-16 h-16 rounded-full border object-cover"
-                />
-                <span className="text-xs text-center mt-2 line-clamp-2 max-w-[72px]">
-  {t[key] || c.name}
-</span>
-              </Link>
-            );
-          })
-        )}
+    <main className="max-w-7xl mx-auto p-4">
+      {/* =========================
+          BANNER
+      ========================= */}
+      <div className="mb-6 rounded-xl overflow-hidden shadow">
+        <img
+          src="/banner.png"
+          alt="Banner"
+          className="w-full h-40 object-cover"
+        />
       </div>
 
-      {/* LƯỚI DANH MỤC */}
-      <h2 className="text-lg font-semibold text-gray-700 mt-6 mb-3">
-        {t["all_categories"] || "Tất cả danh mục"}
-      </h2>
+      {/* =========================
+          CONTENT
+      ========================= */}
+      <div className="grid grid-cols-12 gap-4">
+        {/* ===== LEFT: CATEGORIES ===== */}
+        <aside className="col-span-4 sm:col-span-3 md:col-span-2">
+          <h2 className="font-semibold text-gray-700 mb-3">
+            {t["category_title"] || "Danh mục"}
+          </h2>
 
-      {loading ? (
-        <p className="text-gray-600">{t["loading"] || "Đang tải..."}</p>
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 pb-10">
-          {categories.map((c) => {
-            const key = "category_" + c.id;
-            return (
-              <Link
-                key={c.id}
-                href={`/category/${c.id}`}
-                className="flex flex-col items-center"
+          <ul className="space-y-2">
+            <li>
+              <button
+                onClick={() => setActiveCategoryId(null)}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm ${
+                  activeCategoryId === null
+                    ? "bg-orange-500 text-white"
+                    : "bg-gray-100 text-gray-700"
+                }`}
               >
-                <img
-                  src={c.icon || "/placeholder.png"}
-                  alt={t[key] || c.name}
-                  className="w-16 h-16 rounded-full border object-cover"
-                />
-                <span className="mt-2 text-xs text-center line-clamp-2 max-w-[72px]">
-  {t[key] || c.name}
-</span>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+                {t["all_categories"] || "Tất cả"}
+              </button>
+            </li>
+
+            {categories.map((c) => {
+              const key = "category_" + c.id;
+              const active =
+                String(activeCategoryId) === String(c.id);
+
+              return (
+                <li key={c.id}>
+                  <button
+                    onClick={() => setActiveCategoryId(c.id)}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm truncate ${
+                      active
+                        ? "bg-orange-500 text-white"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {t[key] || c.name}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </aside>
+
+        {/* ===== RIGHT: PRODUCTS ===== */}
+        <section className="col-span-8 sm:col-span-9 md:col-span-10">
+          {loading ? (
+            <p className="text-gray-500">
+              {t["loading"] || "Đang tải..."}
+            </p>
+          ) : visibleProducts.length === 0 ? (
+            <p className="text-gray-500">
+              {t["no_product"] || "Chưa có sản phẩm"}
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {visibleProducts.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/product/${p.id}`}
+                  className="border rounded-lg p-2 hover:shadow-md transition bg-white"
+                >
+                  <img
+                    src={p.images?.[0] || "/placeholder.png"}
+                    className="w-full h-32 object-cover rounded"
+                  />
+
+                  <h3 className="mt-2 text-sm font-medium truncate">
+                    {p.name}
+                  </h3>
+
+                  {p.isSale &&
+                  typeof p.finalPrice === "number" ? (
+                    <>
+                      <p className="text-red-600 font-semibold">
+                        {p.finalPrice.toLocaleString()} π
+                      </p>
+                      <p className="text-xs line-through text-gray-400">
+                        {p.price.toLocaleString()} π
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-orange-600 font-semibold">
+                      {p.price.toLocaleString()} π
+                    </p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   );
 }
