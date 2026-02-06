@@ -110,7 +110,7 @@ export default function CustomerMenu() {
     {
       label: t.pi_wallet,
       icon: <Wallet size={22} />,
-      path: "/customer/wallet",
+      path: "",
     },
     {
       label: t.messages,
