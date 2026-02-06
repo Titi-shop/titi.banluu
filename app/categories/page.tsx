@@ -73,9 +73,9 @@ export default function CategoryPage() {
                   alt={t[key] || c.name}
                   className="w-16 h-16 rounded-full border object-cover"
                 />
-                <span className="text-sm text-center mt-2 truncate">
-                  {t[key] || c.name}
-                </span>
+                <span className="text-xs text-center mt-2 line-clamp-2 max-w-[72px]">
+  {t[key] || c.name}
+</span>
               </Link>
             );
           })
@@ -104,9 +104,9 @@ export default function CategoryPage() {
                   alt={t[key] || c.name}
                   className="w-16 h-16 rounded-full border object-cover"
                 />
-                <span className="mt-2 text-sm truncate">
-                  {t[key] || c.name}
-                </span>
+                <span className="mt-2 text-xs text-center line-clamp-2 max-w-[72px]">
+  {t[key] || c.name}
+</span>
               </Link>
             );
           })}
