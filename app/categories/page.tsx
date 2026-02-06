@@ -105,7 +105,7 @@ export default function CategoriesPage() {
           CONTENT
       ========================= */}
 
-       <div className="mt-4 grid grid-cols-12 gap-2 px-2">
+       <div className="mt-4 grid grid-cols-12 gap-2 px-2 min-h-[120vh]">
           
        {/* ===== LEFT: ICON CATEGORIES (COMPACT) ===== */}
 <aside className="col-span-2 border-r">
