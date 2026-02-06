@@ -115,12 +115,12 @@ export default function CustomerMenu() {
     {
       label: t.messages,
       icon: <MessageCircle size={22} />,
-      path: "/messages",
+      path: "",
     },
     {
       label: t.language,
       icon: <Globe size={22} />,
-      path: "/language",
+      path: "",
     },
     {
       label: t.shipping_address,
@@ -130,7 +130,7 @@ export default function CustomerMenu() {
     {
       label: t.support,
       icon: <HelpCircle size={22} />,
-      path: "/support",
+      path: "",
     },
     {
       label: isSeller
