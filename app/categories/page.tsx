@@ -105,10 +105,10 @@ export default function CategoriesPage() {
           CONTENT
       ========================= */}
 
-       <div className="mt-4 grid grid-cols-12 gap-2 px-2">
+       <div className="mt-4 grid grid-cols-12 gap-2 px-2 h-[calc(100vh-200px)]">
           
        {/* ===== LEFT: ICON CATEGORIES (COMPACT) ===== */}
-<aside className="col-span-2 border-r">
+<aside className="col-span-2 border-r overflow-y-auto">
   <div className="flex flex-col items-center gap-3 py-2">
     {/* ALL */}
     <button
@@ -157,7 +157,7 @@ export default function CategoriesPage() {
   </div>
 </aside>
      {/* ===== RIGHT: PRODUCTS (FULL WIDTH FEEL) ===== */}
-<section className="col-span-10 px-3">
+<section className="col-span-10 px-3 overflow-y-auto">
   {loading ? (
     <p className="text-gray-500 text-sm">
       {t["loading"] || "Đang tải..."}
