@@ -29,11 +29,12 @@ export default function ShippingOrdersPage() {
 
   /* =========================
      LOAD ORDERS (NETWORK–FIRST)
+     STATUS = shipped
   ========================= */
   const fetchOrders = async () => {
     try {
       const res = await apiAuthFetch(
-        /api/seller/orders?status=Xác nhận
+        "/api/seller/orders?status=shipped",
         { cache: "no-store" }
       );
 
@@ -52,7 +53,7 @@ export default function ShippingOrdersPage() {
       console.error("❌ Load shipping orders failed:", err);
       alert(
         t.error_load_orders ||
-          "❌ Không thể tải đơn hàng đang giao"
+          "❌ Không thể tải danh sách đơn đang giao"
       );
     } finally {
       setLoading(false);
@@ -138,8 +139,7 @@ export default function ShippingOrdersPage() {
               className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition"
             >
               <p>
-                🧾 <b>{t.order_id || "Mã đơn"}:</b> #
-                {order.id}
+                🧾 <b>{t.order_id || "Mã đơn"}:</b> #{order.id}
               </p>
 
               <p>
@@ -152,7 +152,7 @@ export default function ShippingOrdersPage() {
                 {new Date(order.created_at).toLocaleString()}
               </p>
 
-              <p className="font-semibold text-orange-500">
+              <p className="font-semibold text-orange-500 mt-2">
                 📦 {t.shipping_orders || "Đang giao"}
               </p>
             </div>
