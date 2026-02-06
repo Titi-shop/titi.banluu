@@ -95,7 +95,7 @@ export default function CategoriesPage() {
       ========================= */}
       <div className="mx-4 mt-4 rounded-xl overflow-hidden shadow">
         <img
-          src="/banner.png"
+          src="/banners/30FD1BCC-E31C-4702-9E63-8BF08C5E311C.png"
           alt="Banner"
           className="w-full h-40 object-cover"
         />
