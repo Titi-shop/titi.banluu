@@ -33,7 +33,7 @@ export default function ShippingOrdersPage() {
   const fetchOrders = async () => {
     try {
       const res = await apiAuthFetch(
-        "/api/seller/orders?status=Đang giao",
+        /api/seller/orders?status=Xác nhận
         { cache: "no-store" }
       );
 
