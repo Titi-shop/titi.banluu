@@ -11,7 +11,7 @@ export default function BottomNav() {
 
   const navItems = [
     { href: "/", label: t.home || "Home", icon: Home },
-    { href: "/shop", label: t.categories || "Categories", icon: Grid },
+    { href: "/categories", label: t.categories || "Categories", icon: Grid },
     { href: "/search", label: t.search || "search", icon: Search },
     { href: "/notifications", label: t.notifications || "Notifications", icon: Bell },
     { href: "/account", label: t.me || "Me", icon: User },
