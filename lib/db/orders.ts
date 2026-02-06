@@ -68,9 +68,10 @@ export async function getOrderById(
 ===================================================== */
 
 export async function getOrdersBySeller(
-  sellerPiUid: string
+  sellerPiUid: string,
+  status?: string
 ) {
-  // 1️⃣ Lấy tất cả order_items của seller
+  // 1️⃣ Lấy order_items của seller
   const itemsRes = await fetch(
     `${SUPABASE_URL}/rest/v1/order_items?select=
       order_id,
@@ -91,11 +92,13 @@ export async function getOrdersBySeller(
 
   if (orderIds.length === 0) return [];
 
-  // 2️⃣ Lấy orders theo order_id
+  // 2️⃣ Build filter
   const ids = orderIds.map(id => `"${id}"`).join(",");
+  const statusFilter = status ? `&status=eq.${status}` : "";
 
+  // 3️⃣ Fetch orders
   const ordersRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/orders?id=in.(${ids})&order=created_at.desc`,
+    `${SUPABASE_URL}/rest/v1/orders?id=in.(${ids})${statusFilter}&order=created_at.desc`,
     { headers: headers(), cache: "no-store" }
   );
 
@@ -103,6 +106,8 @@ export async function getOrdersBySeller(
 
   return await ordersRes.json();
 }
+
+  
 
 /* =====================================================
    UPDATE ORDER STATUS
