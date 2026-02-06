@@ -69,7 +69,7 @@ export default function CategoriesPage() {
           )
         );
       } catch (err) {
-        console.error("❌ Load categories/products error:", err);
+        console.error("❌ Load data error:", err);
       } finally {
         setLoading(false);
       }
@@ -89,11 +89,11 @@ export default function CategoriesPage() {
   }, [products, activeCategoryId]);
 
   return (
-    <main className="max-w-7xl mx-auto p-4">
+    <main className="max-w-7xl mx-auto">
       {/* =========================
           BANNER
       ========================= */}
-      <div className="mb-6 rounded-xl overflow-hidden shadow">
+      <div className="mx-4 mt-4 rounded-xl overflow-hidden shadow">
         <img
           src="/banner.png"
           alt="Banner"
@@ -104,26 +104,26 @@ export default function CategoriesPage() {
       {/* =========================
           CONTENT
       ========================= */}
-      <div className="grid grid-cols-12 gap-4">
-        {/* ===== LEFT: CATEGORIES ===== */}
-        <aside className="col-span-4 sm:col-span-3 md:col-span-2">
-          <h2 className="font-semibold text-gray-700 mb-3">
-            {t["category_title"] || "Danh mục"}
-          </h2>
-
-          <ul className="space-y-2">
-            <li>
-              <button
-                onClick={() => setActiveCategoryId(null)}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm ${
-                  activeCategoryId === null
-                    ? "bg-orange-500 text-white"
-                    : "bg-gray-100 text-gray-700"
-                }`}
-              >
+      <div className="mt-4 grid grid-cols-12 gap-2 px-2">
+        {/* ===== LEFT: ICON CATEGORIES ===== */}
+        <aside className="col-span-3 sm:col-span-2 border-r">
+          <div className="flex flex-col items-center gap-4 py-2">
+            {/* ALL */}
+            <button
+              onClick={() => setActiveCategoryId(null)}
+              className={`flex flex-col items-center w-full py-2 ${
+                activeCategoryId === null
+                  ? "text-orange-500 font-semibold"
+                  : "text-gray-600"
+              }`}
+            >
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border">
+                <span className="text-lg">★</span>
+              </div>
+              <span className="text-[11px] mt-1 text-center line-clamp-2">
                 {t["all_categories"] || "Tất cả"}
-              </button>
-            </li>
+              </span>
+            </button>
 
             {categories.map((c) => {
               const key = "category_" + c.id;
@@ -131,47 +131,55 @@ export default function CategoriesPage() {
                 String(activeCategoryId) === String(c.id);
 
               return (
-                <li key={c.id}>
-                  <button
-                    onClick={() => setActiveCategoryId(c.id)}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm truncate ${
-                      active
-                        ? "bg-orange-500 text-white"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
+                <button
+                  key={c.id}
+                  onClick={() => setActiveCategoryId(c.id)}
+                  className={`flex flex-col items-center w-full py-2 ${
+                    active
+                      ? "text-orange-500 font-semibold"
+                      : "text-gray-600"
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-white border flex items-center justify-center overflow-hidden">
+                    <img
+                      src={c.icon || "/placeholder.png"}
+                      alt={t[key] || c.name}
+                      className="w-8 h-8 object-contain"
+                    />
+                  </div>
+                  <span className="text-[11px] mt-1 text-center line-clamp-2 px-1">
                     {t[key] || c.name}
-                  </button>
-                </li>
+                  </span>
+                </button>
               );
             })}
-          </ul>
+          </div>
         </aside>
 
         {/* ===== RIGHT: PRODUCTS ===== */}
-        <section className="col-span-8 sm:col-span-9 md:col-span-10">
+        <section className="col-span-9 sm:col-span-10 px-2">
           {loading ? (
-            <p className="text-gray-500">
+            <p className="text-gray-500 text-sm">
               {t["loading"] || "Đang tải..."}
             </p>
           ) : visibleProducts.length === 0 ? (
-            <p className="text-gray-500">
+            <p className="text-gray-500 text-sm">
               {t["no_product"] || "Chưa có sản phẩm"}
             </p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {visibleProducts.map((p) => (
                 <Link
                   key={p.id}
                   href={`/product/${p.id}`}
-                  className="border rounded-lg p-2 hover:shadow-md transition bg-white"
+                  className="bg-white border rounded-lg p-2 hover:shadow transition"
                 >
                   <img
                     src={p.images?.[0] || "/placeholder.png"}
                     className="w-full h-32 object-cover rounded"
                   />
 
-                  <h3 className="mt-2 text-sm font-medium truncate">
+                  <h3 className="mt-2 text-sm font-medium line-clamp-2">
                     {p.name}
                   </h3>
 
