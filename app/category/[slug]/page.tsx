@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type PageParams = {
   params: {
@@ -26,6 +27,7 @@ type Product = {
 };
 
 export default function CategoryDetailPage({ params }: PageParams) {
+  const { t } = useTranslation();
   const categoryId = Number(params.slug);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -40,20 +42,13 @@ export default function CategoryDetailPage({ params }: PageParams) {
 
     async function loadData() {
       try {
-        /* ============================
-            ⭐ LẤY SẢN PHẨM
-        ============================ */
-        const resProducts = await fetch("/api/products", {
-          cache: "no-store",
-        });
+        const resProducts = await fetch("/api/products", { cache: "no-store" });
         if (!resProducts.ok) throw new Error("API products lỗi");
 
         const allProducts: Product[] = await resProducts.json();
 
         const filtered = allProducts
-          .filter(
-            (p) => Number(p.categoryId) === categoryId
-          )
+          .filter((p) => Number(p.categoryId) === categoryId)
           .sort(
             (a, b) =>
               new Date(b.createdAt).getTime() -
@@ -62,12 +57,7 @@ export default function CategoryDetailPage({ params }: PageParams) {
 
         setProducts(filtered);
 
-        /* ============================
-            ⭐ LẤY DANH MỤC
-        ============================ */
-        const resCate = await fetch("/api/categories", {
-          cache: "no-store",
-        });
+        const resCate = await fetch("/api/categories", { cache: "no-store" });
         if (!resCate.ok) throw new Error("API categories lỗi");
 
         const categories: Category[] = await resCate.json();
@@ -86,9 +76,16 @@ export default function CategoryDetailPage({ params }: PageParams) {
     loadData();
   }, [categoryId]);
 
+  const categoryKey = "category_" + categoryId;
+  const categoryName =
+    (t as Record<string, string>)[categoryKey] ||
+    category?.name ||
+    t["category"] ||
+    "Category";
+
   return (
     <main className="p-4 max-w-6xl mx-auto">
-      {/* 🔙 QUAY LẠI */}
+      {/* 🔙 BACK */}
       <Link
         href="/categories"
         className="text-orange-600 font-bold text-lg inline-block mb-4"
@@ -96,44 +93,48 @@ export default function CategoryDetailPage({ params }: PageParams) {
         ←
       </Link>
 
-      {/* ⭐ TÊN DANH MỤC */}
+      {/* ⭐ CATEGORY TITLE */}
       <h1 className="text-2xl font-bold mb-4 text-orange-600">
-        {category?.name || "Danh mục"}
+        {categoryName}
       </h1>
 
       {loading ? (
-        <p>Đang tải...</p>
+        <p className="text-gray-600">
+          {t["loading"] || "Loading..."}
+        </p>
       ) : products.length === 0 ? (
-        <p className="text-gray-500">Hiện chưa có sản phẩm.</p>
+        <p className="text-gray-500">
+          {t["no_product"] || "No products available."}
+        </p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {products.map((p) => (
             <Link
               key={p.id}
               href={`/product/${p.id}`}
-              className="border p-2 rounded-md shadow-sm hover:shadow-md transition"
+              className="border p-2 rounded-lg shadow-sm hover:shadow-md transition"
             >
               <img
                 src={p.images?.[0] || "/placeholder.png"}
                 className="w-full h-32 object-cover rounded"
               />
 
-              <h3 className="font-bold text-sm mt-2 truncate">
+              <h3 className="font-semibold text-sm mt-2 line-clamp-2">
                 {p.name}
               </h3>
 
               {p.isSale && typeof p.finalPrice === "number" ? (
                 <>
                   <p className="text-red-600 font-bold">
-                    {p.finalPrice.toLocaleString()} Pi
+                    {p.finalPrice.toLocaleString()} π
                   </p>
                   <p className="text-xs line-through text-gray-400">
-                    {p.price.toLocaleString()} Pi
+                    {p.price.toLocaleString()} π
                   </p>
                 </>
               ) : (
                 <p className="text-orange-600 font-semibold">
-                  {p.price.toLocaleString()} Pi
+                  {p.price.toLocaleString()} π
                 </p>
               )}
             </Link>
