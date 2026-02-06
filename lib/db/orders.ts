@@ -152,10 +152,12 @@ export async function createOrderSafe({
 }: {
   buyerPiUid: string;
   items: Array<{
-    product_id: string;
-    quantity: number;
-    price: number;
-  }>;
+  product_id: string;
+  quantity: number;
+  price: number;
+  seller_pi_uid: string; // 🔥 THÊM DÒNG NÀY
+}>;
+
   total: number;
 }) {
   /* 1️⃣ CREATE ORDER */
@@ -190,11 +192,13 @@ export async function createOrderSafe({
   const order = orderData[0];
 
   /* 2️⃣ CREATE ORDER ITEMS */
-  const orderItems = items.map((i) => ({
+  
+const orderItems = items.map((i) => ({
   order_id: order.id,
   product_id: i.product_id,
   quantity: i.quantity,
-  price: Math.round(i.price * PI_BASE), // ✅ INTEGER
+  price: Math.round(i.price * PI_BASE),
+  seller_pi_uid: i.seller_pi_uid, // 🔥 DÒNG QUYẾT ĐỊNH
 }));
 
   const itemsRes = await fetch(
