@@ -97,7 +97,7 @@ export default function CategoriesPage() {
   <img
     src="/banners/30FD1BCC-E31C-4702-9E63-8BF08C5E311C.png"
     alt="Banner"
-    className="w-full h-[120px] sm:h-[160px] md:h-[200px] object-cover"
+    className="w-full h-[120px] sm:h-[160px] md:h-[400px] object-cover"
   />
 </div>
 
