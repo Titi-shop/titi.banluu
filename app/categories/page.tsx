@@ -104,7 +104,9 @@ export default function CategoriesPage() {
       {/* =========================
           CONTENT
       ========================= */}
-      <div className="mt-4 grid grid-cols-12 gap-2 px-
+
+       <div className="mt-4 grid grid-cols-12 gap-2 px-2">
+          
        {/* ===== LEFT: ICON CATEGORIES (COMPACT) ===== */}
 <aside className="col-span-2 border-r">
   <div className="flex flex-col items-center gap-3 py-2">
