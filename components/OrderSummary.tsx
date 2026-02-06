@@ -14,42 +14,41 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
    COMPONENT
 ========================= */
 export default function OrderSummary() {
-  const router = useRouter();
   const { t } = useTranslation();
 
   return (
-    <section className="bg-white mx-4 mt-4 rounded-lg shadow">
+    <section className="bg-white mx-4 mt-4 rounded-xl shadow border border-gray-100">
       {/* HEADER */}
       <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-lg font-semibold text-gray-800">
           {t.orders}
         </h2>
       </div>
 
       {/* ITEMS */}
-      <div className="grid grid-cols-5 text-center py-4">
+      <div className="grid grid-cols-5 py-4">
         <Item
-          icon={<Clock size={26} />}
+          icon={<Clock size={22} />}
           label={t.pending_orders}
           path="/customer/pending"
         />
         <Item
-          icon={<Package size={26} />}
+          icon={<Package size={22} />}
           label={t.pickup_orders}
           path="/customer/pickup"
         />
         <Item
-          icon={<Truck size={26} />}
+          icon={<Truck size={22} />}
           label={t.shipping_orders}
           path="/customer/shipping"
         />
         <Item
-          icon={<Star size={26} />}
+          icon={<Star size={22} />}
           label={t.review_orders}
           path="/customer/review"
         />
         <Item
-          icon={<RotateCcw size={26} />}
+          icon={<RotateCcw size={22} />}
           label={t.return_orders}
           path="/customer/returns"
         />
@@ -76,10 +75,15 @@ function Item({
     <button
       type="button"
       onClick={() => router.push(path)}
-      className="flex flex-col items-center text-gray-700 hover:text-orange-500"
+      className="flex flex-col items-center justify-start h-[88px] text-gray-700 hover:text-orange-500 transition"
     >
-      {icon}
-      <span className="text-xs mt-1">
+      {/* ICON */}
+      <div className="flex items-center justify-center w-11 h-11 rounded-full bg-gray-100 shadow-sm mb-1">
+        {icon}
+      </div>
+
+      {/* LABEL */}
+      <span className="text-[11px] leading-snug text-center line-clamp-2 max-w-[64px]">
         {label}
       </span>
     </button>
