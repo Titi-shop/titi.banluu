@@ -93,13 +93,13 @@ export default function CategoriesPage() {
       {/* =========================
           BANNER
       ========================= */}
-      <div className="mx-4 mt-4 rounded-xl overflow-hidden shadow">
-        <img
-          src="/banners/30FD1BCC-E31C-4702-9E63-8BF08C5E311C.png"
-          alt="Banner"
-          className="w-full h-40 object-cover"
-        />
-      </div>
+      <div className="mx-4 mt-4 rounded-2xl overflow-hidden shadow-xl">
+  <img
+    src="/banners/30FD1BCC-E31C-4702-9E63-8BF08C5E311C.png"
+    alt="Banner"
+    className="w-full h-[220px] sm:h-[260px] md:h-[300px] object-cover"
+  />
+</div>
 
       {/* =========================
           CONTENT
