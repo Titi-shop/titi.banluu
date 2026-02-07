@@ -23,19 +23,27 @@ export default function CustomerMenu() {
   const [sellerLoading, setSellerLoading] = useState(false);
   const [sellerMessage, setSellerMessage] = useState<string | null>(null);
 
-  const isSeller = user?.role === "seller" || user?.role === "admin";
+  // 🔑 RBAC
+  const isSeller =
+    user?.role === "seller" || user?.role === "admin";
 
+  /* =========================
+     SELLER BUTTON HANDLER
+  ========================= */
   async function handleSellerClick() {
+    // 1️⃣ Chưa đăng nhập → Pi login
     if (!user) {
       await pilogin();
       return;
     }
 
+    // 2️⃣ Đã là seller → vào seller dashboard
     if (isSeller) {
       router.push("/seller");
       return;
     }
 
+    // 3️⃣ Đăng ký seller (KHÔNG CHUYỂN TRANG)
     try {
       setSellerLoading(true);
       setSellerMessage(null);
@@ -68,6 +76,7 @@ export default function CustomerMenu() {
         return;
       }
 
+      // ✅ THÀNH CÔNG
       setSellerMessage(
         "✅ Đã gửi yêu cầu đăng ký bán hàng. Vui lòng chờ duyệt."
       );
@@ -79,18 +88,50 @@ export default function CustomerMenu() {
     }
   }
 
-  const customerMenuItems = [
-    { label: t.profile, icon: <User size={22} />, path: "/customer/profile" },
-    { label: t.my_orders, icon: <Package size={22} />, path: "/customer/orders" },
-    { label: t.pi_wallet, icon: <Wallet size={22} /> },
-    { label: t.messages, icon: <MessageCircle size={22} /> },
-    { label: t.language, icon: <Globe size={22} /> },
+  /* =========================
+     MENU ITEMS
+  ========================= */
+  const customerMenuItems: Array<{
+    label: string;
+    icon: JSX.Element;
+    path?: string;
+    onClick?: () => void;
+  }> = [
+    {
+      label: t.profile,
+      icon: <User size={22} />,
+      path: "/customer/profile",
+    },
+    {
+      label: t.my_orders,
+      icon: <Package size={22} />,
+      path: "/customer/orders",
+    },
+    {
+      label: t.pi_wallet,
+      icon: <Wallet size={22} />,
+      path: "",
+    },
+    {
+      label: t.messages,
+      icon: <MessageCircle size={22} />,
+      path: "",
+    },
+    {
+      label: t.language,
+      icon: <Globe size={22} />,
+      path: "",
+    },
     {
       label: t.shipping_address,
       icon: <MapPin size={22} />,
       path: "/customer/address",
     },
-    { label: t.support, icon: <HelpCircle size={22} /> },
+    {
+      label: t.support,
+      icon: <HelpCircle size={22} />,
+      path: "",
+    },
     {
       label: isSeller
         ? t.seller_center || "Quản lý bán hàng"
@@ -100,32 +141,36 @@ export default function CustomerMenu() {
     },
   ];
 
+  /* =========================
+     RENDER
+  ========================= */
   return (
     <div className="bg-white mx-3 mt-6 p-5 rounded-2xl shadow-lg border border-gray-100 mb-6">
-      <div className="grid grid-cols-4 gap-y-6 text-center">
+      <div className="grid grid-cols-4 gap-4 text-center">
         {customerMenuItems.map((item, i) => (
           <button
             key={i}
             onClick={() => {
-              if (item.onClick) item.onClick();
-              else if (item.path) router.push(item.path);
+              if (item.onClick) {
+                item.onClick();
+              } else if (item.path) {
+                router.push(item.path);
+              }
             }}
             disabled={sellerLoading && item.onClick !== undefined}
-            className="flex flex-col items-center justify-start h-[96px] text-gray-700 hover:text-orange-500 transition disabled:opacity-60"
+            className="flex flex-col items-center text-gray-700 hover:text-orange-500 transition disabled:opacity-60"
           >
-            {/* ICON */}
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 shadow-sm mb-2">
+            <div className="p-3 rounded-full shadow-sm mb-1 bg-gray-100">
               {item.icon}
             </div>
-
-            {/* LABEL */}
-            <span className="text-[11px] font-medium leading-snug text-center line-clamp-2 max-w-[72px]">
+            <span className="text-xs font-medium leading-tight">
               {item.label}
             </span>
           </button>
         ))}
       </div>
 
+      {/* MESSAGE */}
       {sellerMessage && (
         <div
           className={`mt-4 text-center text-sm ${
