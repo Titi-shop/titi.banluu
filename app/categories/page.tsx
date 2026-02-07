@@ -157,7 +157,7 @@ export default function CategoriesPage() {
   </div>
 </aside>
      {/* ===== RIGHT: PRODUCTS (FULL WIDTH FEEL) ===== */}
-<section className="col-span-10 px-3 max-h-[200vh] overflow-y-auto">
+<section className="col-span-10 px-3 h-[calc(100vh-80px)] overflow-y-auto">
   {loading ? (
     <p className="text-gray-500 text-sm">
       {t["loading"] || "Đang tải..."}
