@@ -18,35 +18,40 @@ export async function getUserFromBearer(): Promise<AuthUser | null> {
     const timeout = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch("https://api.minepi.com/v2/me", {
-  method: "GET",
-  headers: {
-    Authorization: `Bearer ${accessToken}`,
-    "X-PI-APP-ID": process.env.PI_APP_ID!,
-    Accept: "application/json",
-  },
-  cache: "no-store",
-  signal: controller.signal,
-});
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "X-PI-APP-ID": process.env.PI_APP_ID!,
+        Accept: "application/json",
+      },
       cache: "no-store",
       signal: controller.signal,
     }).finally(() => clearTimeout(timeout));
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return null;
+    }
 
-    const data = await res.json();
+    const data: unknown = await res.json();
 
     if (
       !data ||
-      (typeof data.uid !== "string" &&
-        typeof data.uid !== "number")
+      typeof data !== "object" ||
+      !("uid" in data)
     ) {
       return null;
     }
 
+    const { uid, username, wallet_address } = data as {
+      uid: string | number;
+      username?: string;
+      wallet_address?: string | null;
+    };
+
     return {
-      pi_uid: String(data.uid),
-      username: data.username ?? "",
-      wallet_address: data.wallet_address ?? null,
+      pi_uid: String(uid),
+      username: username ?? "",
+      wallet_address: wallet_address ?? null,
     };
   } catch (err) {
     if ((err as { name?: string })?.name === "AbortError") {
