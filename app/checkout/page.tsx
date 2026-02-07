@@ -274,50 +274,58 @@ export default function CheckoutPage() {
           {t.change || "Thay đổi"}
         </span>
       </div>
-
-      {/* CART */}
-      <div className="flex-1 overflow-y-auto bg-white mt-2">
-        {cart.map((item, i) => (
-          <div key={i} className="flex items-center border-b p-3">
-            <img
-              src={resolveImage(item.image || item.images?.[0])}
-              className="w-16 h-16 object-cover rounded"
-              alt={item.name}
-            />
-            <div className="ml-3 flex-1">
-  <p className="text-sm font-medium">{item.name}</p>
-
-  <div className="flex items-center mt-1 gap-2">
-    {/* GIẢM */}
-    <button
-      onClick={() =>
-        updateQuantity(item.id, Math.max(1, item.quantity - 1))
-      }
-      className="w-7 h-7 rounded border text-gray-600"
+{/* CART ITEMS */}
+<div className="bg-white">
+  {cart.map((item, i) => (
+    <div
+      key={i}
+      className="flex items-start gap-3 p-4 border-b"
     >
-      −
-    </button>
+      {/* IMAGE */}
+      <img
+        src={resolveImage(item.image || item.images?.[0])}
+        className="w-16 h-16 object-cover rounded"
+        alt={item.name}
+      />
 
-    {/* SỐ LƯỢNG */}
-    <span className="min-w-[24px] text-center text-sm">
-      {item.quantity}
-    </span>
+      {/* INFO */}
+      <div className="flex-1">
+        <p className="text-sm font-medium leading-snug">
+          {item.name}
+        </p>
 
-    {/* TĂNG */}
-    <button
-      onClick={() =>
-        updateQuantity(item.id, item.quantity + 1)
-      }
-      className="w-7 h-7 rounded border text-gray-600"
-    >
-      +
-    </button>
+        <p className="text-sm text-orange-600 font-semibold mt-1">
+          {item.price.toFixed(2)} π
+        </p>
 
-    <span className="text-xs text-gray-500 ml-2">
-      × {item.price} π
-    </span>
-  </div>
+        {/* QUANTITY SELECT */}
+        <div className="mt-2">
+          <select
+            value={item.quantity}
+            onChange={(e) =>
+              updateQuantity(item.id, Number(e.target.value))
+            }
+            className="border rounded px-2 py-1 text-sm"
+          >
+            {Array.from({ length: 10 }).map((_, n) => (
+              <option key={n + 1} value={n + 1}>
+                {n + 1}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* TOTAL PRICE */}
+      <div className="text-right">
+        <p className="text-sm font-semibold">
+          {(item.price * item.quantity).toFixed(2)} π
+        </p>
+      </div>
+    </div>
+  ))}
 </div>
+    
             <p className="font-semibold text-orange-600 text-sm">
               {(item.price * item.quantity).toFixed(2)} π
             </p>
