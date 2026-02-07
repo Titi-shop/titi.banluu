@@ -157,6 +157,36 @@ export default function ProductDetail() {
           alt={product.name}
           className="w-full h-full object-cover"
         />
+
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={prev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
+            >
+              ‹
+            </button>
+            <button
+              onClick={next}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
+            >
+              ›
+            </button>
+
+            <div className="absolute bottom-3 flex gap-2 w-full justify-center">
+              {images.map((_, i) => (
+                <span
+                  key={i}
+                  className={`w-2 h-2 rounded-full ${
+                    i === currentIndex
+                      ? "bg-orange-500"
+                      : "bg-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* INFO */}
