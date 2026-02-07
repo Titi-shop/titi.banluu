@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -11,39 +10,7 @@ import { getPiAccessToken } from "@/lib/piAuth";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* =========================
-   PI SDK TYPES 
-========================= */
-interface PiPayment {
-  amount: number;
-  memo: string;
-  metadata: Record<string, unknown>;
-}
-
-interface PiCallbacks {
-  onReadyForServerApproval(paymentId: string): Promise<void>;
-  onReadyForServerCompletion(
-    paymentId: string,
-    txid: string
-  ): Promise<void>;
-  onCancel(): void;
-  onError(error: unknown): void;
-}
-
-interface PiSDK {
-  createPayment(
-    payment: PiPayment,
-    callbacks: PiCallbacks
-  ): Promise<void>;
-}
-
-declare global {
-  interface Window {
-    Pi?: PiSDK;
-  }
-}
-
-/* =========================
-   DOMAIN TYPES
+   TYPES
 ========================= */
 interface ShippingInfo {
   name: string;
@@ -52,9 +19,6 @@ interface ShippingInfo {
   country?: string;
 }
 
-/* =========================
-   PAGE
-========================= */
 export default function CheckoutPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -78,15 +42,13 @@ export default function CheckoutPage() {
      LOAD SHIPPING
   ========================= */
   useEffect(() => {
-    const loadShipping = async () => {
+    async function loadShipping() {
       try {
         const token = await getPiAccessToken();
         if (!token) return;
 
         const res = await fetch("/api/address", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) return;
@@ -103,30 +65,20 @@ export default function CheckoutPage() {
             address: def.address,
             country: def.country,
           });
-        } else {
-          setShipping(null);
         }
-      } catch (err) {
-        console.error("LOAD SHIPPING ERROR", err);
+      } catch {
         setShipping(null);
       }
-    };
-
-    if (!loading && user) {
-      loadShipping();
     }
+
+    if (!loading && user) loadShipping();
   }, [loading, user]);
 
   /* =========================
-     PAY WITH PI
+     PAY
   ========================= */
-  const handlePayWithPi = async () => {
-    if (!window.Pi || !piReady) {
-      alert(t.pi_not_ready);
-      return;
-    }
-
-    if (!user || !cart.length || !shipping) {
+  const handlePay = async () => {
+    if (!window.Pi || !piReady || !user || !shipping || !cart.length) {
       alert(t.transaction_failed);
       return;
     }
@@ -134,105 +86,59 @@ export default function CheckoutPage() {
     if (processing) return;
     setProcessing(true);
 
-    const orderId = `ORD-${Date.now()}`;
-
-    const piPayment: PiPayment = {
-      amount: Number(total.toFixed(2)),
-      memo: `${t.payment_for_order} #${orderId}`,
-      metadata: {
-        orderId,
-        shipping,
-        items: cart,
-      },
-    };
-
     try {
-      await window.Pi.createPayment(piPayment, {
-        // 1️⃣ APPROVE
-        onReadyForServerApproval: async (paymentId) => {
-          const token = await getPiAccessToken();
-          if (!token) throw new Error("NO_TOKEN");
-
-          const res = await fetch("/api/pi/approve", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ paymentId }),
-          });
-
-          if (!res.ok) throw new Error("APPROVE_FAILED");
+      await window.Pi.createPayment(
+        {
+          amount: Number(total.toFixed(2)),
+          memo: "Thanh toán đơn hàng TiTi",
+          metadata: { shipping, items: cart },
         },
-
-        // 2️⃣ COMPLETE
-        onReadyForServerCompletion: async (paymentId, txid) => {
-          try {
-            const completeRes = await fetch("/api/pi/complete", {
+        {
+          onReadyForServerApproval: async (paymentId) => {
+            const token = await getPiAccessToken();
+            await fetch("/api/pi/approve", {
               method: "POST",
               headers: {
+                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
               },
+              body: JSON.stringify({ paymentId }),
+            });
+          },
+
+          onReadyForServerCompletion: async (paymentId, txid) => {
+            await fetch("/api/pi/complete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ paymentId, txid }),
             });
 
-            if (!completeRes.ok) {
-              throw new Error("PI_COMPLETE_FAILED");
-            }
-
             const orderRes = await apiAuthFetch("/api/orders", {
-  method: "POST",
-  body: JSON.stringify({
-    items: cart.map((i) => ({
-      product_id: i.id,        // 🔴 QUAN TRỌNG
-      quantity: i.quantity,
-      price: i.price,
-    })),
-    total,
-  }),
-});
+              method: "POST",
+              body: JSON.stringify({
+                items: cart.map((i) => ({
+                  product_id: i.id,
+                  quantity: i.quantity,
+                  price: i.price,
+                })),
+                total,
+              }),
+            });
 
-            if (!orderRes.ok) {
-              throw new Error("CREATE_ORDER_FAILED");
-            }
+            if (!orderRes.ok) throw new Error();
 
             clearCart();
-            alert(t.payment_success);
             router.push("/customer/pending");
-          } catch (err) {
-            console.error("❌ COMPLETE FLOW FAILED", err);
-            alert(t.transaction_failed);
-            setProcessing(false);
-          }
-        },
+          },
 
-        // 3️⃣ CANCEL
-        onCancel: () => {
-          alert(t.payment_canceled);
-          setProcessing(false);
-        },
-
-        // 4️⃣ ERROR
-        onError: (err) => {
-          console.error("❌ PI ERROR", err);
-          alert(t.payment_error);
-          setProcessing(false);
-        },
-      });
-    } catch (err) {
-      console.error("❌ CHECKOUT FAILED", err);
+          onCancel: () => setProcessing(false),
+          onError: () => setProcessing(false),
+        }
+      );
+    } catch {
       alert(t.transaction_failed);
       setProcessing(false);
     }
-  };
-
-  /* =========================
-     HELPERS
-  ========================= */
-  const resolveImage = (img?: string) => {
-    if (!img) return "/placeholder.png";
-    if (img.startsWith("http")) return img;
-    return `/${img.replace(/^\//, "")}`;
   };
 
   if (loading || !user) {
@@ -247,85 +153,65 @@ export default function CheckoutPage() {
      UI
   ========================= */
   return (
-    <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col pb-24">
+    <main className="max-w-md mx-auto min-h-screen bg-gray-50 pb-28">
       {/* SHIPPING */}
       <div
-        className="bg-white p-4 border-b cursor-pointer flex items-center justify-between"
+        className="bg-white p-4 border-b"
         onClick={() => router.push("/customer/address")}
       >
-        <div>
-          {shipping ? (
-            <>
-              <p className="font-semibold">{shipping.name}</p>
-              <p className="text-sm text-gray-600">{shipping.phone}</p>
-              <p className="text-sm text-gray-500">
-                {shipping.country ? `${shipping.country}, ` : ""}
-                {shipping.address}
-              </p>
-            </>
-          ) : (
-            <p className="text-gray-500">
-              ➕ {t.add_shipping}
+        {shipping ? (
+          <>
+            <p className="font-semibold">{shipping.name}</p>
+            <p className="text-sm text-gray-600">{shipping.phone}</p>
+            <p className="text-sm text-gray-500">
+              {shipping.country ? `${shipping.country}, ` : ""}
+              {shipping.address}
             </p>
-          )}
-        </div>
-
-        <span className="text-orange-500 text-sm font-medium">
-          {t.change || "Thay đổi"}
-        </span>
+          </>
+        ) : (
+          <p className="text-gray-500">➕ {t.add_shipping}</p>
+        )}
       </div>
-{/* CART ITEMS */}
-<div className="bg-white">
-  {cart.map((item, i) => (
-    <div
-      key={i}
-      className="flex items-start gap-3 p-4 border-b"
-    >
-      {/* IMAGE */}
-      <img
-        src={resolveImage(item.image || item.images?.[0])}
-        className="w-16 h-16 object-cover rounded"
-        alt={item.name}
-      />
 
-      {/* INFO */}
-      <div className="flex-1">
-        <p className="text-sm font-medium leading-snug">
-          {item.name}
-        </p>
-
-        <p className="text-sm text-orange-600 font-semibold mt-1">
-          {item.price.toFixed(2)} π
-        </p>
-
-        {/* QUANTITY SELECT */}
-        <div className="mt-2">
-          <select
-            value={item.quantity}
-            onChange={(e) =>
-              updateQuantity(item.id, Number(e.target.value))
-            }
-            className="border rounded px-2 py-1 text-sm"
+      {/* CART */}
+      <div className="bg-white mt-2">
+        {cart.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center gap-3 p-3 border-b"
           >
-            {Array.from({ length: 10 }).map((_, n) => (
-              <option key={n + 1} value={n + 1}>
-                {n + 1}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+            <img
+              src={item.image || item.images?.[0] || "/placeholder.png"}
+              className="w-16 h-16 object-cover rounded"
+              alt={item.name}
+            />
 
-      {/* TOTAL PRICE */}
-      <div className="text-right">
-        <p className="text-sm font-semibold">
-          {(item.price * item.quantity).toFixed(2)} π
-        </p>
-      </div>
-    </div>
-  ))}
-</div>
-    
+            <div className="flex-1">
+              <p className="text-sm font-medium line-clamp-2">
+                {item.name}
+              </p>
+
+              <div className="mt-1 flex items-center gap-2">
+                <select
+                  value={item.quantity}
+                  onChange={(e) =>
+                    updateQuantity(item.id, Number(e.target.value))
+                  }
+                  className="border rounded px-2 py-1 text-sm"
+                >
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+
+                <span className="text-xs text-gray-500">
+                  × {item.price} π
+                </span>
+              </div>
+            </div>
+
             <p className="font-semibold text-orange-600 text-sm">
               {(item.price * item.quantity).toFixed(2)} π
             </p>
@@ -334,25 +220,25 @@ export default function CheckoutPage() {
       </div>
 
       {/* FOOTER */}
-      <div className="sticky bottom-[64px] bg-white border-t p-4 flex justify-between z-20">
-        <div>
-          <p className="text-sm">{t.total_label}</p>
-          <p className="text-xl font-bold text-orange-600">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 max-w-md mx-auto">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm">{t.total_label}</span>
+          <span className="text-lg font-bold text-orange-600">
             {total.toFixed(2)} π
-          </p>
+          </span>
         </div>
 
         <button
-          onClick={handlePayWithPi}
+          onClick={handlePay}
           disabled={processing}
-          className={`px-6 py-3 rounded-lg text-white font-semibold ${
-            processing
-              ? "bg-gray-400"
-              : "bg-orange-600 hover:bg-orange-700"
-          }`}
+          className="w-full py-3 rounded-lg bg-orange-600 text-white font-semibold disabled:bg-gray-400"
         >
           {processing ? t.processing : t.pay_now}
         </button>
+
+        <p className="text-center text-xs text-gray-500 mt-2">
+          🔒 An tâm mua sắm tại TiTi
+        </p>
       </div>
     </main>
   );
