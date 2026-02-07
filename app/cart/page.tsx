@@ -233,7 +233,7 @@ export default function CartPage() {
                         min={1}
                         value={item.quantity}
                         onChange={(e) =>
-  updateQty(item.id, Math.max(, Number(e.target.value)))
+  updateQty(item.id, Math.max(0 Number(e.target.value)))
                         }
                         className="w-14 border rounded px-1 py-0.5 text-sm text-center"
                       />
@@ -262,7 +262,7 @@ export default function CartPage() {
           </div>
 
           {/* FOOTER */}
-          <div className="fixed bottom-8 left-0 right-0 bg-white border-t p-4">
+          <div className="fixed bottom-9 left-0 right-0 bg-white border-t p-4">
             <div className="flex justify-between mb-2">
               <span className="text-sm">{t.total}</span>
               <span className="font-bold text-orange-600">
