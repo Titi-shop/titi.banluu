@@ -36,7 +36,7 @@ export default function CartPage() {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
-
+const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   /* =========================
      SELECT LOGIC
   ========================= */
@@ -229,14 +229,26 @@ export default function CartPage() {
 
                     <div className="flex items-center gap-2 mt-1">
                       <input
-                        type="number"
-                        min={1}
-                        value={item.quantity}
-                        onChange={(e) =>
-  updateQty(item.id, Math.max(0 Number(e.target.value)))
-                        }
-                        className="w-14 border rounded px-1 py-0.5 text-sm text-center"
-                      />
+  type="text"              // ❗ KHÔNG dùng number
+  inputMode="numeric"      // vẫn hiện bàn phím số
+  pattern="[0-9]*"
+  value={qtyDraft[item.id] ?? String(item.quantity)}
+  onChange={(e) => {
+    const val = e.target.value;
+    if (/^\d*$/.test(val)) {
+      setQtyDraft((d) => ({ ...d, [item.id]: val }));
+    }
+  }}
+  onBlur={() => {
+    const val = Number(qtyDraft[item.id]);
+    if (!val || val < 1) {
+      setQtyDraft((d) => ({ ...d, [item.id]: "" }));
+      return;
+    }
+    updateQty(item.id, val);
+  }}
+  className="w-14 border rounded px-1 py-0.5 text-sm text-center"
+/>
 
                       <span className="text-xs text-gray-500">
                         × {unit} π
