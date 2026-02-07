@@ -201,7 +201,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
           {cart.map((item) => (
             <div
               key={item.id}
-              className="flex items-center gap-3 border-b pb-3"
+              className="flex items-center gap-3 border-b pb-2"
             >
               <img
                 src={
@@ -244,21 +244,19 @@ export default function CheckoutSheet({ open, onClose }: Props) {
               </p>
             </div>
           ))}
-        </div>
-         <p className="text-center text-xs text-gray-500 mt-2">
-            🔒 An tâm mua sắm tại TiTi
-          </p>
-
-        {/* FOOTER */}
         <div className="border-t p-4">
-          <button
-            onClick={handlePay}
-            disabled={processing}
-            className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
-          >
-            {processing ? t.processing : t.pay_now}
-          </button>
-        </div>
+  <p className="text-center text-xs text-gray-700 mb-2">
+        An tâm mua sắm tại TiTi
+  </p>
+
+  <button
+    onClick={handlePay}
+    disabled={processing}
+    className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
+  >
+    {processing ? t.processing : t.pay_now}
+  </button>
+</div>
       </div>
     </div>
   );
