@@ -256,20 +256,27 @@ export default function ProductDetail() {
       </div>
 
       {/* ACTIONS */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
-        <button
-          onClick={add}
-          className="flex-1 bg-yellow-500 text-white py-2 rounded-md"
-        >
-          {t.add_to_cart}
-        </button>
-        <button
-          onClick={buy}
-          className="flex-1 bg-red-500 text-white py-2 rounded-md"
-        >
-          {t.buy_now}
-        </button>
-      </div>
+
+       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
+  <button
+    onClick={add}
+    className="flex-1 bg-yellow-500 text-white py-2 rounded-md"
+  >
+    {t.add_to_cart}
+  </button>
+
+  <button
+    onClick={buy}
+    className="flex-1 bg-red-500 text-white py-2 rounded-md"
+  >
+    {t.buy_now}
+  </button>
+</div>
+       {/* CHECKOUT SHEET */}
+<CheckoutSheet
+  open={openCheckout}
+  onClose={() => setOpenCheckout(false)}
+/>
     </div>
   );
 }
