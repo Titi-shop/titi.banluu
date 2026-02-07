@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+
 
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -247,21 +247,7 @@ export default function CheckoutPage() {
      UI
   ========================= */
   return (
-    <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col pb-24">
-      {/* HEADER */}
-      <div className="flex items-center bg-white p-3 border-b sticky top-0 z-10">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center text-gray-700"
-        >
-          <ArrowLeft className="w-5 h-5 mr-1" />
-          {t.back}
-        </button>
-        <h1 className="flex-1 text-center font-semibold">
-          {t.checkout}
-        </h1>
-      </div>
-
+    <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col pb-
       {/* SHIPPING */}
       <div
         className="bg-white p-4 border-b cursor-pointer flex items-center justify-between"
