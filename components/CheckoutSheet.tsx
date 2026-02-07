@@ -250,20 +250,9 @@ export default function CheckoutSheet({ open, onClose }: Props) {
           <button
             onClick={handlePay}
             disabled={processing}
-            className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-400"
+            className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
           >
             {processing ? t.processing : t.pay_now}
-          </button>
-
-          <p className="text-center text-xs text-gray-500 mt-2">
-            🔒 An tâm mua sắm tại TiTi
-          </p>
-
-          <button
-            onClick={onClose}
-            className="mt-3 w-full py-2 border rounded-lg"
-          >
-            {t.close || "Đóng"}
           </button>
         </div>
       </div>
