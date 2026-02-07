@@ -241,6 +241,9 @@ export default function CheckoutSheet({ open, onClose }: Props) {
             </div>
           ))}
         </div>
+         <p className="text-center text-xs text-gray-500 mt-2">
+            🔒 An tâm mua sắm tại TiTi
+          </p>
 
         {/* FOOTER */}
         <div className="border-t p-4">
