@@ -285,11 +285,39 @@ export default function CheckoutPage() {
               alt={item.name}
             />
             <div className="ml-3 flex-1">
-              <p className="text-sm font-medium">{item.name}</p>
-              <p className="text-xs text-gray-500">
-                x{item.quantity} × {item.price} π
-              </p>
-            </div>
+  <p className="text-sm font-medium">{item.name}</p>
+
+  <div className="flex items-center mt-1 gap-2">
+    {/* GIẢM */}
+    <button
+      onClick={() =>
+        updateQuantity(item.id, Math.max(1, item.quantity - 1))
+      }
+      className="w-7 h-7 rounded border text-gray-600"
+    >
+      −
+    </button>
+
+    {/* SỐ LƯỢNG */}
+    <span className="min-w-[24px] text-center text-sm">
+      {item.quantity}
+    </span>
+
+    {/* TĂNG */}
+    <button
+      onClick={() =>
+        updateQuantity(item.id, item.quantity + 1)
+      }
+      className="w-7 h-7 rounded border text-gray-600"
+    >
+      +
+    </button>
+
+    <span className="text-xs text-gray-500 ml-2">
+      × {item.price} π
+    </span>
+  </div>
+</div>
             <p className="font-semibold text-orange-600 text-sm">
               {(item.price * item.quantity).toFixed(2)} π
             </p>
