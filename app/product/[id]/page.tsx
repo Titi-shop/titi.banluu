@@ -136,10 +136,10 @@ export default function ProductDetail() {
   };
 
   const buy = () => {
-    clearCart();
-    addToCart({ ...product, quantity });
-    router.push("/checkout");
-  };
+  clearCart();
+  addToCart({ ...product, quantity });
+  setOpenCheckout(true);
+};
 
   /* =======================
      RENDER
