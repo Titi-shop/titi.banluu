@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
-
 import { useCart } from "../../context/CartContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import CheckoutSheet from "./CheckoutSheet";
+import { ArrowLeft, ShoppingCart } from "lucide-react";
+import CheckoutSheet from "@/components/CheckoutSheet";
 
 /* =======================
    TYPES
@@ -29,8 +28,8 @@ interface ApiProduct {
 interface Product {
   id: string;
   name: string;
-  price: number;
-  finalPrice: number;
+  price: number;        // giá gốc
+  finalPrice: number;   // giá sale / giá thanh toán
   isSale: boolean;
   description: string;
   detail: string;
@@ -56,6 +55,8 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
 
+  const quantity = 1;
+
   /* =======================
      LOAD PRODUCT
   ======================= */
@@ -67,33 +68,33 @@ export default function ProductDetail() {
 
         if (!Array.isArray(data)) return;
 
-        const found = data.find(
-          (p: ApiProduct) => String(p.id) === String(id)
-        ) as ApiProduct | undefined;
+        const normalized: Product[] = data.map((p) => {
+          const api = p as ApiProduct;
+          const finalPrice =
+            typeof api.finalPrice === "number"
+              ? api.finalPrice
+              : api.price;
 
-        if (!found) return;
-
-        const finalPrice =
-          typeof found.finalPrice === "number"
-            ? found.finalPrice
-            : found.price;
-
-        setProduct({
-          id: found.id,
-          name: found.name,
-          price: found.price,
-          finalPrice,
-          isSale: finalPrice < found.price,
-          description: found.description ?? "",
-          detail: found.detail ?? "",
-          views: found.views ?? 0,
-          sold: found.sold ?? 0,
-          images: Array.isArray(found.images) ? found.images : [],
-          detailImages: Array.isArray(found.detailImages)
-            ? found.detailImages
-            : [],
-          categoryId: found.categoryId ?? null,
+          return {
+            id: api.id,
+            name: api.name,
+            price: api.price,
+            finalPrice,
+            isSale: finalPrice < api.price,
+            description: api.description ?? "",
+            detail: api.detail ?? "",
+            views: api.views ?? 0,
+            sold: api.sold ?? 0,
+            images: Array.isArray(api.images) ? api.images : [],
+            detailImages: Array.isArray(api.detailImages)
+              ? api.detailImages
+              : [],
+            categoryId: api.categoryId ?? null,
+          };
         });
+
+        const found = normalized.find((p) => p.id === id);
+        if (found) setProduct(found);
       } finally {
         setLoading(false);
       }
@@ -102,6 +103,9 @@ export default function ProductDetail() {
     loadProduct();
   }, [id]);
 
+  /* =======================
+     STATES
+  ======================= */
   if (loading) return <p className="p-4">{t.loading}</p>;
   if (!product) return <p className="p-4">{t.no_products}</p>;
 
@@ -110,23 +114,32 @@ export default function ProductDetail() {
       ? product.images
       : ["/placeholder.png"];
 
+  const next = () =>
+    setCurrentIndex((i) => (i + 1) % images.length);
+
+  const prev = () =>
+    setCurrentIndex((i) =>
+      i === 0 ? images.length - 1 : i - 1
+    );
+
   /* =======================
-     ACTIONS
+     ACTIONS (FIXED)
   ======================= */
-  const handleAddToCart = () => {
+
+  const add = () => {
     addToCart({
       ...product,
-      quantity: 1,
-      price: product.finalPrice, // 🔴 QUAN TRỌNG: dùng giá sale
+      price: product.finalPrice, // ✅ DÙNG GIÁ SALE
+      quantity,
     });
     router.push("/cart");
   };
 
-  const handleBuyNow = () => {
+  const buy = () => {
     addToCart({
       ...product,
-      quantity: 1,
-      price: product.finalPrice, // 🔴 GIÁ SALE
+      price: product.finalPrice, // ✅ DÙNG GIÁ SALE
+      quantity,
     });
     setOpenCheckout(true);
   };
@@ -137,7 +150,7 @@ export default function ProductDetail() {
   return (
     <div className="pb-32 bg-gray-50 min-h-screen">
 
-      {/* IMAGES */}
+      {/* MAIN IMAGES */}
       <div className="mt-14 relative w-full h-80 bg-white">
         <img
           src={images[currentIndex]}
@@ -148,12 +161,15 @@ export default function ProductDetail() {
 
       {/* INFO */}
       <div className="bg-white p-4 flex justify-between">
-        <h2 className="text-lg font-medium">{product.name}</h2>
+        <h2 className="text-lg font-medium">
+          {product.name}
+        </h2>
 
         <div className="text-right">
           <p className="text-xl font-bold text-orange-600">
             π {product.finalPrice}
           </p>
+
           {product.isSale && (
             <p className="text-sm text-gray-400 line-through">
               π {product.price}
@@ -162,29 +178,56 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* DESCRIPTION */}
+      {/* META */}
+      <div className="bg-white px-4 pb-4 flex gap-4 text-gray-600 text-sm">
+        <span>👁 {product.views}</span>
+        <span>
+          🛒 {product.sold} {t.orders}
+        </span>
+      </div>
+
+      {/* SHORT DESCRIPTION */}
       <div className="bg-white p-4">
         {product.description || t.no_description}
+      </div>
+
+      {/* DETAIL IMAGES */}
+      {product.detailImages.length > 0 && (
+        <div className="bg-white mt-2 space-y-2">
+          {product.detailImages.map((url, i) => (
+            <img
+              key={i}
+              src={url}
+              alt={`detail-${i}`}
+              className="w-full object-cover"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* DETAIL CONTENT */}
+      <div className="bg-white p-4 mt-2 whitespace-pre-line">
+        {product.detail || t.no_description}
       </div>
 
       {/* ACTIONS */}
       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
         <button
-          onClick={handleAddToCart}
+          onClick={add}
           className="flex-1 bg-yellow-500 text-white py-2 rounded-md"
         >
           {t.add_to_cart}
         </button>
 
         <button
-          onClick={handleBuyNow}
+          onClick={buy}
           className="flex-1 bg-red-500 text-white py-2 rounded-md"
         >
           {t.buy_now}
         </button>
       </div>
 
-      {/* CHECKOUT SHEET (PRODUCT ONLY) */}
+      {/* CHECKOUT SHEET */}
       <CheckoutSheet
         open={openCheckout}
         onClose={() => setOpenCheckout(false)}
