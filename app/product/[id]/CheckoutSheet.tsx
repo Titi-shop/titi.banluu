@@ -19,16 +19,6 @@ interface ShippingInfo {
   country?: string;
 }
 
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image?: string;
-  images?: string[];
-  sale_price?: number;
-}
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -41,20 +31,14 @@ export default function CheckoutSheet({ open, onClose }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const {
-    cart,
-    updateQuantity,
-    clearCart,
-    removeFromCart,
-  } = useCart();
-
+  const { cart, updateQuantity, clearCart } = useCart();
   const { user, piReady } = useAuth();
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
 
   /**
-   * quantity draft để nhập tự do
+   * quantity draft để gõ tự do (tránh bị khóa ở 1)
    * key = product id
    */
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
@@ -70,7 +54,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
   }, [open]);
 
   /* =========================
-     LOAD DEFAULT ADDRESS
+     LOAD ADDRESS
   ========================= */
   useEffect(() => {
     async function loadAddress() {
@@ -79,24 +63,14 @@ export default function CheckoutSheet({ open, onClose }: Props) {
         if (!token) return;
 
         const res = await fetch("/api/address", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-
         if (!res.ok) return;
 
-        const data: {
-          items?: Array<{
-            is_default: boolean;
-            name: string;
-            phone: string;
-            address: string;
-            country?: string;
-          }>;
-        } = await res.json();
-
-        const def = data.items?.find((a) => a.is_default);
+        const data = await res.json();
+        const def = data.items?.find(
+          (a: { is_default: boolean }) => a.is_default
+        );
 
         if (def) {
           setShipping({
@@ -115,16 +89,13 @@ export default function CheckoutSheet({ open, onClose }: Props) {
   }, [open, user]);
 
   /* =========================
-     TOTAL (SALE-FIRST)
+     CALC TOTAL (SALE-FIRST)
      ❗ KHÔNG dùng total từ CartContext
-  ========================= */
+========================= */
   const checkoutTotal = useMemo(() => {
-    return cart.reduce((sum: number, item: CartItem) => {
+    return cart.reduce((sum, item) => {
       const unitPrice =
-        typeof item.sale_price === "number"
-          ? item.sale_price
-          : item.price;
-
+        (item as { sale_price?: number }).sale_price ?? item.price;
       return sum + unitPrice * item.quantity;
     }, 0);
   }, [cart]);
@@ -133,13 +104,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
      PAY WITH PI
   ========================= */
   const handlePay = async () => {
-    if (
-      !window.Pi ||
-      !piReady ||
-      !user ||
-      !shipping ||
-      cart.length === 0
-    ) {
+    if (!window.Pi || !piReady || !user || !shipping || !cart.length) {
       alert(t.transaction_failed);
       return;
     }
@@ -152,16 +117,11 @@ export default function CheckoutSheet({ open, onClose }: Props) {
         {
           amount: Number(checkoutTotal.toFixed(2)),
           memo: "Thanh toán đơn hàng TiTi",
-          metadata: {
-            shipping,
-            items: cart,
-          },
+          metadata: { shipping, items: cart },
         },
         {
-          onReadyForServerApproval: async (paymentId: string) => {
+          onReadyForServerApproval: async (paymentId) => {
             const token = await getPiAccessToken();
-            if (!token) return;
-
             await fetch("/api/pi/approve", {
               method: "POST",
               headers: {
@@ -172,15 +132,10 @@ export default function CheckoutSheet({ open, onClose }: Props) {
             });
           },
 
-          onReadyForServerCompletion: async (
-            paymentId: string,
-            txid: string
-          ) => {
+          onReadyForServerCompletion: async (paymentId, txid) => {
             await fetch("/api/pi/complete", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ paymentId, txid }),
             });
 
@@ -191,17 +146,13 @@ export default function CheckoutSheet({ open, onClose }: Props) {
                   product_id: i.id,
                   quantity: i.quantity,
                   price:
-                    typeof i.sale_price === "number"
-                      ? i.sale_price
-                      : i.price,
+                    (i as { sale_price?: number }).sale_price ?? i.price,
                 })),
                 total: checkoutTotal,
               }),
             });
 
-            if (!orderRes.ok) {
-              throw new Error("ORDER_FAILED");
-            }
+            if (!orderRes.ok) throw new Error();
 
             clearCart();
             onClose();
@@ -266,11 +217,10 @@ export default function CheckoutSheet({ open, onClose }: Props) {
           </div>
 
           {/* PRODUCTS */}
-          {cart.map((item: CartItem) => {
+          {cart.map((item) => {
             const unitPrice =
-              typeof item.sale_price === "number"
-                ? item.sale_price
-                : item.price;
+              (item as { sale_price?: number }).sale_price ??
+              item.price;
 
             const displayQty =
               qtyDraft[item.id] ?? String(item.quantity);
@@ -307,7 +257,10 @@ export default function CheckoutSheet({ open, onClose }: Props) {
                     onBlur={() => {
                       const val = Number(displayQty);
                       if (!val || val < 1) {
-                        removeFromCart(item.id);
+                        setQtyDraft((d) => ({
+                          ...d,
+                          [item.id]: "",
+                        }));
                         return;
                       }
                       updateQuantity(item.id, val);
@@ -316,38 +269,23 @@ export default function CheckoutSheet({ open, onClose }: Props) {
                   />
                 </div>
 
-                <p className="font-semibold text-orange-600 text-sm">
+                <p className="font-semibold text-orange-600">
                   {(unitPrice * Number(displayQty)).toFixed(2)} π
                 </p>
-
-                {/* DELETE */}
-                <button
-                  onClick={() => removeFromCart(item.id)}
-                  className="text-gray-400 hover:text-red-500 text-lg"
-                  title={t.remove}
-                >
-                  ✕
-                </button>
               </div>
             );
           })}
-
-          {cart.length === 0 && (
-            <p className="text-center text-sm text-gray-500 py-6">
-              {t.no_products}
-            </p>
-          )}
         </div>
 
         {/* FOOTER */}
         <div className="border-t p-4">
           <p className="text-center text-xs text-gray-700 mb-2">
-            An tâm mua sắm tại TiTi
+             An tâm mua sắm tại TiTi
           </p>
 
           <button
             onClick={handlePay}
-            disabled={processing || cart.length === 0}
+            disabled={processing}
             className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
           >
             {processing ? t.processing : t.pay_now}
