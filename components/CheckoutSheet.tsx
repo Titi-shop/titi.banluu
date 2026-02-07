@@ -157,7 +157,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
     <div className="fixed inset-0 z-[100]">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[75vh] flex flex-col">
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[45vh] flex flex-col">
         <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-2 mb-2" />
 
         <div className="px-4 pb-2 border-b">
