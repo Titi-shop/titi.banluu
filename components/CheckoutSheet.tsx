@@ -217,8 +217,11 @@ export default function CheckoutSheet({ open, onClose }: Props) {
               </div>
 
               <p className="font-semibold text-orange-600">
-                {(item.price * item.quantity).toFixed(2)} π
-              </p>
+  {(
+    item.price *
+    Number(qtyDraft[item.id] ?? item.quantity)
+  ).toFixed(2)} π
+</p>
             </div>
           ))}
         </div>
