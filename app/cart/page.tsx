@@ -261,7 +261,7 @@ export default function CartPage() {
                       onClick={() => removeFromCart(item.id)}
                       className="text-xs text-red-500 mt-1"
                     >
-                      🗑 {t.delete}
+                       {t.delete}
                     </button>
                   </div>
                 </div>
@@ -270,7 +270,7 @@ export default function CartPage() {
           </div>
 
           {/* FOOTER */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
+          <div className="fixed bottom-6 left-0 right-0 bg-white border-t p-4">
             <div className="flex justify-between mb-2">
               <span className="text-sm">{t.total}</span>
               <span className="font-bold text-orange-600">
