@@ -24,9 +24,6 @@ interface Props {
   onClose: () => void;
 }
 
-/* =========================
-   COMPONENT
-========================= */
 export default function CheckoutSheet({ open, onClose }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -36,6 +33,9 @@ export default function CheckoutSheet({ open, onClose }: Props) {
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
+
+  // quantity tạm cho input
+  const [qtyDraft, setQtyDraft] = useState<Record<number, string>>({});
 
   /* =========================
      LOCK BODY SCROLL
@@ -62,9 +62,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
         if (!res.ok) return;
 
         const data = await res.json();
-        const def = data.items?.find(
-          (a: { is_default: boolean }) => a.is_default
-        );
+        const def = data.items?.find((a: any) => a.is_default);
 
         if (def) {
           setShipping({
@@ -157,24 +155,16 @@ export default function CheckoutSheet({ open, onClose }: Props) {
   ========================= */
   return (
     <div className="fixed inset-0 z-[100]">
-      {/* BACKDROP */}
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      {/* SHEET */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[80vh] flex flex-col">
-        {/* HANDLE */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[75vh] flex flex-col">
         <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-2 mb-2" />
 
-        {/* HEADER */}
         <div className="px-4 pb-2 border-b">
           <h3 className="font-semibold">{t.checkout}</h3>
         </div>
 
-        {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {/* ADDRESS */}
           <div
             className="border rounded-lg p-3 cursor-pointer"
@@ -183,33 +173,20 @@ export default function CheckoutSheet({ open, onClose }: Props) {
             {shipping ? (
               <>
                 <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-600">
-                  {shipping.phone}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {shipping.address}
-                </p>
+                <p className="text-sm text-gray-600">{shipping.phone}</p>
+                <p className="text-sm text-gray-500">{shipping.address}</p>
               </>
             ) : (
-              <p className="text-gray-500">
-                ➕ {t.add_shipping}
-              </p>
+              <p className="text-gray-500">➕ {t.add_shipping}</p>
             )}
           </div>
 
           {/* PRODUCTS */}
           {cart.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-3 border-b pb-2"
-            >
+            <div key={item.id} className="flex items-center gap-3 border-b pb-2">
               <img
-                src={
-                  item.image ||
-                  item.images?.[0] ||
-                  "/placeholder.png"
-                }
-                className="w-16 h-16 rounded object-cover"
+                src={item.image || item.images?.[0] || "/placeholder.png"}
+                className="w-14 h-14 rounded object-cover"
               />
 
               <div className="flex-1">
@@ -218,25 +195,25 @@ export default function CheckoutSheet({ open, onClose }: Props) {
                 </p>
 
                 <input
-  type="number"
-  min={1}
-  value={item.quantity}
-  onChange={(e) => {
-    const val = Number(e.target.value);
-    if (Number.isNaN(val) || val < 1) return;
-    updateQuantity(item.id, val);
-  }}
-  className="
-    mt-1
-    w-16
-    border
-    rounded
-    px-2
-    py-1
-    text-sm
-    text-center
-  "
-/>
+                  type="number"
+                  min={1}
+                  value={qtyDraft[item.id] ?? item.quantity}
+                  onChange={(e) =>
+                    setQtyDraft({
+                      ...qtyDraft,
+                      [item.id]: e.target.value,
+                    })
+                  }
+                  onBlur={() => {
+                    const val = Number(qtyDraft[item.id]);
+                    if (!val || val < 1) {
+                      setQtyDraft((d) => ({ ...d, [item.id]: "" }));
+                      return;
+                    }
+                    updateQuantity(item.id, val);
+                  }}
+                  className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
+                />
               </div>
 
               <p className="font-semibold text-orange-600">
@@ -244,19 +221,22 @@ export default function CheckoutSheet({ open, onClose }: Props) {
               </p>
             </div>
           ))}
-        <div className="border-t p-4">
-  <p className="text-center text-xs text-gray-700 mb-2">
-        An tâm mua sắm tại TiTi
-  </p>
+        </div>
 
-  <button
-    onClick={handlePay}
-    disabled={processing}
-    className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
-  >
-    {processing ? t.processing : t.pay_now}
-  </button>
-</div>
+        {/* FOOTER */}
+        <div className="border-t p-4">
+          <p className="text-center text-xs text-gray-700 mb-2">
+            An tâm mua sắm tại TiTi
+          </p>
+
+          <button
+            onClick={handlePay}
+            disabled={processing}
+            className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
+          >
+            {processing ? t.processing : t.pay_now}
+          </button>
+        </div>
       </div>
     </div>
   );
