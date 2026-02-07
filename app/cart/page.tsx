@@ -31,20 +31,23 @@ export default function CartPage() {
   const { t } = useTranslation();
 
   const { cart, updateQty, removeFromCart, clearCart } = useCart();
-
   const { user, piReady } = useAuth();
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
-const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
+
+  /**
+   * qtyDraft: giữ giá trị người đang gõ
+   * key = productId
+   */
+  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
+
   /* =========================
      SELECT LOGIC
   ========================= */
   const toggleItem = (id: string) => {
     setSelectedIds((prev) =>
-      prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
@@ -64,7 +67,7 @@ const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   }, [cart, selectedIds]);
 
   /* =========================
-     TOTAL (SALE-FIRST)
+     TOTAL (SALE FIRST)
   ========================= */
   const total = useMemo(() => {
     return selectedItems.reduce((sum, item) => {
@@ -72,7 +75,6 @@ const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
         typeof item.sale_price === "number"
           ? item.sale_price
           : item.price;
-
       return sum + unit * item.quantity;
     }, 0);
   }, [selectedItems]);
@@ -107,9 +109,7 @@ const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
         {
           amount: Number(total.toFixed(2)),
           memo: `${t.paying_order} (${selectedItems.length})`,
-          metadata: {
-            items: selectedItems,
-          },
+          metadata: { items: selectedItems },
         },
         {
           onReadyForServerApproval: async (paymentId: string) => {
@@ -166,11 +166,8 @@ const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
      UI
   ========================= */
   return (
-    <main className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-white p-4 border-b font-semibold">
-        🛒 {t.cart_title}
-      </div>
-
+    <main className="min-h-screen bg-gray-50 pb-28">
+      {/* EMPTY */}
       {cart.length === 0 ? (
         <div className="p-8 text-center text-gray-500">
           <p className="mb-3">{t.empty_cart}</p>
@@ -201,11 +198,11 @@ const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
                   ? item.sale_price
                   : item.price;
 
+              const displayQty =
+                qtyDraft[item.id] ?? String(item.quantity);
+
               return (
-                <div
-                  key={item.id}
-                  className="flex gap-3 p-4 items-center"
-                >
+                <div key={item.id} className="flex gap-3 p-4 items-center">
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(item.id)}
@@ -229,26 +226,32 @@ const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
 
                     <div className="flex items-center gap-2 mt-1">
                       <input
-  type="text"              // ❗ KHÔNG dùng number
-  inputMode="numeric"      // vẫn hiện bàn phím số
-  pattern="[0-9]*"
-  value={qtyDraft[item.id] ?? String(item.quantity)}
-  onChange={(e) => {
-    const val = e.target.value;
-    if (/^\d*$/.test(val)) {
-      setQtyDraft((d) => ({ ...d, [item.id]: val }));
-    }
-  }}
-  onBlur={() => {
-    const val = Number(qtyDraft[item.id]);
-    if (!val || val < 1) {
-      setQtyDraft((d) => ({ ...d, [item.id]: "" }));
-      return;
-    }
-    updateQty(item.id, val);
-  }}
-  className="w-14 border rounded px-1 py-0.5 text-sm text-center"
-/>
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={displayQty}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (/^\d*$/.test(v)) {
+                            setQtyDraft((d) => ({
+                              ...d,
+                              [item.id]: v,
+                            }));
+                          }
+                        }}
+                        onBlur={() => {
+                          const val = Number(displayQty);
+                          if (!val || val < 1) {
+                            setQtyDraft((d) => ({
+                              ...d,
+                              [item.id]: "",
+                            }));
+                            return;
+                          }
+                          updateQty(item.id, val);
+                        }}
+                        className="w-14 border rounded px-1 py-0.5 text-sm text-center"
+                      />
 
                       <span className="text-xs text-gray-500">
                         × {unit} π
@@ -265,7 +268,7 @@ const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
                       onClick={() => removeFromCart(item.id)}
                       className="text-xs text-red-500 mt-1"
                     >
-                       {t.delete}
+                      {t.delete}
                     </button>
                   </div>
                 </div>
