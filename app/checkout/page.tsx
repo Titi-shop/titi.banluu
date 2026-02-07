@@ -247,7 +247,7 @@ export default function CheckoutPage() {
      UI
   ========================= */
   return (
-    <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col pb-
+    <main className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col pb-24">
       {/* SHIPPING */}
       <div
         className="bg-white p-4 border-b cursor-pointer flex items-center justify-between"
