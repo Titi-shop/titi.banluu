@@ -52,6 +52,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+   const [openCheckout, setOpenCheckout] = useState(false);
 
   const quantity = 1;
 
