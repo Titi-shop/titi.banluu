@@ -1,267 +1,359 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useCart } from "../../context/CartContext";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { useCart } from "@/app/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
-import CheckoutSheet from "./CheckoutSheet";
+import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
-/* =======================
+/* =========================
    TYPES
-======================= */
+========================= */
+interface ShippingInfo {
+  name: string;
+  phone: string;
+  address: string;
+  country?: string;
+}
 
-interface ApiProduct {
+interface CartItem {
   id: string;
   name: string;
   price: number;
-  finalPrice?: number;
-  description?: string;
-  detail?: string;
-  views?: number;
-  sold?: number;
+  quantity: number;
+  image?: string;
   images?: string[];
-  detailImages?: string[];
-  categoryId?: string | null;
+  sale_price?: number;
 }
 
-interface Product {
-  id: string;
-  name: string;
-  price: number;        // giá gốc
-  finalPrice: number;   // giá sale / giá thanh toán
-  isSale: boolean;
-  description: string;
-  detail: string;
-  views: number;
-  sold: number;
-  images: string[];
-  detailImages: string[];
-  categoryId: string | null;
+interface Props {
+  open: boolean;
+  onClose: () => void;
 }
 
-/* =======================
-   PAGE
-======================= */
-
-export default function ProductDetail() {
-  const { t } = useTranslation();
-  const { id } = useParams<{ id: string }>();
+/* =========================
+   COMPONENT
+========================= */
+export default function CheckoutSheet({ open, onClose }: Props) {
   const router = useRouter();
-  const { addToCart } = useCart();
+  const { t } = useTranslation();
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [openCheckout, setOpenCheckout] = useState(false);
+  const {
+    cart,
+    updateQuantity,
+    clearCart,
+    removeFromCart,
+  } = useCart();
 
-  const quantity = 1;
+  const { user, piReady } = useAuth();
 
-  /* =======================
-     LOAD PRODUCT
-  ======================= */
+  const [shipping, setShipping] = useState<ShippingInfo | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  /**
+   * quantity draft để nhập tự do
+   * key = product id
+   */
+  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
+
+  /* =========================
+     LOCK BODY SCROLL
+  ========================= */
   useEffect(() => {
-    async function loadProduct() {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  /* =========================
+     LOAD DEFAULT ADDRESS
+  ========================= */
+  useEffect(() => {
+    async function loadAddress() {
       try {
-        const res = await fetch("/api/products");
-        const data: unknown = await res.json();
+        const token = await getPiAccessToken();
+        if (!token) return;
 
-        if (!Array.isArray(data)) return;
-
-        const normalized: Product[] = data.map((p) => {
-          const api = p as ApiProduct;
-          const finalPrice =
-            typeof api.finalPrice === "number"
-              ? api.finalPrice
-              : api.price;
-
-          return {
-            id: api.id,
-            name: api.name,
-            price: api.price,
-            finalPrice,
-            isSale: finalPrice < api.price,
-            description: api.description ?? "",
-            detail: api.detail ?? "",
-            views: api.views ?? 0,
-            sold: api.sold ?? 0,
-            images: Array.isArray(api.images) ? api.images : [],
-            detailImages: Array.isArray(api.detailImages)
-              ? api.detailImages
-              : [],
-            categoryId: api.categoryId ?? null,
-          };
+        const res = await fetch("/api/address", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
-        const found = normalized.find((p) => p.id === id);
-        if (found) setProduct(found);
-      } finally {
-        setLoading(false);
+        if (!res.ok) return;
+
+        const data: {
+          items?: Array<{
+            is_default: boolean;
+            name: string;
+            phone: string;
+            address: string;
+            country?: string;
+          }>;
+        } = await res.json();
+
+        const def = data.items?.find((a) => a.is_default);
+
+        if (def) {
+          setShipping({
+            name: def.name,
+            phone: def.phone,
+            address: def.address,
+            country: def.country,
+          });
+        }
+      } catch {
+        setShipping(null);
       }
     }
 
-    loadProduct();
-  }, [id]);
+    if (open && user) loadAddress();
+  }, [open, user]);
 
-  /* =======================
-     STATES
-  ======================= */
-  if (loading) return <p className="p-4">{t.loading}</p>;
-  if (!product) return <p className="p-4">{t.no_products}</p>;
+  /* =========================
+     TOTAL (SALE-FIRST)
+     ❗ KHÔNG dùng total từ CartContext
+  ========================= */
+  const checkoutTotal = useMemo(() => {
+    return cart.reduce((sum: number, item: CartItem) => {
+      const unitPrice =
+        typeof item.sale_price === "number"
+          ? item.sale_price
+          : item.price;
 
-  const images =
-    product.images.length > 0
-      ? product.images
-      : ["/placeholder.png"];
+      return sum + unitPrice * item.quantity;
+    }, 0);
+  }, [cart]);
 
-  const next = () =>
-    setCurrentIndex((i) => (i + 1) % images.length);
+  /* =========================
+     PAY WITH PI
+  ========================= */
+  const handlePay = async () => {
+    if (
+      !window.Pi ||
+      !piReady ||
+      !user ||
+      !shipping ||
+      cart.length === 0
+    ) {
+      alert(t.transaction_failed);
+      return;
+    }
 
-  const prev = () =>
-    setCurrentIndex((i) =>
-      i === 0 ? images.length - 1 : i - 1
-    );
+    if (processing) return;
+    setProcessing(true);
 
-  /* =======================
-     ACTIONS (FIXED)
-  ======================= */
+    try {
+      await window.Pi.createPayment(
+        {
+          amount: Number(checkoutTotal.toFixed(2)),
+          memo: "Thanh toán đơn hàng TiTi",
+          metadata: {
+            shipping,
+            items: cart,
+          },
+        },
+        {
+          onReadyForServerApproval: async (paymentId: string) => {
+            const token = await getPiAccessToken();
+            if (!token) return;
 
-  const add = () => {
-    addToCart({
-      ...product,
-      price: product.finalPrice, // ✅ DÙNG GIÁ SALE
-      quantity,
-    });
-    router.push("/cart");
+            await fetch("/api/pi/approve", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ paymentId }),
+            });
+          },
+
+          onReadyForServerCompletion: async (
+            paymentId: string,
+            txid: string
+          ) => {
+            await fetch("/api/pi/complete", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ paymentId, txid }),
+            });
+
+            const orderRes = await apiAuthFetch("/api/orders", {
+              method: "POST",
+              body: JSON.stringify({
+                items: cart.map((i) => ({
+                  product_id: i.id,
+                  quantity: i.quantity,
+                  price:
+                    typeof i.sale_price === "number"
+                      ? i.sale_price
+                      : i.price,
+                })),
+                total: checkoutTotal,
+              }),
+            });
+
+            if (!orderRes.ok) {
+              throw new Error("ORDER_FAILED");
+            }
+
+            clearCart();
+            onClose();
+            router.push("/customer/pending");
+          },
+
+          onCancel: () => setProcessing(false),
+          onError: () => setProcessing(false),
+        }
+      );
+    } catch {
+      alert(t.transaction_failed);
+      setProcessing(false);
+    }
   };
 
-  const buy = () => {
-    addToCart({
-      ...product,
-      price: product.finalPrice, // ✅ DÙNG GIÁ SALE
-      quantity,
-    });
-    setOpenCheckout(true);
-  };
+  if (!open) return null;
 
-  /* =======================
-     RENDER
-  ======================= */
+  /* =========================
+     UI
+  ========================= */
   return (
-    <div className="pb-32 bg-gray-50 min-h-screen">
+    <div className="fixed inset-0 z-[100]">
+      {/* BACKDROP */}
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+      />
 
-      {/* MAIN IMAGES */}
-      <div className="mt-14 relative w-full h-80 bg-white">
-        <img
-          src={images[currentIndex]}
-          alt={product.name}
-          className="w-full h-full object-cover"
-        />
+      {/* SHEET */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl min-h-[50vh] max-h-[70vh] flex flex-col">
+        {/* HANDLE */}
+        <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-2 mb-2" />
 
-        {images.length > 1 && (
-          <>
-            <button
-              onClick={prev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
-            >
-              ‹
-            </button>
-            <button
-              onClick={next}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
-            >
-              ›
-            </button>
+        {/* HEADER */}
+        <div className="px-4 pb-2 border-b">
+          <h3 className="font-semibold">{t.checkout}</h3>
+        </div>
 
-            <div className="absolute bottom-3 flex gap-2 w-full justify-center">
-              {images.map((_, i) => (
-                <span
-                  key={i}
-                  className={`w-2 h-2 rounded-full ${
-                    i === currentIndex
-                      ? "bg-orange-500"
-                      : "bg-gray-500"
-                  }`}
+        {/* CONTENT */}
+        <div className="overflow-y-auto px-4 py-3 space-y-3">
+          {/* ADDRESS */}
+          <div
+            className="border rounded-lg p-3 cursor-pointer"
+            onClick={() => router.push("/customer/address")}
+          >
+            {shipping ? (
+              <>
+                <p className="font-medium">{shipping.name}</p>
+                <p className="text-sm text-gray-600">
+                  {shipping.phone}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {shipping.address}
+                </p>
+              </>
+            ) : (
+              <p className="text-gray-500">
+                ➕ {t.add_shipping}
+              </p>
+            )}
+          </div>
+
+          {/* PRODUCTS */}
+          {cart.map((item: CartItem) => {
+            const unitPrice =
+              typeof item.sale_price === "number"
+                ? item.sale_price
+                : item.price;
+
+            const displayQty =
+              qtyDraft[item.id] ?? String(item.quantity);
+
+            return (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 border-b pb-2"
+              >
+                <img
+                  src={
+                    item.image ||
+                    item.images?.[0] ||
+                    "/placeholder.png"
+                  }
+                  className="w-14 h-14 rounded object-cover"
                 />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
 
-      {/* INFO */}
-      <div className="bg-white p-4 flex justify-between">
-        <h2 className="text-lg font-medium">
-          {product.name}
-        </h2>
+                <div className="flex-1">
+                  <p className="text-sm font-medium line-clamp-2">
+                    {item.name}
+                  </p>
 
-        <div className="text-right">
-          <p className="text-xl font-bold text-orange-600">
-            π {product.finalPrice}
-          </p>
+                  <input
+                    type="number"
+                    min={1}
+                    value={displayQty}
+                    onChange={(e) =>
+                      setQtyDraft((d) => ({
+                        ...d,
+                        [item.id]: e.target.value,
+                      }))
+                    }
+                    onBlur={() => {
+                      const val = Number(displayQty);
+                      if (!val || val < 1) {
+                        removeFromCart(item.id);
+                        return;
+                      }
+                      updateQuantity(item.id, val);
+                    }}
+                    className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
+                  />
+                </div>
 
-          {product.isSale && (
-            <p className="text-sm text-gray-400 line-through">
-              π {product.price}
+                <p className="font-semibold text-orange-600 text-sm">
+                  {(unitPrice * Number(displayQty)).toFixed(2)} π
+                </p>
+
+                {/* DELETE */}
+                <button
+                  onClick={() => removeFromCart(item.id)}
+                  className="text-gray-400 hover:text-red-500 text-lg"
+                  title={t.remove}
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+
+          {cart.length === 0 && (
+            <p className="text-center text-sm text-gray-500 py-6">
+              {t.no_products}
             </p>
           )}
         </div>
-      </div>
 
-      {/* META */}
-      <div className="bg-white px-4 pb-4 flex gap-4 text-gray-600 text-sm">
-        <span>👁 {product.views}</span>
-        <span>
-          🛒 {product.sold} {t.orders}
-        </span>
-      </div>
+        {/* FOOTER */}
+        <div className="border-t p-4">
+          <p className="text-center text-xs text-gray-700 mb-2">
+            An tâm mua sắm tại TiTi
+          </p>
 
-      {/* SHORT DESCRIPTION */}
-      <div className="bg-white p-4">
-        {product.description || t.no_description}
-      </div>
-
-      {/* DETAIL IMAGES */}
-      {product.detailImages.length > 0 && (
-        <div className="bg-white mt-2 space-y-2">
-          {product.detailImages.map((url, i) => (
-            <img
-              key={i}
-              src={url}
-              alt={`detail-${i}`}
-              className="w-full object-cover"
-            />
-          ))}
+          <button
+            onClick={handlePay}
+            disabled={processing || cart.length === 0}
+            className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
+          >
+            {processing ? t.processing : t.pay_now}
+          </button>
         </div>
-      )}
-
-      {/* DETAIL CONTENT */}
-      <div className="bg-white p-4 mt-2 whitespace-pre-line">
-        {product.detail || t.no_description}
       </div>
-
-      {/* ACTIONS */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
-        <button
-          onClick={add}
-          className="flex-1 bg-yellow-500 text-white py-2 rounded-md"
-        >
-          {t.add_to_cart}
-        </button>
-
-        <button
-          onClick={buy}
-          className="flex-1 bg-red-500 text-white py-2 rounded-md"
-        >
-          {t.buy_now}
-        </button>
-      </div>
-
-      {/* CHECKOUT SHEET */}
-      <CheckoutSheet
-        open={openCheckout}
-        onClose={() => setOpenCheckout(false)}
-      />
     </div>
   );
 }
