@@ -106,58 +106,55 @@ export default function CategoriesPage() {
       ========================= */}
       <div className="mt-4 grid grid-cols-12 gap-2 px-2 min-h-[120vh]">
         {/* ===== LEFT: AUTO LOOP CATEGORIES ===== */}
-        <aside className="col-span-2 border-r overflow-hidden">
-          <div className="relative h-[70vh]">
-            <div className="absolute top-0 left-0 w-full animate-category-loop">
-              {/* ALL */}
-              <button
-                onClick={() => setActiveCategoryId(null)}
-                className={`flex flex-col items-center w-full py-2 ${
-                  activeCategoryId === null
-                    ? "text-orange-500 font-semibold"
-                    : "text-gray-600"
-                }`}
-              >
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center border">
-                  <span className="text-sm">★</span>
-                </div>
-                <span className="text-[10px] mt-1 text-center">
-                  {t["all_categories"] || "Tất cả"}
-                </span>
-              </button>
+        <aside className="col-span-2 border-r h-[70vh] overflow-y-auto">
+  <div className="flex flex-col items-center gap-3 py-2">
+    {/* ALL */}
+    <button
+      onClick={() => setActiveCategoryId(null)}
+      className={`flex flex-col items-center w-full ${
+        activeCategoryId === null
+          ? "text-orange-500 font-semibold"
+          : "text-gray-600"
+      }`}
+    >
+      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center border">
+        <span className="text-sm">★</span>
+      </div>
+      <span className="text-[10px] mt-1 text-center">
+        {t["all_categories"] || "Tất cả"}
+      </span>
+    </button>
 
-              {[...categories, ...categories].map((c, index) => {
-                const key = "category_" + c.id;
-                const active =
-                  String(activeCategoryId) === String(c.id);
+    {[...categories, ...categories].map((c, index) => {
+      const key = "category_" + c.id;
+      const active =
+        String(activeCategoryId) === String(c.id);
 
-                return (
-                  <button
-                    key={`${c.id}-${index}`}
-                    onClick={() => setActiveCategoryId(c.id)}
-                    className={`flex flex-col items-center w-full py-2 ${
-                      active
-                        ? "text-orange-500 font-semibold"
-                        : "text-gray-600"
-                    }`}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center">
-                      <img
-                        src={c.icon || "/placeholder.png"}
-                        alt={t[key] || c.name}
-                        className="w-6 h-6 object-contain"
-                      />
-                    </div>
-                    <span className="text-[10px] mt-1 text-center px-1 line-clamp-2">
-                      {t[key] || c.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+      return (
+        <button
+          key={`${c.id}-${index}`}
+          onClick={() => setActiveCategoryId(c.id)}
+          className={`flex flex-col items-center w-full ${
+            active
+              ? "text-orange-500 font-semibold"
+              : "text-gray-600"
+          }`}
+        >
+          <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center">
+            <img
+              src={c.icon || "/placeholder.png"}
+              alt={t[key] || c.name}
+              className="w-6 h-6 object-contain"
+            />
           </div>
-        </aside>
-
+          <span className="text-[10px] mt-1 text-center px-1 line-clamp-2">
+            {t[key] || c.name}
+          </span>
+        </button>
+      );
+    })}
+  </div>
+</aside>
         {/* ===== RIGHT: PRODUCTS ===== */}
         <section className="col-span-10 px-3">
           {loading ? (
