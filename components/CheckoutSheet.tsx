@@ -217,22 +217,26 @@ export default function CheckoutSheet({ open, onClose }: Props) {
                   {item.name}
                 </p>
 
-                <select
-                  value={item.quantity}
-                  onChange={(e) =>
-                    updateQuantity(
-                      item.id,
-                      Number(e.target.value)
-                    )
-                  }
-                  className="mt-1 border rounded px-2 py-1 text-sm"
-                >
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      {i + 1}
-                    </option>
-                  ))}
-                </select>
+                <input
+  type="number"
+  min={1}
+  value={item.quantity}
+  onChange={(e) => {
+    const val = Number(e.target.value);
+    if (Number.isNaN(val) || val < 1) return;
+    updateQuantity(item.id, val);
+  }}
+  className="
+    mt-1
+    w-16
+    border
+    rounded
+    px-2
+    py-1
+    text-sm
+    text-center
+  "
+/>
               </div>
 
               <p className="font-semibold text-orange-600">
