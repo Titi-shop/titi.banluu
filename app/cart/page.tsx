@@ -233,7 +233,7 @@ export default function CartPage() {
                         min={1}
                         value={item.quantity}
                         onChange={(e) =>
-  updateQty(item.id, Math.max(1, Number(e.target.value)))
+  updateQty(item.id, Math.max(0, Number(e.target.value)))
                         }
                         className="w-14 border rounded px-1 py-0.5 text-sm text-center"
                       />
