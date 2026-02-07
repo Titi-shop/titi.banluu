@@ -180,7 +180,7 @@ export default function ProductDetail() {
                   className={`w-2 h-2 rounded-full ${
                     i === currentIndex
                       ? "bg-orange-500"
-                      : "bg-gray-300"
+                      : "bg-gray-500"
                   }`}
                 />
               ))}
