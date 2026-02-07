@@ -18,11 +18,15 @@ export async function getUserFromBearer(): Promise<AuthUser | null> {
     const timeout = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch("https://api.minepi.com/v2/me", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
+  method: "GET",
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+    "X-PI-APP-ID": process.env.PI_APP_ID!,
+    Accept: "application/json",
+  },
+  cache: "no-store",
+  signal: controller.signal,
+});
       cache: "no-store",
       signal: controller.signal,
     }).finally(() => clearTimeout(timeout));
