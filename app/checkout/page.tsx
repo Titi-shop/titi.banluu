@@ -59,7 +59,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const { cart, total, clearCart } = useCart();
+  const { cart, total, clearCart, updateQuantity } = useCart();
   const { user, piReady, loading } = useAuth();
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
