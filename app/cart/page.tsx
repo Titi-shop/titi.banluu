@@ -30,12 +30,7 @@ export default function CartPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const {
-    cart,
-    updateQuantity,
-    removeFromCart,
-    clearCart,
-  } = useCart();
+  const { cart, updateQty, removeFromCart, clearCart } = useCart();
 
   const { user, piReady } = useAuth();
 
@@ -238,10 +233,7 @@ export default function CartPage() {
                         min={1}
                         value={item.quantity}
                         onChange={(e) =>
-                          updateQuantity(
-                            item.id,
-                            Math.max(1, Number(e.target.value))
-                          )
+  updateQty(item.id, Math.max(1, Number(e.target.value)))
                         }
                         className="w-14 border rounded px-1 py-0.5 text-sm text-center"
                       />
@@ -270,7 +262,7 @@ export default function CartPage() {
           </div>
 
           {/* FOOTER */}
-          <div className="fixed bottom-6 left-0 right-0 bg-white border-t p-4">
+          <div className="fixed bottom-8 left-0 right-0 bg-white border-t p-4">
             <div className="flex justify-between mb-2">
               <span className="text-sm">{t.total}</span>
               <span className="font-bold text-orange-600">
