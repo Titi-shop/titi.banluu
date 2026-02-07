@@ -148,7 +148,7 @@ export default function ProductDetail() {
      RENDER
   ======================= */
   return (
-    <div className="pb-32 bg-gray-20 min-h-screen">
+    <div className="pb-24 bg-gray-50 min-h-screen">
 
       {/* MAIN IMAGES */}
       <div className="mt-14 relative w-full h-80 bg-white">
