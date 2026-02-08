@@ -232,17 +232,29 @@ export default function CheckoutSheet({ open, onClose }: Props) {
                 {item.name}
               </p>
 
-              <input
-                type="number"
-                min={1}
-                value={qtyDraft || String(item.quantity)}
-                onChange={(e) => setQtyDraft(e.target.value)}
-                onBlur={() => {
-                  const v = Number(qtyDraft);
-                  if (v >= 1) updateQuantity(item.id, v);
-                }}
-                className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-              />
+                 <input
+                    type="number"
+                    min={1}
+                    value={displayQty}
+                    onChange={(e) =>
+                      setQtyDraft((d) => ({
+                        ...d,
+                        [item.id]: e.target.value,
+                      }))
+                    }
+                    onBlur={() => {
+                      const val = Number(displayQty);
+                      if (!val || val < 1) {
+                        setQtyDraft((d) => ({
+                          ...d,
+                          [item.id]: "",
+                        }));
+                        return;
+                      }
+                      updateQuantity(item.id, val);
+                    }}
+                    className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
+                  />
             </div>
 
             <p className="font-semibold text-orange-600">
