@@ -1,8 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 
@@ -16,26 +15,31 @@ interface Order {
   status: string;
 }
 
-interface TabItem {
-  key: string;
-  label: string;
-  href: string;
-  count?: number;
-}
+/* =========================
+   STATUS TABS
+========================= */
+type OrderTab =
+  | "all"
+  | "pending"
+  | "pickup"
+  | "shipping"
+  | "received"
+  | "completed"
+  | "returned"
+  | "cancelled";
 
 /* =========================
    PAGE
 ========================= */
 export default function CustomerOrdersPage() {
-  const router = useRouter();
-  const pathname = usePathname();
   const { t } = useTranslation();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<OrderTab>("all");
 
   /* =========================
-     LOAD COMPLETED ORDERS
+     LOAD ALL ORDERS
   ========================= */
   useEffect(() => {
     loadOrders();
@@ -54,18 +58,9 @@ export default function CustomerOrdersPage() {
       if (!res.ok) throw new Error("UNAUTHORIZED");
 
       const data: unknown = await res.json();
-      const list = Array.isArray(data) ? (data as Order[]) : [];
-
-      // ✅ CHỈ ĐƠN ĐÃ NHẬN / HOÀN TẤT
-      setOrders(
-        list.filter(
-          (o) =>
-            o.status === "completed" ||
-            o.status === "received"
-        )
-      );
-    } catch (err) {
-      console.error("❌ Load completed orders error:", err);
+      setOrders(Array.isArray(data) ? (data as Order[]) : []);
+    } catch (e) {
+      console.error("❌ Load orders error:", e);
       setOrders([]);
     } finally {
       setLoading(false);
@@ -73,41 +68,32 @@ export default function CustomerOrdersPage() {
   };
 
   /* =========================
-     TABS
+     FILTER BY TAB
   ========================= */
-  const tabs: TabItem[] = [
-    {
-      key: "pending",
-      label: t.order_pending,
-      href: "/customer/pending",
-    },
-    {
-      key: "pickup",
-      label: t.order_pickup,
-      href: "/customer/pickup",
-    },
-    {
-      key: "shipping",
-      label: t.order_shipping,
-      href: "/customer/shipping",
-    },
-    {
-      key: "review",
-      label: t.order_review,
-      href: "/customer/review",
-    },
-    {
-      key: "received",
-      label: t.order_received,
-      href: "/customer/orders",
-      count: orders.length,
-    },
-  ];
+  const filteredOrders = useMemo(() => {
+    if (activeTab === "all") return orders;
 
-  const totalPi = orders.reduce(
-    (sum, o) => sum + Number(o.total || 0),
-    0
-  );
+    return orders.filter((o) => {
+      switch (activeTab) {
+        case "pending":
+          return o.status === "pending";
+        case "pickup":
+          return o.status === "pickup";
+        case "shipping":
+          return o.status === "shipping";
+        case "received":
+          return o.status === "received";
+        case "completed":
+          return o.status === "completed";
+        case "returned":
+          return o.status === "returned";
+        case "cancelled":
+          return o.status === "cancelled";
+        default:
+          return false;
+      }
+    });
+  }, [orders, activeTab]);
 
   /* =========================
      UI
@@ -116,85 +102,72 @@ export default function CustomerOrdersPage() {
     <main className="min-h-screen bg-gray-100 pb-24">
       {/* ===== HEADER ===== */}
       <header className="bg-orange-500 text-white px-4 py-4">
-  <div className="bg-orange-400 rounded-lg p-4">
-    <p className="text-sm opacity-90">
-      {t.order_info}
-    </p>
-    <p className="text-xs opacity-80 mt-1">
-      {t.orders}: {orders.length} · π{totalPi}
-    </p>
-  </div>
-</header>
-
-      {/* ===== TABS ===== */}
-      <nav className="bg-white shadow-sm">
-        <div className="grid grid-cols-5 text-center text-xs">
-          {tabs.map((tab) => {
-            const active = pathname === tab.href;
-
-            return (
-              <button
-                key={tab.key}
-                onClick={() => router.push(tab.href)}
-                className="flex flex-col items-center justify-center py-3"
-              >
-                <div className="h-8 flex items-center justify-center px-1">
-                  <span className="leading-tight text-gray-700">
-                    {tab.label}
-                  </span>
-                </div>
-
-                <div
-                  className={`h-5 flex items-center justify-center mt-1 ${
-                    active
-                      ? "text-orange-500 font-semibold"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {tab.count ?? 0}
-                </div>
-
-                {active && (
-                  <div className="h-0.5 w-6 bg-orange-500 mt-1 rounded" />
-                )}
-              </button>
-            );
-          })}
+        <div className="bg-orange-400 rounded-lg p-4">
+          <p className="text-sm opacity-90">{t.order_info}</p>
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders}: {filteredOrders.length}
+          </p>
         </div>
-      </nav>
+      </header>
+
+      {/* ===== HORIZONTAL TABS ===== */}
+      <div className="bg-white overflow-x-auto">
+        <div className="flex gap-6 px-4 py-3 text-sm whitespace-nowrap">
+          {[
+            ["all", t.all],
+            ["pending", t.order_pending],
+            ["pickup", t.order_pickup],
+            ["shipping", t.order_shipping],
+            ["received", t.order_received],
+            ["completed", t.order_completed],
+            ["returned", t.order_returned],
+            ["cancelled", t.order_cancelled],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key as OrderTab)}
+              className={`pb-2 border-b-2 ${
+                activeTab === key
+                  ? "border-orange-500 text-orange-500 font-semibold"
+                  : "border-transparent text-gray-500"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* ===== CONTENT ===== */}
-      <section className="mt-10 px-4">
+      <section className="px-4 mt-4">
         {loading ? (
           <p className="text-center text-gray-500">
             ⏳ {t.loading_orders}
           </p>
-        ) : orders.length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
           <div className="flex flex-col items-center text-gray-400 mt-16">
-            <div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
-            <p>{t.no_completed_orders}</p>
+            <div className="w-28 h-28 bg-gray-200 rounded-full mb-4 opacity-40" />
+            <p>{t.no_orders}</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {orders.map((o) => (
+          <div className="space-y-4">
+            {filteredOrders.map((o) => (
               <div
                 key={o.id}
                 className="bg-white rounded-lg p-4 shadow"
               >
-                <div className="flex justify-between">
-                  <span className="font-semibold">
-                    #{o.id}
-                  </span>
-                  <span className="text-green-600 text-sm">
-                    {t.status_completed}
+                <div className="flex justify-between text-sm">
+                  <span className="font-semibold">#{o.id}</span>
+                  <span className="text-orange-500">
+                    {t[`status_${o.status}`]}
                   </span>
                 </div>
 
                 <p className="mt-2 text-sm">
                   {t.total}: π{o.total}
                 </p>
+
                 <p className="text-xs text-gray-500 mt-1">
-                  📅{" "}
                   {new Date(o.createdAt).toLocaleString()}
                 </p>
               </div>
