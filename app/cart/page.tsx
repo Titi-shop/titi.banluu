@@ -261,8 +261,11 @@ export default function CartPage() {
 
                   <div className="text-right">
                     <p className="text-orange-600 font-semibold">
-                      {(unit * item.quantity).toFixed(2)} π
-                    </p>
+                 {(
+              unit *
+            Number(qtyDraft[item.id] ?? item.quantity)
+              ).toFixed(2)} π
+                 </p>
 
                     <button
                       onClick={() => removeFromCart(item.id)}
