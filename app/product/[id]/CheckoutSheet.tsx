@@ -37,13 +37,11 @@ export default function CheckoutSheet({ open, onClose }: Props) {
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
 
-  /** chỉ giữ quantity draft cho 1 sản phẩm */
-  const [qtyDraft, setQtyDraft] = useState<string>("");
+  /** chỉ xử lý 1 sản phẩm */
+  const item = cart[0];
 
-  /* =========================
-     ONLY ONE PRODUCT
-  ========================= */
-  const item = cart[0]; // 👈 chỉ lấy 1 sản phẩm
+  /** quantity draft cho 1 sản phẩm */
+  const [qtyDraft, setQtyDraft] = useState<string>("");
 
   /* =========================
      LOCK BODY SCROLL
@@ -54,6 +52,15 @@ export default function CheckoutSheet({ open, onClose }: Props) {
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  /* =========================
+     INIT QTY
+  ========================= */
+  useEffect(() => {
+    if (open && item) {
+      setQtyDraft(String(item.quantity));
+    }
+  }, [open, item]);
 
   /* =========================
      LOAD ADDRESS
@@ -203,10 +210,10 @@ export default function CheckoutSheet({ open, onClose }: Props) {
         </div>
 
         {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 pb-24">
+        <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
           {/* ADDRESS */}
           <div
-            className="border rounded-lg p-3 cursor-pointer"
+            className="border rounded-lg p-3 cursor-pointer mb-4"
             onClick={() => router.push("/customer/address")}
           >
             {shipping ? (
@@ -220,7 +227,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
             )}
           </div>
 
-          {/* PRODUCT */}
+          {/* PRODUCT (ONLY ONE) */}
           <div className="flex items-center gap-3 border-b pb-3">
             <img
               src={item.image || item.images?.[0] || "/placeholder.png"}
@@ -233,27 +240,25 @@ export default function CheckoutSheet({ open, onClose }: Props) {
               </p>
 
               <input
-  type="text"
-  inputMode="numeric"
-  pattern="[0-9]*"
-  value={qtyDraft}
-  onChange={(e) => {
-    const v = e.target.value;
-    if (/^\d*$/.test(v)) {
-      setQtyDraft(v);
-    }
-  }}
-  onBlur={() => {
-    const v = Number(qtyDraft);
-    if (v >= 1) {
-      updateQuantity(item.id, v);
-      setQtyDraft(String(v)); // normalize
-    } else {
-      setQtyDraft(String(item.quantity)); // rollback
-    }
-  }}
-  className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-/>
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={qtyDraft}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (/^\d*$/.test(v)) setQtyDraft(v);
+                }}
+                onBlur={() => {
+                  const v = Number(qtyDraft);
+                  if (v >= 1) {
+                    updateQuantity(item.id, v);
+                    setQtyDraft(String(v));
+                  } else {
+                    setQtyDraft(String(item.quantity));
+                  }
+                }}
+                className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
+              />
             </div>
 
             <p className="font-semibold text-orange-600">
@@ -264,7 +269,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
 
         {/* FOOTER */}
         <div className="border-t p-4">
-          <p className="text-center text-xs text-gray-700 mb-2">
+          <p className="text-center text-sm text-gray-1000 mb-2">
             An tâm mua sắm tại TiTi
           </p>
 
