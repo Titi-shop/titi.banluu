@@ -37,11 +37,13 @@ export default function CheckoutSheet({ open, onClose }: Props) {
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
 
-  /**
-   * quantity draft để gõ tự do (tránh bị khóa ở 1)
-   * key = product id
-   */
-  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
+  /** chỉ giữ quantity draft cho 1 sản phẩm */
+  const [qtyDraft, setQtyDraft] = useState<string>("");
+
+  /* =========================
+     ONLY ONE PRODUCT
+  ========================= */
+  const item = cart[0]; // 👈 chỉ lấy 1 sản phẩm
 
   /* =========================
      LOCK BODY SCROLL
@@ -89,22 +91,27 @@ export default function CheckoutSheet({ open, onClose }: Props) {
   }, [open, user]);
 
   /* =========================
-     CALC TOTAL (SALE-FIRST)
-     ❗ KHÔNG dùng total từ CartContext
-========================= */
-  const checkoutTotal = useMemo(() => {
-    return cart.reduce((sum, item) => {
-      const unitPrice =
-        (item as { sale_price?: number }).sale_price ?? item.price;
-      return sum + unitPrice * item.quantity;
-    }, 0);
-  }, [cart]);
+     PRICE + TOTAL (SALE FIRST)
+  ========================= */
+  const unitPrice = useMemo(() => {
+    if (!item) return 0;
+    return (item as { sale_price?: number }).sale_price ?? item.price;
+  }, [item]);
+
+  const quantity = useMemo(() => {
+    if (!item) return 1;
+    return Number(qtyDraft || item.quantity);
+  }, [qtyDraft, item]);
+
+  const total = useMemo(() => {
+    return unitPrice * quantity;
+  }, [unitPrice, quantity]);
 
   /* =========================
      PAY WITH PI
   ========================= */
   const handlePay = async () => {
-    if (!window.Pi || !piReady || !user || !shipping || !cart.length) {
+    if (!window.Pi || !piReady || !user || !shipping || !item) {
       alert(t.transaction_failed);
       return;
     }
@@ -115,9 +122,16 @@ export default function CheckoutSheet({ open, onClose }: Props) {
     try {
       await window.Pi.createPayment(
         {
-          amount: Number(checkoutTotal.toFixed(2)),
+          amount: Number(total.toFixed(2)),
           memo: "Thanh toán đơn hàng TiTi",
-          metadata: { shipping, items: cart },
+          metadata: {
+            shipping,
+            item: {
+              product_id: item.id,
+              quantity,
+              price: unitPrice,
+            },
+          },
         },
         {
           onReadyForServerApproval: async (paymentId) => {
@@ -139,20 +153,19 @@ export default function CheckoutSheet({ open, onClose }: Props) {
               body: JSON.stringify({ paymentId, txid }),
             });
 
-            const orderRes = await apiAuthFetch("/api/orders", {
+            await apiAuthFetch("/api/orders", {
               method: "POST",
               body: JSON.stringify({
-                items: cart.map((i) => ({
-                  product_id: i.id,
-                  quantity: i.quantity,
-                  price:
-                    (i as { sale_price?: number }).sale_price ?? i.price,
-                })),
-                total: checkoutTotal,
+                items: [
+                  {
+                    product_id: item.id,
+                    quantity,
+                    price: unitPrice,
+                  },
+                ],
+                total,
               }),
             });
-
-            if (!orderRes.ok) throw new Error();
 
             clearCart();
             onClose();
@@ -169,7 +182,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
     }
   };
 
-  if (!open) return null;
+  if (!open || !item) return null;
 
   /* =========================
      UI
@@ -177,13 +190,10 @@ export default function CheckoutSheet({ open, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[100]">
       {/* BACKDROP */}
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* SHEET */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl min-h-[50vh] max-h-[70vh] flex flex-col">
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[75vh] flex flex-col">
         {/* HANDLE */}
         <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-2 mb-2" />
 
@@ -193,7 +203,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
         </div>
 
         {/* CONTENT */}
-        <div className="overflow-y-auto px-4 py-3 space-y-3">
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 pb-24">
           {/* ADDRESS */}
           <div
             className="border rounded-lg p-3 cursor-pointer"
@@ -202,84 +212,48 @@ export default function CheckoutSheet({ open, onClose }: Props) {
             {shipping ? (
               <>
                 <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-600">
-                  {shipping.phone}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {shipping.address}
-                </p>
+                <p className="text-sm text-gray-600">{shipping.phone}</p>
+                <p className="text-sm text-gray-500">{shipping.address}</p>
               </>
             ) : (
-              <p className="text-gray-500">
-                ➕ {t.add_shipping}
-              </p>
+              <p className="text-gray-500">➕ {t.add_shipping}</p>
             )}
           </div>
 
-          {/* PRODUCTS */}
-          {cart.map((item) => {
-            const unitPrice =
-              (item as { sale_price?: number }).sale_price ??
-              item.price;
+          {/* PRODUCT */}
+          <div className="flex items-center gap-3 border-b pb-3">
+            <img
+              src={item.image || item.images?.[0] || "/placeholder.png"}
+              className="w-16 h-16 rounded object-cover"
+            />
 
-            const displayQty =
-              qtyDraft[item.id] ?? String(item.quantity);
+            <div className="flex-1">
+              <p className="text-sm font-medium line-clamp-2">
+                {item.name}
+              </p>
 
-            return (
-              <div
-                key={item.id}
-                className="flex items-center gap-3 border-b pb-2"
-              >
-                <img
-                  src={
-                    item.image ||
-                    item.images?.[0] ||
-                    "/placeholder.png"
-                  }
-                  className="w-14 h-14 rounded object-cover"
-                />
+              <input
+                type="number"
+                min={1}
+                value={qtyDraft || String(item.quantity)}
+                onChange={(e) => setQtyDraft(e.target.value)}
+                onBlur={() => {
+                  const v = Number(qtyDraft);
+                  if (v >= 1) updateQuantity(item.id, v);
+                }}
+                className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
+              />
+            </div>
 
-                <div className="flex-1">
-                  <p className="text-sm font-medium line-clamp-2">
-                    {item.name}
-                  </p>
-
-                  <input
-                    type="number"
-                    min={1}
-                    value={displayQty}
-                    onChange={(e) =>
-                      setQtyDraft((d) => ({
-                        ...d,
-                        [item.id]: e.target.value,
-                      }))
-                    }
-                    onBlur={() => {
-                      const val = Number(displayQty);
-                      if (!val || val < 1) {
-                        setQtyDraft((d) => ({
-                          ...d,
-                          [item.id]: "",
-                        }));
-                        return;
-                      }
-                      updateQuantity(item.id, val);
-                    }}
-                    className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-                  />
-                </div>
-
-                <p className="font-semibold text-orange-600">
-                  {(unitPrice * Number(displayQty)).toFixed(2)} π
-                </p>
-              </div>
-            );
-          })}
+            <p className="font-semibold text-orange-600">
+              {total.toFixed(2)} π
+            </p>
+          </div>
         </div>
 
         {/* FOOTER */}
         <div className="border-t p-4">
-          <p className="text-center text-xs text-gray-700 mb-2">
+          <p className="text-center text-xs text-gray-900 mb-2">
              An tâm mua sắm tại TiTi
           </p>
 
@@ -288,7 +262,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
             disabled={processing}
             className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
           >
-            {processing ? t.processing : t.pay_now}
+            {processing ? t.processing : t.pay}
           </button>
         </div>
       </div>
