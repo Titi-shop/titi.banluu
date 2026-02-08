@@ -71,7 +71,7 @@
   "pi_not_ready": "请在 Pi 浏览器中打开并等待 SDK 加载！",
   "verify_failed": "账号验证失败，请重新登录。",
 
-  "pay_now": "立即支付",
+  "pay": "立即支付",
   "pi_not_ready_warning": "Pi SDK 尚未准备好，请在 Pi 浏览器中打开！",
   "must_login_before_pay": "请先登录 Pi 再继续付款！",
   "cart_empty": "🛒 购物车为空！",
