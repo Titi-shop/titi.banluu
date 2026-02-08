@@ -1,8 +1,9 @@
 "use client";
+
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 
@@ -15,23 +16,14 @@ interface Order {
   status: string;
 }
 
-interface TabItem {
-  key: string;
-  label: string;
-  href: string;
-  count?: number;
-}
-
 /* =========================
    PAGE
 ========================= */
 export default function CustomerShippingPage() {
-  const router = useRouter();
-  const pathname = usePathname();
   const { t } = useTranslation();
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
 
   /* =========================
      LOAD ORDERS (SHIPPING)
@@ -43,6 +35,7 @@ export default function CustomerShippingPage() {
   const loadOrders = async () => {
     try {
       const token = await getPiAccessToken();
+
       const res = await fetch("/api/orders", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -55,7 +48,7 @@ export default function CustomerShippingPage() {
       const data: unknown = await res.json();
       const list = Array.isArray(data) ? (data as Order[]) : [];
 
-      // ✅ FILTER THEO STATUS KỸ THUẬT
+      // ✅ chỉ lấy đơn shipping
       setOrders(list.filter((o) => o.status === "shipping"));
     } catch (err) {
       console.error("❌ Load shipping orders error:", err);
@@ -66,37 +59,8 @@ export default function CustomerShippingPage() {
   };
 
   /* =========================
-     TABS (UI ONLY)
+     SUMMARY
   ========================= */
-  const tabs: TabItem[] = [
-    {
-      key: "pending",
-      label: t.order_pending,
-      href: "/customer/pending",
-    },
-    {
-      key: "pickup",
-      label: t.order_pickup,
-      href: "/customer/pickup",
-    },
-    {
-      key: "shipping",
-      label: t.order_shipping,
-      href: "/customer/shipping",
-      count: orders.length,
-    },
-    {
-      key: "review",
-      label: t.order_review,
-      href: "/customer/review",
-    },
-    {
-      key: "received",
-      label: t.order_received,
-      href: "/customer/orders",
-    },
-  ];
-
   const totalPi = orders.reduce(
     (sum, o) => sum + Number(o.total || 0),
     0
@@ -109,80 +73,44 @@ export default function CustomerShippingPage() {
     <main className="min-h-screen bg-gray-100 pb-24">
       {/* ===== HEADER ===== */}
       <header className="bg-orange-500 text-white px-4 py-4">
-  <div className="bg-orange-400 rounded-lg p-4">
-    <p className="text-sm opacity-90">
-      {t.order_info}
-    </p>
-    <p className="text-xs opacity-80 mt-1">
-      {t.orders}: {orders.length} · π{totalPi}
-    </p>
-  </div>
-</header>
-   
-
-      {/* ===== TABS ===== */}
-      <nav className="bg-white shadow-sm">
-        <div className="grid grid-cols-5 text-center text-xs">
-          {tabs.map((tab) => {
-            const active = pathname === tab.href;
-
-            return (
-              <button
-                key={tab.key}
-                onClick={() => router.push(tab.href)}
-                className="flex flex-col items-center justify-center py-3"
-              >
-                {/* LABEL */}
-                <div className="h-8 flex items-center justify-center px-1">
-                  <span className="leading-tight text-gray-700 text-center">
-                    {tab.label}
-                  </span>
-                </div>
-
-                {/* COUNT */}
-                <div
-                  className={`h-5 flex items-center justify-center mt-1 ${
-                    active
-                      ? "text-orange-500 font-semibold"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {tab.count ?? 0}
-                </div>
-
-                {/* ACTIVE BAR */}
-                {active && (
-                  <div className="h-0.5 w-6 bg-orange-500 mt-1 rounded" />
-                )}
-              </button>
-            );
-          })}
+        <div className="bg-orange-400 rounded-lg p-4">
+          <p className="text-sm opacity-90">
+            {t.order_info}
+          </p>
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders}: {orders.length} · π{totalPi}
+          </p>
         </div>
-      </nav>
+      </header>
 
       {/* ===== CONTENT ===== */}
-      <section className="flex flex-col items-center justify-center mt-20 text-gray-400">
+      <section className="mt-6 px-4">
         {loading ? (
-          <p>⏳ {t.loading_orders}</p>
+          <p className="text-center text-gray-400">
+            ⏳ {t.loading_orders}
+          </p>
         ) : orders.length === 0 ? (
-          <>
+          <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
             <div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
             <p>{t.no_shipping_orders}</p>
-          </>
+          </div>
         ) : (
-          <div className="w-full px-4 space-y-3">
+          <div className="space-y-3">
             {orders.map((o) => (
               <div
                 key={o.id}
-                className="bg-white rounded-lg p-4 shadow"
+                className="bg-white rounded-lg p-4 shadow-sm"
               >
-                <div className="flex justify-between">
-                  <span className="font-semibold">#{o.id}</span>
-                  <span className="text-orange-500 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold">
+                    #{o.id}
+                  </span>
+                  <span className="text-orange-500 text-sm font-medium">
                     {t.status_shipping}
                   </span>
                 </div>
-                <p className="mt-2 text-sm">
+
+                <p className="mt-2 text-sm text-gray-700">
                   {t.total}: π{o.total}
                 </p>
               </div>
