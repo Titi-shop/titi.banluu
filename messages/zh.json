@@ -291,15 +291,16 @@
   "status_shipping": "运输中",
   "status_completed": "已完成",
   "status_cancelled": "已取消",
-  "status_returned": "已退货"
+  "status_returned": "已退货",
 
   
-  "all": "전체",
-  "order_pending": "확인 대기",
-  "order_pickup": "상품 준비 중",
-  "order_shipping": "배송 중",
-  "order_received": "배송 완료",
-  "order_returned": "반품",
-  "order_cancelled": "취소됨"
+  "status_pending": "待确认",
+  "status_shipping": "运输中",
+  "status_completed": "已完成",
+  "status_cancelled": "已取消",
+  "status_returned": "已退货",
+
+  "all": "全部"
+}
 
 }
