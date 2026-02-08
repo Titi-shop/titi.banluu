@@ -200,14 +200,9 @@ export default function CheckoutSheet({ open, onClose }: Props) {
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* SHEET */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[75vh] flex flex-col">
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[45vh] flex flex-col">
         {/* HANDLE */}
         <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-2 mb-2" />
-
-        {/* HEADER */}
-        <div className="px-4 pb-2 border-b">
-          <h3 className="font-semibold">{t.checkout}</h3>
-        </div>
 
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
