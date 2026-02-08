@@ -282,4 +282,14 @@
   "status_completed": "Hoàn tất",
   "status_cancelled": "Đã hủy",
   "status_returned": "Đã trả hàng"
+
+  
+  "all": "Tất cả",
+  "order_pending": "Chờ xác nhận",
+  "order_pickup": "Chờ lấy hàng",
+  "order_shipping": "Chờ giao hàng",
+  "order_received": "Đã giao",
+  "order_returned": "Trả hàng",
+  "order_cancelled": "Huỷ"
+
 }
