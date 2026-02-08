@@ -262,7 +262,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
             disabled={processing}
             className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
           >
-            {processing ? t.processing : t.pay}
+            {processing ? t.processing : t.pay_now}
           </button>
         </div>
       </div>
