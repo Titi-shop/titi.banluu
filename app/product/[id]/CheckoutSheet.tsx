@@ -232,29 +232,28 @@ export default function CheckoutSheet({ open, onClose }: Props) {
                 {item.name}
               </p>
 
-                 <input
-                    type="number"
-                    min={1}
-                    value={displayQty}
-                    onChange={(e) =>
-                      setQtyDraft((d) => ({
-                        ...d,
-                        [item.id]: e.target.value,
-                      }))
-                    }
-                    onBlur={() => {
-                      const val = Number(displayQty);
-                      if (!val || val < 1) {
-                        setQtyDraft((d) => ({
-                          ...d,
-                          [item.id]: "",
-                        }));
-                        return;
-                      }
-                      updateQuantity(item.id, val);
-                    }}
-                    className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-                  />
+              <input
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  value={qtyDraft}
+  onChange={(e) => {
+    const v = e.target.value;
+    if (/^\d*$/.test(v)) {
+      setQtyDraft(v);
+    }
+  }}
+  onBlur={() => {
+    const v = Number(qtyDraft);
+    if (v >= 1) {
+      updateQuantity(item.id, v);
+      setQtyDraft(String(v)); // normalize
+    } else {
+      setQtyDraft(String(item.quantity)); // rollback
+    }
+  }}
+  className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
+/>
             </div>
 
             <p className="font-semibold text-orange-600">
@@ -265,8 +264,8 @@ export default function CheckoutSheet({ open, onClose }: Props) {
 
         {/* FOOTER */}
         <div className="border-t p-4">
-          <p className="text-center text-xs text-gray-900 mb-2">
-             An tâm mua sắm tại TiTi
+          <p className="text-center text-xs text-gray-700 mb-2">
+            An tâm mua sắm tại TiTi
           </p>
 
           <button
