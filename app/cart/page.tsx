@@ -293,7 +293,7 @@ export default function CartPage() {
               disabled={processing || selectedItems.length === 0}
               className="w-full py-3 rounded-lg bg-orange-600 text-white font-semibold disabled:bg-gray-400"
             >
-              {processing ? t.processing : t.pay_now}
+              {processing ? t.processing : t.pay}
             </button>
           </div>
         </>
