@@ -8,11 +8,20 @@ import { getPiAccessToken } from "@/lib/piAuth";
 /* =========================
    TYPES
 ========================= */
+interface OrderItem {
+  id: string | number;
+  name: string;
+  image?: string;
+  price: number;
+  quantity: number;
+}
+
 interface Order {
   id: number;
   total: number;
   createdAt: string;
   status: string;
+  items?: OrderItem[]; // 👈 THÊM DÒNG NÀY
 }
 
 type OrderTab =
@@ -74,78 +83,55 @@ export default function CustomerOrdersPage() {
   /* =========================
      UI
   ========================= */
-  return (
-    <main className="min-h-screen bg-gray-100 pb-24">
-      {/* ===== HEADER ===== */}
-      <header className="bg-orange-500 text-white px-4 py-4">
-        <div className="bg-orange-400 rounded-lg p-4">
-          <p className="text-sm opacity-90">{t.order_info}</p>
-          <p className="text-xs opacity-80 mt-1">
-            {t.orders}: {filteredOrders.length}
-          </p>
-        </div>
-      </header>
+  {filteredOrders.map((o) => (
+  <div key={o.id} className="bg-white rounded-lg shadow">
+    {/* ===== HEADER ===== */}
+    <div className="flex justify-between px-4 py-2 border-b text-sm">
+      <span className="font-semibold">#{o.id}</span>
+      <span className="text-orange-500">
+        {t[`status_${o.status}`] ?? o.status}
+      </span>
+    </div>
 
-      {/* ===== STATUS TABS (GIỐNG SHOPEE) ===== */}
-      <div className="bg-white border-b">
-  <div className="flex gap-6 px-4 py-3 text-sm overflow-x-auto whitespace-nowrap">
-    {([
-      ["all", t.all],
-      ["pending", t.order_pending],
-      ["pickup", t.order_pickup],
-      ["shipping", t.order_shipping],
-      ["received", t.order_received],
-      ["returned", t.order_returned],
-      ["cancelled", t.order_cancelled],
-    ] as [OrderTab, string][]).map(([key, label]) => (
-      <button
-        key={key}
-        onClick={() => setActiveTab(key)}
-        className={`pb-2 border-b-2 transition ${
-          activeTab === key
-            ? "border-orange-500 text-orange-500 font-semibold"
-            : "border-transparent text-gray-500"
-        }`}
-      >
-        {label}
-      </button>
-    ))}
-  </div>
-</div>
+    {/* ===== PRODUCTS (GIỐNG SHOPEE) ===== */}
+    <div className="divide-y">
+      {o.items?.map((item) => (
+        <div key={item.id} className="flex gap-3 p-4">
+          <img
+            src={item.image || "/placeholder.png"}
+            className="w-16 h-16 rounded object-cover"
+          />
 
-      {/* ===== CONTENT ===== */}
-      <section className="px-4 mt-4">
-        {loading ? (
-          <p className="text-center text-gray-500">
-            ⏳ {t.loading_orders}
-          </p>
-        ) : filteredOrders.length === 0 ? (
-          <div className="flex flex-col items-center text-gray-400 mt-16">
-            <div className="w-28 h-28 bg-gray-200 rounded-full mb-4 opacity-40" />
-            <p>{t.no_orders}</p>
+          <div className="flex-1">
+            <p className="text-sm line-clamp-2">
+              {item.name}
+            </p>
+
+            <div className="flex justify-between mt-1 text-sm">
+              <span className="text-orange-500">
+                π{item.price}
+              </span>
+              <span className="text-gray-500">
+                x{item.quantity}
+              </span>
+            </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredOrders.map((o) => (
-              <div
-                key={o.id}
-                className="bg-white rounded-lg p-4 shadow"
-              >
-                <div className="flex justify-between text-sm">
-                  <span className="font-semibold">#{o.id}</span>
-                  <span className="text-orange-500">
-                    {t[`status_${o.status}`] ?? o.status}
-                  </span>
-                </div>
+        </div>
+      ))}
+    </div>
 
-                <p className="mt-2 text-sm">
-                  {t.total}: π{o.total}
-                </p>
+    {/* ===== FOOTER ===== */}
+    <div className="flex justify-between items-center px-4 py-3 border-t text-sm">
+      <span>
+        {t.total}: <b>π{o.total}</b>
+      </span>
 
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date(o.createdAt).toLocaleString()}
-                </p>
-              </div>
+      <button className="px-4 py-1 border border-orange-500 text-orange-500 rounded">
+        {t.buy_now}
+      </button>
+    </div>
+  </div>
+))}
             ))}
           </div>
         )}
