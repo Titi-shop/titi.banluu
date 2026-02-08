@@ -15,9 +15,6 @@ interface Order {
   status: string;
 }
 
-/* =========================
-   STATUS TABS
-========================= */
 type OrderTab =
   | "all"
   | "pending"
@@ -27,18 +24,6 @@ type OrderTab =
   | "completed"
   | "returned"
   | "cancelled";
-
-  type OrderTab =
-  | "all"
-  | "pending"
-  | "pickup"
-  | "shipping"
-  | "received"
-  | "completed"
-  | "returned"
-  | "cancelled";
-
-const [activeTab, setActiveTab] = useState<OrderTab>("all");
 
 /* =========================
    PAGE
@@ -51,7 +36,7 @@ export default function CustomerOrdersPage() {
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
 
   /* =========================
-     LOAD ALL ORDERS
+     LOAD ORDERS (1 LẦN)
   ========================= */
   useEffect(() => {
     loadOrders();
@@ -61,16 +46,14 @@ export default function CustomerOrdersPage() {
     try {
       const token = await getPiAccessToken();
       const res = await fetch("/api/orders", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
 
       if (!res.ok) throw new Error("UNAUTHORIZED");
 
-      const data: unknown = await res.json();
-      setOrders(Array.isArray(data) ? (data as Order[]) : []);
+      const data = await res.json();
+      setOrders(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("❌ Load orders error:", e);
       setOrders([]);
@@ -80,31 +63,12 @@ export default function CustomerOrdersPage() {
   };
 
   /* =========================
-     FILTER BY TAB
+     FILTER THEO TAB
   ========================= */
   const filteredOrders = useMemo(() => {
     if (activeTab === "all") return orders;
 
-    return orders.filter((o) => {
-      switch (activeTab) {
-        case "pending":
-          return o.status === "pending";
-        case "pickup":
-          return o.status === "pickup";
-        case "shipping":
-          return o.status === "shipping";
-        case "received":
-          return o.status === "received";
-        case "completed":
-          return o.status === "completed";
-        case "returned":
-          return o.status === "returned";
-        case "cancelled":
-          return o.status === "cancelled";
-        default:
-          return false;
-      }
-    });
+    return orders.filter((o) => o.status === activeTab);
   }, [orders, activeTab]);
 
   /* =========================
@@ -122,50 +86,22 @@ export default function CustomerOrdersPage() {
         </div>
       </header>
 
-       {/* ===== ORDER STATUS TABS ===== */}
-<div className="bg-white border-b">
-  <div className="flex gap-6 px-4 py-3 text-sm overflow-x-auto whitespace-nowrap">
-    {[
-      ["all", "Tất cả"],
-      ["pending", "Chờ xác nhận"],
-      ["pickup", "Chờ lấy hàng"],
-      ["shipping", "Chờ giao hàng"],
-      ["received", "Đã giao"],
-      ["returned", "Trả hàng"],
-      ["cancelled", "Huỷ"],
-    ].map(([key, label]) => (
-      <button
-        key={key}
-        onClick={() => setActiveTab(key as OrderTab)}
-        className={`pb-2 border-b-2 transition ${
-          activeTab === key
-            ? "border-orange-500 text-orange-500 font-semibold"
-            : "border-transparent text-gray-500"
-        }`}
-      >
-        {label}
-      </button>
-    ))}
-  </div>
-</div>
-
-      {/* ===== HORIZONTAL TABS ===== */}
-      <div className="bg-white overflow-x-auto">
-        <div className="flex gap-6 px-4 py-3 text-sm whitespace-nowrap">
+      {/* ===== STATUS TABS (GIỐNG SHOPEE) ===== */}
+      <div className="bg-white border-b">
+        <div className="flex gap-6 px-4 py-3 text-sm overflow-x-auto whitespace-nowrap">
           {[
-            ["all", t.all],
-            ["pending", t.order_pending],
-            ["pickup", t.order_pickup],
-            ["shipping", t.order_shipping],
-            ["received", t.order_received],
-            ["completed", t.order_completed],
-            ["returned", t.order_returned],
-            ["cancelled", t.order_cancelled],
+            ["all", "Tất cả"],
+            ["pending", "Chờ xác nhận"],
+            ["pickup", "Chờ lấy hàng"],
+            ["shipping", "Chờ giao hàng"],
+            ["received", "Đã giao"],
+            ["returned", "Trả hàng"],
+            ["cancelled", "Huỷ"],
           ].map(([key, label]) => (
             <button
               key={key}
               onClick={() => setActiveTab(key as OrderTab)}
-              className={`pb-2 border-b-2 ${
+              className={`pb-2 border-b-2 transition ${
                 activeTab === key
                   ? "border-orange-500 text-orange-500 font-semibold"
                   : "border-transparent text-gray-500"
@@ -198,7 +134,7 @@ export default function CustomerOrdersPage() {
                 <div className="flex justify-between text-sm">
                   <span className="font-semibold">#{o.id}</span>
                   <span className="text-orange-500">
-                    {t[`status_${o.status}`]}
+                    {t[`status_${o.status}`] ?? o.status}
                   </span>
                 </div>
 
