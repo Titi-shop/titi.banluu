@@ -100,7 +100,7 @@ export default function CheckoutSheet({ open, onClose }: Props) {
 
   const quantity = useMemo(() => {
     if (!item) return 1;
-    return Number(qtyDraft || item.quantity);
+    return qtyDraft === "" ? item.quantity : Number(qtyDraft);
   }, [qtyDraft, item]);
 
   const total = useMemo(() => {
