@@ -16,12 +16,7 @@ interface Order {
   reviewed?: boolean;
 }
 
-interface TabItem {
-  key: string;
-  label: string;
-  href: string;
-  count?: number;
-}
+
 
 /* =========================
    PAGE
@@ -105,37 +100,6 @@ export default function CustomerReviewPage() {
     }
   };
 
-  /* =========================
-     TABS
-  ========================= */
-  const tabs: TabItem[] = [
-    {
-      key: "pending",
-      label: t.order_pending,
-      href: "/customer/pending",
-    },
-    {
-      key: "pickup",
-      label: t.order_pickup,
-      href: "/customer/pickup",
-    },
-    {
-      key: "shipping",
-      label: t.order_shipping,
-      href: "/customer/shipping",
-    },
-    {
-      key: "review",
-      label: t.order_review,
-      href: "/customer/review",
-      count: orders.length,
-    },
-    {
-      key: "received",
-      label: t.order_received,
-      href: "/customer/orders",
-    },
-  ];
 
   /* =========================
      UI
@@ -154,48 +118,9 @@ export default function CustomerReviewPage() {
   </div>
 </header>
 
-      {/* ===== TABS ===== */}
-      <nav className="bg-white shadow-sm">
-        <div className="grid grid-cols-5 text-center text-xs">
-          {tabs.map((tab) => {
-            const active = pathname === tab.href;
-
-            return (
-              <button
-                key={tab.key}
-                onClick={() => router.push(tab.href)}
-                className="flex flex-col items-center justify-center py-3"
-              >
-                {/* LABEL */}
-                <div className="h-8 flex items-center justify-center px-1">
-                  <span className="leading-tight text-gray-700 text-center">
-                    {tab.label}
-                  </span>
-                </div>
-
-                {/* COUNT */}
-                <div
-                  className={`h-5 flex items-center justify-center mt-1 ${
-                    active
-                      ? "text-orange-500 font-semibold"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {tab.count ?? 0}
-                </div>
-
-                {/* ACTIVE BAR */}
-                {active && (
-                  <div className="h-0.5 w-6 bg-orange-500 mt-1 rounded" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
 
       {/* ===== CONTENT ===== */}
-      <section className="px-4 mt-10">
+      <section className="px-4 mt-4">
         {loading && (
           <p className="text-center text-gray-500">
             ⏳ {t.loading_orders}
