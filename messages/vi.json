@@ -277,13 +277,12 @@
 
   "order_count": "đơn",
 
-  "status_pending": "Chờ xác nhận",
+    "status_pending": "Chờ xác nhận",
   "status_shipping": "Đang giao",
   "status_completed": "Hoàn tất",
   "status_cancelled": "Đã hủy",
-  "status_returned": "Đã trả hàng"
+  "status_returned": "Đã trả hàng",
 
-  
   "all": "Tất cả",
   "order_pending": "Chờ xác nhận",
   "order_pickup": "Chờ lấy hàng",
