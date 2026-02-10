@@ -2,10 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useCart } from "../../context/CartContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useCart } from "@/app/context/CartContext";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
 import CheckoutSheet from "./CheckoutSheet";
+
+function formatDetail(text: string) {
+  return text
+    .replace(/\\n/g, "\n")      // FIX dữ liệu lưu dạng \n
+    .replace(/\r\n/g, "\n")     // FIX Windows newline
+    .trim();
+}
+function formatShortDescription(text?: string) {
+  if (!text || typeof text !== "string") return [];
+
+  return text
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean);
+}
 
 /* =======================
    TYPES
@@ -215,10 +232,27 @@ export default function ProductDetail() {
         </span>
       </div>
 
-      {/* SHORT DESCRIPTION */}
-      <div className="bg-white p-4">
-        {product.description || t.no_description}
-      </div>
+      {/* SHORT DESCRIPTION (Shopee style) */}
+<div className="bg-white p-4">
+  <h3 className="text-sm font-semibold mb-2">
+    {t.product_description ?? "Mô tả sản phẩm"}
+  </h3>
+
+  {product.description ? (
+  <ul className="space-y-1 text-sm text-gray-700 leading-relaxed">
+    {formatShortDescription(product.description).map((line, i) => (
+      <li key={i} className="flex gap-2">
+        <span className="text-orange-500">•</span>
+        <span>{line}</span>
+      </li>
+    ))}
+  </ul>
+) : (
+  <p className="text-sm text-gray-400">
+    {t.no_description}
+  </p>
+)}
+</div>
 
       {/* DETAIL IMAGES */}
       {product.detailImages.length > 0 && (
@@ -235,9 +269,15 @@ export default function ProductDetail() {
       )}
 
       {/* DETAIL CONTENT */}
-      <div className="bg-white p-4 mt-2 whitespace-pre-line">
-        {product.detail || t.no_description}
-      </div>
+      <div className="bg-white mt-2 px-4 py-5">
+  <h3 className="text-base font-semibold mb-3">
+    Chi tiết sản phẩm
+  </h3>
+
+  <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+    {formatDetail(product.detail || t.no_description)}
+  </div>
+</div>
 
       {/* ACTIONS */}
       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
@@ -258,9 +298,16 @@ export default function ProductDetail() {
 
       {/* CHECKOUT SHEET */}
       <CheckoutSheet
-        open={openCheckout}
-        onClose={() => setOpenCheckout(false)}
-      />
+  open={openCheckout}
+  onClose={() => setOpenCheckout(false)}
+  product={{
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    finalPrice: product.finalPrice,
+    images: product.images,
+  }}
+/>
     </div>
   );
 }
