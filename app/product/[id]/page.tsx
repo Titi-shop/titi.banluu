@@ -23,7 +23,15 @@ function formatShortDescription(text?: string) {
     .map(line => line.trim())
     .filter(Boolean);
 }
-
+function formatPi(value: number | string) {
+  const n = Number(value);
+  if (Number.isNaN(n)) return "0.000000";
+  return n.toFixed(6);
+}
+function calcSalePercent(price: number, finalPrice: number) {
+  if (finalPrice >= price) return 0;
+  return Math.round(((price - finalPrice) / price) * 100);
+}
 /* =======================
    TYPES
 ======================= */
@@ -68,6 +76,7 @@ export default function ProductDetail() {
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
@@ -80,7 +89,7 @@ export default function ProductDetail() {
   useEffect(() => {
     async function loadProduct() {
       try {
-        const res = await fetch("/api/products");
+        const res = await fetch(`/api/products?id=${id}`);
         const data: unknown = await res.json();
 
         if (!Array.isArray(data)) return;
@@ -110,8 +119,9 @@ export default function ProductDetail() {
           };
         });
 
-        const found = normalized.find((p) => p.id === id);
-        if (found) setProduct(found);
+        setProducts(normalized);
+
+if (found) setProduct(found);
       } finally {
         setLoading(false);
       }
@@ -120,12 +130,46 @@ export default function ProductDetail() {
     loadProduct();
   }, [id]);
 
+  useEffect(() => {
+  if (!id) return;
+
+  const key = `viewed-${id}`;
+  if (sessionStorage.getItem(key)) return;
+
+  async function increaseView() {
+    await fetch("/api/products/view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+
+    sessionStorage.setItem(key, "1");
+
+    // 🔁 reload product để lấy views mới
+    const res = await fetch(`/api/products?id=${id}`);
+    const data = await res.json();
+    if (Array.isArray(data) && data[0]) {
+      setProduct({
+        ...data[0],
+        isSale: data[0].finalPrice < data[0].price,
+      });
+    }
+  }
+
+  increaseView();
+}, [id]);
+
   /* =======================
      STATES
   ======================= */
   if (loading) return <p className="p-4">{t.loading}</p>;
   if (!product) return <p className="p-4">{t.no_products}</p>;
-
+const relatedProducts = products.filter(
+  (p) =>
+    p.id !== product.id &&
+    p.categoryId &&
+    p.categoryId === product.categoryId
+);
   const images =
     product.images.length > 0
       ? product.images
@@ -168,11 +212,17 @@ export default function ProductDetail() {
      <div className="pb-32 bg-gray-50 min-h-screen">
       {/* MAIN IMAGES */}
       <div className="mt-14 relative w-full h-80 bg-white">
-        <img
-          src={images[currentIndex]}
-          alt={product.name}
-          className="w-full h-full object-cover"
-        />
+  <img
+    src={images[currentIndex]}
+    alt={product.name}
+    className="w-full h-full object-cover"
+  />
+
+  {product.isSale && (
+    <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+      -{calcSalePercent(product.price, product.finalPrice)}%
+    </div>
+  )}
 
         {images.length > 1 && (
           <>
@@ -195,8 +245,8 @@ export default function ProductDetail() {
                   key={i}
                   className={`w-2 h-2 rounded-full ${
                     i === currentIndex
-                      ? "bg-orange-500"
-                      : "bg-gray-300"
+                      ? "bg-orange-700"
+                      : "bg-gray-700"
                   }`}
                 />
               ))}
@@ -213,13 +263,13 @@ export default function ProductDetail() {
 
         <div className="text-right">
           <p className="text-xl font-bold text-orange-600">
-            π {product.finalPrice}
-          </p>
+  π {formatPi(product.finalPrice)}
+</p>
 
           {product.isSale && (
             <p className="text-sm text-gray-400 line-through">
-              π {product.price}
-            </p>
+  π {formatPi(product.price)}
+</p>
           )}
         </div>
       </div>
@@ -240,7 +290,9 @@ export default function ProductDetail() {
 
   {product.description ? (
   <ul className="space-y-1 text-sm text-gray-700 leading-relaxed">
-    {formatShortDescription(product.description).map((line, i) => (
+    {formatShortDescription(product.description)
+  .slice(0, 5)
+  .map((line, i) => (
       <li key={i} className="flex gap-2">
         <span className="text-orange-500">•</span>
         <span>{line}</span>
@@ -271,7 +323,7 @@ export default function ProductDetail() {
       {/* DETAIL CONTENT */}
       <div className="bg-white mt-2 px-4 py-5">
   <h3 className="text-base font-semibold mb-3">
-    Chi tiết sản phẩm
+     {t.product_details ?? "Chi tiết sản phẩm"}
   </h3>
 
   <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
@@ -279,6 +331,42 @@ export default function ProductDetail() {
   </div>
 </div>
 
+       {relatedProducts.length > 0 && (
+  <div className="bg-white mt-2 p-4">
+    <h3 className="text-sm font-semibold mb-3">
+      🔗 {t.product_related_products ?? "Sản phẩm liên quan"}
+    </h3>
+
+    <div className="flex gap-3 overflow-x-auto">
+      {relatedProducts.map((p) => (
+        <div
+          key={p.id}
+          onClick={() => router.push(`/product/${p.id}`)}
+          className="min-w-[140px] bg-gray-50 rounded-lg p-2"
+        >
+          <img
+            src={p.images[0] || "/placeholder.png"}
+            className="w-full h-24 object-cover rounded"
+          />
+
+          <p className="text-xs mt-2 line-clamp-2">
+            {p.name}
+          </p>
+
+          <p className="text-sm font-semibold text-orange-600">
+  π {formatPi(p.finalPrice)}
+</p>
+
+          {p.isSale && (
+            <p className="text-xs text-gray-400 line-through">
+  π {formatPi(p.price)}
+</p>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+)}
       {/* ACTIONS */}
       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
         <button
