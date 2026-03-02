@@ -5,9 +5,6 @@ import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================
-   DEFAULT PROFILE
-========================= */
 function emptyProfile() {
   return {
     full_name: null,
@@ -40,27 +37,13 @@ export async function GET() {
   try {
     const { rows } = await query(
       `
-      SELECT
-        full_name,
-        email,
-        phone,
-        avatar_url,
-        bio,
-        country,
-        province,
-        district,
-        ward,
-        address_line,
-        postal_code,
-        shop_name,
-        shop_slug,
-        shop_description,
-        shop_banner
+      SELECT *
       FROM user_profiles
-      SELECT up.*
-FROM user_profiles up
-JOIN users u ON up.user_id = u.id
-WHERE u.pi_uid = $1
+      WHERE user_id = $1
+      LIMIT 1
+      `,
+      [user.id] // ✅ dùng users.id
+    );
 
     const profile = rows[0] ?? emptyProfile();
 
@@ -75,7 +58,7 @@ WHERE u.pi_uid = $1
 }
 
 /* =========================
-   POST /api/profile (UPSERT)
+   POST /api/profile
 ========================= */
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
@@ -89,8 +72,6 @@ export async function POST(req: Request) {
   }
 
   const body = raw as Record<string, unknown>;
-
-  /* ========= NORMALIZE ========= */
 
   const normalize = (v: unknown, max: number) =>
     typeof v === "string" ? v.trim().slice(0, max) : null;
@@ -121,92 +102,74 @@ export async function POST(req: Request) {
       : null;
 
   const shop_description = normalize(body.shop_description, 1000);
-
   const shop_banner =
     typeof body.shop_banner === "string" ? body.shop_banner : null;
 
   try {
-  /* ========= ENSURE USER EXISTS ========= */
-
-  const { rows: userRows } = await query(
-    `
-    INSERT INTO users (pi_uid, username, role, created_at)
-    VALUES ($1, $2, $3, NOW())
-    ON CONFLICT (pi_uid)
-    DO UPDATE SET username = EXCLUDED.username
-    RETURNING id
-    `,
-    [user.pi_uid, user.username, user.role]
-  );
-
-  const dbUserId: string = userRows[0].id;
-
-  /* ========= UPSERT PROFILE ========= */
-
-  await query(
-    `
-    INSERT INTO user_profiles (
-      user_id,
-      full_name,
-      email,
-      phone,
-      avatar_url,
-      bio,
-      country,
-      province,
-      district,
-      ward,
-      address_line,
-      postal_code,
-      shop_name,
-      shop_slug,
-      shop_description,
-      shop_banner,
-      created_at,
-      updated_at
-    )
-    VALUES (
-      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-      NOW(),NOW()
-    )
-    ON CONFLICT (user_id)
-    DO UPDATE SET
-      full_name = EXCLUDED.full_name,
-      email = EXCLUDED.email,
-      phone = EXCLUDED.phone,
-      avatar_url = EXCLUDED.avatar_url,
-      bio = EXCLUDED.bio,
-      country = EXCLUDED.country,
-      province = EXCLUDED.province,
-      district = EXCLUDED.district,
-      ward = EXCLUDED.ward,
-      address_line = EXCLUDED.address_line,
-      postal_code = EXCLUDED.postal_code,
-      shop_name = EXCLUDED.shop_name,
-      shop_slug = EXCLUDED.shop_slug,
-      shop_description = EXCLUDED.shop_description,
-      shop_banner = EXCLUDED.shop_banner,
-      updated_at = NOW()
-    `,
-    [
-      dbUserId,
-      full_name,
-      email,
-      phone,
-      avatar_url,
-      bio,
-      country,
-      province,
-      district,
-      ward,
-      address_line,
-      postal_code,
-      shop_name,
-      shop_slug,
-      shop_description,
-      shop_banner,
-    ]
-  );
+    await query(
+      `
+      INSERT INTO user_profiles (
+        user_id,
+        full_name,
+        email,
+        phone,
+        avatar_url,
+        bio,
+        country,
+        province,
+        district,
+        ward,
+        address_line,
+        postal_code,
+        shop_name,
+        shop_slug,
+        shop_description,
+        shop_banner,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
+        NOW(),NOW()
+      )
+      ON CONFLICT (user_id)
+      DO UPDATE SET
+        full_name = EXCLUDED.full_name,
+        email = EXCLUDED.email,
+        phone = EXCLUDED.phone,
+        avatar_url = EXCLUDED.avatar_url,
+        bio = EXCLUDED.bio,
+        country = EXCLUDED.country,
+        province = EXCLUDED.province,
+        district = EXCLUDED.district,
+        ward = EXCLUDED.ward,
+        address_line = EXCLUDED.address_line,
+        postal_code = EXCLUDED.postal_code,
+        shop_name = EXCLUDED.shop_name,
+        shop_slug = EXCLUDED.shop_slug,
+        shop_description = EXCLUDED.shop_description,
+        shop_banner = EXCLUDED.shop_banner,
+        updated_at = NOW()
+      `,
+      [
+        user.id, // ✅ dùng users.id
+        full_name,
+        email,
+        phone,
+        avatar_url,
+        bio,
+        country,
+        province,
+        district,
+        ward,
+        address_line,
+        postal_code,
+        shop_name,
+        shop_slug,
+        shop_description,
+        shop_banner,
+      ]
+    );
 
     return NextResponse.json({ success: true });
   } catch (err) {
