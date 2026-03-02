@@ -1,4 +1,3 @@
-// app/api/seller/register/route.ts
 
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
@@ -39,18 +38,17 @@ export async function POST(req: Request) {
     }
 
     /* 3️⃣ READ BODY */
-    const body: unknown = await req.json();
+    let body: unknown = null;
 
-    if (
-      typeof body !== "object" ||
-      body === null ||
-      !("shop_name" in body)
-    ) {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
-        { status: 400 }
-      );
-    }
+try {
+  const text = await req.text();
+  body = text ? JSON.parse(text) : null;
+} catch {
+  return NextResponse.json(
+    { error: "INVALID_JSON" },
+    { status: 400 }
+  );
+}
 
     const {
       shop_name,
