@@ -26,8 +26,6 @@ interface ProfileData {
   avatar_url: string | null;
 }
 
-/* ================= EDITABLE FIELDS ================= */
-
 type EditableKey =
   | "full_name"
   | "email"
@@ -70,6 +68,21 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /* ================= LABEL MAP (NO DYNAMIC KEY) ================= */
+
+  const labelMap: Record<EditableKey, string> = {
+    full_name: t.profile_full_name,
+    email: t.profile_email,
+    phone: t.profile_phone,
+    bio: t.profile_bio,
+    country: t.profile_country,
+    province: t.profile_province,
+    district: t.profile_district,
+    ward: t.profile_ward,
+    address_line: t.profile_address_line,
+    postal_code: t.profile_postal_code,
+  };
+
   /* ================= LOAD PROFILE ================= */
 
   useEffect(() => {
@@ -86,10 +99,15 @@ export default function ProfilePage() {
 
         if (!res.ok) throw new Error();
 
-        const data: { profile: ProfileData } = await res.json();
+        const raw = await res.json();
 
-        setProfile(data.profile);
-        setForm(data.profile);
+        const profileData: ProfileData | null =
+          raw && typeof raw === "object" && "profile" in raw
+            ? (raw.profile as ProfileData)
+            : null;
+
+        setProfile(profileData);
+        setForm(profileData);
       } catch {
         setError(t.profile_error_loading);
       } finally {
@@ -111,6 +129,7 @@ export default function ProfilePage() {
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
     setUploading(true);
+    setError(null);
 
     try {
       const token = await getPiAccessToken();
@@ -141,7 +160,9 @@ export default function ProfilePage() {
     } catch {
       setError(t.upload_failed);
     } finally {
-      URL.revokeObjectURL(objectUrl);
+      setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+      }, 500);
       setUploading(false);
     }
   };
@@ -217,7 +238,7 @@ export default function ProfilePage() {
         <div className="space-y-3 mt-4">
           {editableFields.map((key) => (
             <div key={key} className="flex justify-between border-b pb-2">
-              <span className="text-gray-500">{t(`profile_${key}`)}</span>
+              <span className="text-gray-500">{labelMap[key]}</span>
 
               {editMode ? (
                 <input
