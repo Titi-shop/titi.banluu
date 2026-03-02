@@ -8,6 +8,7 @@ import { Upload, Edit3, Save, X } from "lucide-react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { getPiAccessToken, clearPiToken } from "@/lib/piAuth";
+
 /* ================= TYPES ================= */
 
 interface ProfileData {
@@ -15,16 +16,28 @@ interface ProfileData {
   email: string | null;
   phone: string | null;
   bio: string | null;
-
-  country: string | null;
+  country: string;
   province: string | null;
   district: string | null;
   ward: string | null;
   address_line: string | null;
   postal_code: string | null;
-
   avatar_url: string | null;
 }
+
+const defaultProfile: ProfileData = {
+  full_name: null,
+  email: null,
+  phone: null,
+  bio: null,
+  country: "VN",
+  province: null,
+  district: null,
+  ward: null,
+  address_line: null,
+  postal_code: null,
+  avatar_url: null,
+};
 
 type EditableKey =
   | "full_name"
@@ -51,12 +64,14 @@ const editableFields: EditableKey[] = [
   "postal_code",
 ];
 
+/* ================= COMPONENT ================= */
+
 export default function ProfilePage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
 
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [form, setForm] = useState<ProfileData | null>(null);
+  const [profile, setProfile] = useState<ProfileData>(defaultProfile);
+  const [form, setForm] = useState<ProfileData>(defaultProfile);
 
   const [editMode, setEditMode] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -68,27 +83,6 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-
-  const selectedCountry = countries.find(
-  (c) => c.code === form?.country
-  );
-
-  const dialCode = selectedCountry?.dialCode ?? "";
-  /* ================= LABEL MAP (NO DYNAMIC KEY) ================= */
-
-  const labelMap: Record<EditableKey, string> = {
-    full_name: t.profile_full_name,
-    email: t.profile_email,
-    phone: t.profile_phone,
-    bio: t.profile_bio,
-    country: t.profile_country,
-    province: t.profile_province,
-    district: t.profile_district,
-    ward: t.profile_ward,
-    address_line: t.profile_address_line,
-    postal_code: t.profile_postal_code,
-  };
-
   /* ================= LOAD PROFILE ================= */
 
   useEffect(() => {
@@ -98,31 +92,43 @@ export default function ProfilePage() {
       try {
         const token = await getPiAccessToken();
 
-let res = await fetch("/api/profile", {
-  headers: { Authorization: `Bearer ${token}` },
-});
+        let res = await fetch("/api/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-if (res.status === 401) {
-  clearPiToken();
-  const newToken = await getPiAccessToken();
+        if (res.status === 401) {
+          clearPiToken();
+          const newToken = await getPiAccessToken();
+          res = await fetch("/api/profile", {
+            headers: { Authorization: `Bearer ${newToken}` },
+          });
+        }
 
-  res = await fetch("/api/profile", {
-    headers: { Authorization: `Bearer ${newToken}` },
-  });
-}
-
-if (!res.ok) throw new Error();
-
+        if (!res.ok) throw new Error();
 
         const raw = await res.json();
 
-        const profileData: ProfileData | null =
-          raw && typeof raw === "object" && "profile" in raw
-            ? (raw.profile as ProfileData)
+        const profileData =
+          raw?.profile && typeof raw.profile === "object"
+            ? raw.profile
             : null;
 
-        setProfile(profileData);
-        setForm(profileData);
+        const safeProfile: ProfileData = {
+          full_name: profileData?.full_name ?? null,
+          email: profileData?.email ?? null,
+          phone: profileData?.phone ?? null,
+          bio: profileData?.bio ?? null,
+          country: profileData?.country ?? "VN",
+          province: profileData?.province ?? null,
+          district: profileData?.district ?? null,
+          ward: profileData?.ward ?? null,
+          address_line: profileData?.address_line ?? null,
+          postal_code: profileData?.postal_code ?? null,
+          avatar_url: profileData?.avatar_url ?? null,
+        };
+
+        setProfile(safeProfile);
+        setForm(safeProfile);
       } catch {
         setError(t.profile_error_loading);
       } finally {
@@ -159,15 +165,17 @@ if (!res.ok) throw new Error();
 
       if (!res.ok) throw new Error();
 
-      const data: { avatar: string } = await res.json();
+      const data = await res.json();
 
-      setProfile((prev) =>
-        prev ? { ...prev, avatar_url: data.avatar } : prev
-      );
+      setProfile((prev) => ({
+        ...prev,
+        avatar_url: data.avatar,
+      }));
 
-      setForm((prev) =>
-        prev ? { ...prev, avatar_url: data.avatar } : prev
-      );
+      setForm((prev) => ({
+        ...prev,
+        avatar_url: data.avatar,
+      }));
 
       setPreview(null);
       setSuccess(t.profile_avatar_updated);
@@ -175,9 +183,7 @@ if (!res.ok) throw new Error();
     } catch {
       setError(t.upload_failed);
     } finally {
-      setTimeout(() => {
-        URL.revokeObjectURL(objectUrl);
-      }, 500);
+      URL.revokeObjectURL(objectUrl);
       setUploading(false);
     }
   };
@@ -185,8 +191,6 @@ if (!res.ok) throw new Error();
   /* ================= SAVE ================= */
 
   const handleSave = async () => {
-    if (!form) return;
-
     setSaving(true);
     setError(null);
 
@@ -215,9 +219,17 @@ if (!res.ok) throw new Error();
     }
   };
 
+  /* ================= RENDER ================= */
+
   if (loading || authLoading) {
     return <p className="p-4 text-center">{t.loading_profile}</p>;
   }
+
+  const profileDialCode =
+    countries.find((c) => c.code === profile.country)?.dialCode ?? "";
+
+  const formDialCode =
+    countries.find((c) => c.code === form.country)?.dialCode ?? "";
 
   return (
     <main className="min-h-screen bg-gray-100 pb-28">
@@ -227,7 +239,7 @@ if (!res.ok) throw new Error();
         <div className="relative w-28 h-28 mx-auto mb-4">
           {preview ? (
             <Image src={preview} alt="Preview" fill className="rounded-full object-cover border-4 border-orange-500" />
-          ) : profile?.avatar_url ? (
+          ) : profile.avatar_url ? (
             <Image src={profile.avatar_url} alt="Avatar" fill className="rounded-full object-cover border-4 border-orange-500" />
           ) : (
             <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
@@ -245,88 +257,81 @@ if (!res.ok) throw new Error();
           @{user?.username}
         </h2>
 
-        {uploading && <p className="text-center text-sm text-gray-500">{t.uploading}</p>}
+        {uploading && <p className="text-center text-sm">{t.uploading}</p>}
         {success && <p className="text-center text-sm text-green-600">✓ {success}</p>}
         {error && <p className="text-center text-sm text-red-500">{error}</p>}
 
         {/* INFO */}
         <div className="space-y-3 mt-4">
-  {editableFields.map((key) => (
-    <div key={key} className="flex justify-between border-b pb-2">
-      <span className="text-gray-500">{labelMap[key]}</span>
+          {editableFields.map((key) => (
+            <div key={key} className="flex justify-between border-b pb-2">
+              <span className="text-gray-500">{t[`profile_${key}`]}</span>
 
-      {editMode ? (
-        key === "country" ? (
-          <select
-            className="text-right outline-none"
-            value={form?.country ?? "VN"}
-            onChange={(e) =>
-              setForm((prev) =>
-                prev
-                  ? { ...prev, country: e.target.value }
-                  : prev
-              )
-            }
-          >
-            {countries.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.name} ({c.dialCode})
-              </option>
-            ))}
-          </select>
-        ) : key === "phone" ? (
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400 text-sm">
-              {dialCode}
-            </span>
-            <input
-              className="text-right outline-none w-28"
-              value={form?.phone ?? ""}
-              onChange={(e) =>
-                setForm((prev) =>
-                  prev
-                    ? { ...prev, phone: e.target.value }
-                    : prev
+              {editMode ? (
+                key === "country" ? (
+                  <select
+                    className="text-right outline-none"
+                    value={form.country}
+                    onChange={(e) =>
+                      setForm({ ...form, country: e.target.value })
+                    }
+                  >
+                    {countries.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name} ({c.dialCode})
+                      </option>
+                    ))}
+                  </select>
+                ) : key === "phone" ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-sm">
+                      {formDialCode}
+                    </span>
+                    <input
+                      className="text-right outline-none w-28"
+                      value={form.phone ?? ""}
+                      onChange={(e) =>
+                        setForm({ ...form, phone: e.target.value })
+                      }
+                    />
+                  </div>
+                ) : (
+                  <input
+                    className="text-right outline-none"
+                    value={(form[key] as string) ?? ""}
+                    onChange={(e) =>
+                      setForm({ ...form, [key]: e.target.value })
+                    }
+                  />
                 )
-              }
-            />
-          </div>
-        ) : (
-          <input
-            className="text-right outline-none"
-            value={form?.[key] ?? ""}
-            onChange={(e) =>
-              setForm((prev) =>
-                prev
-                  ? { ...prev, [key]: e.target.value }
-                  : prev
-              )
-            }
-          />
-        )
-      ) : key === "phone" ? (
-        <span>
-          {profile?.phone
-            ? `${dialCode} ${profile.phone}`
-            : t.profile_not_set}
-        </span>
-      ) : key === "country" ? (
-        <span>
-          {countries.find((c) => c.code === profile?.country)?.name ??
-            t.profile_not_set}
-        </span>
-      ) : (
-        <span>{profile?.[key] || t.profile_not_set}</span>
-      )}
-    </div>
-  ))}
-</div>
+              ) : key === "phone" ? (
+                <span>
+                  {profile.phone
+                    ? `${profileDialCode} ${profile.phone}`
+                    : t.profile_not_set}
+                </span>
+              ) : key === "country" ? (
+                <span>
+                  {countries.find(
+                    (c) => c.code === profile.country
+                  )?.name ?? t.profile_not_set}
+                </span>
+              ) : (
+                <span>{(profile[key] as string) ?? t.profile_not_set}</span>
+              )}
+            </div>
+          ))}
+        </div>
 
         {/* ACTION */}
         <div className="flex justify-center mt-6 gap-3">
           {editMode ? (
             <>
-              <button onClick={handleSave} disabled={saving} className="btn-orange flex items-center gap-2">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="btn-orange flex items-center gap-2"
+              >
                 <Save size={16} />
                 {saving ? t.saving : t.save}
               </button>
@@ -342,7 +347,10 @@ if (!res.ok) throw new Error();
               </button>
             </>
           ) : (
-            <button onClick={() => setEditMode(true)} className="btn-orange flex items-center gap-2">
+            <button
+              onClick={() => setEditMode(true)}
+              className="btn-orange flex items-center gap-2"
+            >
               <Edit3 size={16} /> {t.edit}
             </button>
           )}
