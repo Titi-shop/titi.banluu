@@ -57,11 +57,10 @@ export async function GET() {
         shop_description,
         shop_banner
       FROM user_profiles
-      WHERE user_id = $1
-      LIMIT 1
-      `,
-      [user.pi_uid]
-    );
+      SELECT up.*
+FROM user_profiles up
+JOIN users u ON up.user_id = u.id
+WHERE u.pi_uid = $1
 
     const profile = rows[0] ?? emptyProfile();
 
