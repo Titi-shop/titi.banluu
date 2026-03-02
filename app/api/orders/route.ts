@@ -62,13 +62,18 @@ export async function POST(req: Request) {
       );
     }
   }
-
-  if (
-    !shipping ||
-    typeof shipping.name !== "string" ||
-    typeof shipping.phone !== "string" ||
-    typeof shipping.address !== "string"
-  ) {
+if (
+  !shipping ||
+  typeof shipping.full_name !== "string" ||
+  typeof shipping.phone !== "string" ||
+  typeof shipping.address_line !== "string"
+) {
+  return NextResponse.json(
+    { error: "INVALID_SHIPPING_INFO" },
+    { status: 400 }
+  );
+}
+   {
     return NextResponse.json(
       { error: "INVALID_SHIPPING_INFO" },
       { status: 400 }
