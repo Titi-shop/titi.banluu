@@ -92,10 +92,18 @@ export default function ProfilePage() {
       try {
         const token = await getPiAccessToken();
 
-        const res = await fetch("/api/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
+const res = await fetch("/api/profile", {
+  headers: { Authorization: `Bearer ${token}` },
+});
+
+if (res.status === 401) {
+  clearPiToken();               // 🔥 clear token cũ
+  const newToken = await getPiAccessToken();
+
+  return fetch("/api/profile", {
+    headers: { Authorization: `Bearer ${newToken}` },
+  });
+}
 
         if (!res.ok) throw new Error();
 
