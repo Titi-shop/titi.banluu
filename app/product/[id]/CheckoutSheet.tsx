@@ -13,7 +13,8 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 interface ShippingInfo {
   name: string;
   phone: string;
-  address: string;
+  address_line: string;
+  province: string;
   country?: string;
 }
 
@@ -100,13 +101,14 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         );
 
         if (def) {
-          setShipping({
-            name: def.name,
-            phone: def.phone,
-            address: def.address,
-            country: def.country,
-          });
-        }
+  setShipping({
+    name: def.full_name,
+    phone: def.phone,
+    address_line: def.address_line,
+    province: def.province,
+    country: def.country,
+  });
+}
       } catch {
         setShipping(null);
       }
@@ -251,7 +253,14 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
               <>
   <p className="font-medium">{shipping.name}</p>
   <p className="text-sm text-gray-600">{shipping.phone}</p>
-  <p className="text-sm text-gray-500">{shipping.address}</p>
+
+  <p className="text-sm text-gray-500">
+  {shipping.address_line}
+</p>
+
+<p className="text-sm text-gray-500">
+  {shipping.province}
+</p>
   <p className="text-sm text-gray-500">
     {getCountryDisplay(shipping.country)}
   </p>
