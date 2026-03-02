@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { blockedEmailDomains } from "@/data/validEmailDomains";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/* ================= EMPTY PROFILE ================= */
 
 function emptyProfile() {
   return {
@@ -18,16 +21,25 @@ function emptyProfile() {
     ward: null,
     address_line: null,
     postal_code: null,
-    shop_name: null,
-    shop_slug: null,
-    shop_description: null,
-    shop_banner: null,
   };
 }
 
-/* =========================
-   GET /api/profile
-========================= */
+/* ================= EMAIL CHECK ================= */
+
+function isValidEmail(email: string | null) {
+  if (!email) return true;
+
+  const parts = email.split("@");
+  if (parts.length !== 2) return false;
+
+  const domain = parts[1].toLowerCase();
+  if (blockedEmailDomains.includes(domain)) return false;
+
+  return true;
+}
+
+/* ================= GET ================= */
+
 export async function GET() {
   const user = await getUserFromBearer();
   if (!user) {
@@ -42,14 +54,12 @@ export async function GET() {
       WHERE user_id = $1
       LIMIT 1
       `,
-      [user.pi_uid] // ✅ SỬA ĐÚNG
+      [user.pi_uid]
     );
-
-    const profile = rows[0] ?? emptyProfile();
 
     return NextResponse.json({
       success: true,
-      profile,
+      profile: rows[0] ?? emptyProfile(),
     });
   } catch (err) {
     console.error("PROFILE GET ERROR:", err);
@@ -57,17 +67,16 @@ export async function GET() {
   }
 }
 
-/* =========================
-   POST /api/profile
-========================= */
+/* ================= POST ================= */
+
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
   if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const raw: unknown = await req.json().catch(() => null);
-  if (typeof raw !== "object" || raw === null) {
+  const raw = await req.json().catch(() => null);
+  if (!raw || typeof raw !== "object") {
     return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
   }
 
@@ -83,7 +92,7 @@ export async function POST(req: Request) {
 
   const country =
     typeof body.country === "string" && body.country
-      ? body.country.trim().slice(0, 50)
+      ? body.country.trim().slice(0, 10)
       : "VN";
 
   const province = normalize(body.province, 100);
@@ -91,19 +100,15 @@ export async function POST(req: Request) {
   const ward = normalize(body.ward, 100);
   const address_line = normalize(body.address_line, 255);
   const postal_code = normalize(body.postal_code, 20);
-
   const avatar_url =
     typeof body.avatar_url === "string" ? body.avatar_url : null;
 
-  const shop_name = normalize(body.shop_name, 150);
-  const shop_slug =
-    typeof body.shop_slug === "string"
-      ? body.shop_slug.trim().toLowerCase().slice(0, 150)
-      : null;
-
-  const shop_description = normalize(body.shop_description, 1000);
-  const shop_banner =
-    typeof body.shop_banner === "string" ? body.shop_banner : null;
+  if (!isValidEmail(email)) {
+    return NextResponse.json(
+      { error: "INVALID_EMAIL_DOMAIN" },
+      { status: 400 }
+    );
+  }
 
   try {
     await query(
@@ -121,15 +126,11 @@ export async function POST(req: Request) {
         ward,
         address_line,
         postal_code,
-        shop_name,
-        shop_slug,
-        shop_description,
-        shop_banner,
         created_at,
         updated_at
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
         NOW(),NOW()
       )
       ON CONFLICT (user_id)
@@ -145,14 +146,10 @@ export async function POST(req: Request) {
         ward = EXCLUDED.ward,
         address_line = EXCLUDED.address_line,
         postal_code = EXCLUDED.postal_code,
-        shop_name = EXCLUDED.shop_name,
-        shop_slug = EXCLUDED.shop_slug,
-        shop_description = EXCLUDED.shop_description,
-        shop_banner = EXCLUDED.shop_banner,
         updated_at = NOW()
       `,
       [
-        user.pi_uid, // ✅ SỬA ĐÚNG
+        user.pi_uid,
         full_name,
         email,
         phone,
@@ -164,10 +161,6 @@ export async function POST(req: Request) {
         ward,
         address_line,
         postal_code,
-        shop_name,
-        shop_slug,
-        shop_description,
-        shop_banner,
       ]
     );
 
