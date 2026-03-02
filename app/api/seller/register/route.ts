@@ -110,4 +110,3 @@ export async function POST() {
     );
   }
 }
-Bạn cần mình gửi nội dung cột db seller_requests cho đảm bảo chính xác .
