@@ -33,6 +33,29 @@ interface ProfileData {
   total_sales: number;
 }
 
+type EditableKey =
+  | "full_name"
+  | "phone"
+  | "bio"
+  | "country"
+  | "province"
+  | "district"
+  | "ward"
+  | "address_line"
+  | "postal_code";
+
+const editableFields: EditableKey[] = [
+  "full_name",
+  "phone",
+  "bio",
+  "country",
+  "province",
+  "district",
+  "ward",
+  "address_line",
+  "postal_code",
+];
+
 export default function ProfilePage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
@@ -217,30 +240,31 @@ export default function ProfilePage() {
               "address_line",
               "postal_code",
             ] as const
-          ).map((key) => (
-            <div key={key} className="flex justify-between border-b pb-2">
-              <span className="text-gray-500">{key}</span>
+          ).{editableFields.map((key) => (
+  <div key={key} className="flex justify-between border-b pb-2">
+    <span className="text-gray-500">
+      {t(`profile_${key}`)}
+    </span>
 
-              {editMode ? (
-                <input
-                  className="text-right outline-none"
-                  value={(form as any)?.[key] ?? ""}
-                  onChange={(e) =>
-                    setForm((prev) =>
-                      prev
-                        ? { ...prev, [key]: e.target.value }
-                        : prev
-                    )
-                  }
-                />
-              ) : (
-                <span>
-                  {(profile as any)?.[key] || t.not_set}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
+    {editMode ? (
+      <input
+        className="text-right outline-none"
+        value={form?.[key] ?? ""}
+        onChange={(e) =>
+          setForm((prev) =>
+            prev
+              ? { ...prev, [key]: e.target.value }
+              : prev
+          )
+        }
+      />
+    ) : (
+      <span>
+        {profile?.[key] || t.profile_not_set}
+      </span>
+    )}
+  </div>
+))}
 
         {/* ACTION */}
         <div className="flex justify-center mt-6 gap-3">
