@@ -5,9 +5,6 @@ import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================
-   DEFAULT PROFILE
-========================= */
 function emptyProfile() {
   return {
     full_name: null,
@@ -29,29 +26,6 @@ function emptyProfile() {
 }
 
 /* =========================
-   ENSURE USER EXISTS
-   - Map pi_uid -> users.id
-========================= */
-async function ensureUser(
-  pi_uid: string,
-  username: string,
-  role: string
-): Promise<string> {
-  const { rows } = await query(
-    `
-    INSERT INTO users (pi_uid, username, role, created_at)
-    VALUES ($1, $2, $3, NOW())
-    ON CONFLICT (pi_uid)
-    DO UPDATE SET username = EXCLUDED.username
-    RETURNING id
-    `,
-    [pi_uid, username, role]
-  );
-
-  return rows[0].id as string;
-}
-
-/* =========================
    GET /api/profile
 ========================= */
 export async function GET() {
@@ -63,13 +37,12 @@ export async function GET() {
   try {
     const { rows } = await query(
       `
-      SELECT up.*
-      FROM user_profiles up
-      JOIN users u ON up.user_id = u.id
-      WHERE u.pi_uid = $1
+      SELECT *
+      FROM user_profiles
+      WHERE user_id = $1
       LIMIT 1
       `,
-      [user.pi_uid]
+      [user.id] // ✅ dùng users.id
     );
 
     const profile = rows[0] ?? emptyProfile();
@@ -123,26 +96,16 @@ export async function POST(req: Request) {
     typeof body.avatar_url === "string" ? body.avatar_url : null;
 
   const shop_name = normalize(body.shop_name, 150);
-
   const shop_slug =
     typeof body.shop_slug === "string"
       ? body.shop_slug.trim().toLowerCase().slice(0, 150)
       : null;
 
   const shop_description = normalize(body.shop_description, 1000);
-
   const shop_banner =
     typeof body.shop_banner === "string" ? body.shop_banner : null;
 
   try {
-    /* ========= STEP 1: ENSURE USERS ROW ========= */
-    const dbUserId = await ensureUser(
-      user.pi_uid,
-      user.username,
-      user.role
-    );
-
-    /* ========= STEP 2: UPSERT PROFILE ========= */
     await query(
       `
       INSERT INTO user_profiles (
@@ -189,7 +152,7 @@ export async function POST(req: Request) {
         updated_at = NOW()
       `,
       [
-        dbUserId,
+        user.id, // ✅ dùng users.id
         full_name,
         email,
         phone,
