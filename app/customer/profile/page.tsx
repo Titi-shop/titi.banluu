@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import { countries } from "@/data/countries";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Upload, Edit3, Save, X } from "lucide-react";
@@ -67,6 +68,12 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+
+  const selectedCountry = countries.find(
+  (c) => c.code === form?.country
+  );
+
+  const dialCode = selectedCountry?.dialCode ?? "";
   /* ================= LABEL MAP (NO DYNAMIC KEY) ================= */
 
   const labelMap: Record<EditableKey, string> = {
@@ -244,26 +251,76 @@ if (!res.ok) throw new Error();
 
         {/* INFO */}
         <div className="space-y-3 mt-4">
-          {editableFields.map((key) => (
-            <div key={key} className="flex justify-between border-b pb-2">
-              <span className="text-gray-500">{labelMap[key]}</span>
+  {editableFields.map((key) => (
+    <div key={key} className="flex justify-between border-b pb-2">
+      <span className="text-gray-500">{labelMap[key]}</span>
 
-              {editMode ? (
-                <input
-                  className="text-right outline-none"
-                  value={form?.[key] ?? ""}
-                  onChange={(e) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, [key]: e.target.value } : prev
-                    )
-                  }
-                />
-              ) : (
-                <span>{profile?.[key] || t.profile_not_set}</span>
-              )}
-            </div>
-          ))}
-        </div>
+      {editMode ? (
+        key === "country" ? (
+          <select
+            className="text-right outline-none"
+            value={form?.country ?? "VN"}
+            onChange={(e) =>
+              setForm((prev) =>
+                prev
+                  ? { ...prev, country: e.target.value }
+                  : prev
+              )
+            }
+          >
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name} ({c.dialCode})
+              </option>
+            ))}
+          </select>
+        ) : key === "phone" ? (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-sm">
+              {dialCode}
+            </span>
+            <input
+              className="text-right outline-none w-28"
+              value={form?.phone ?? ""}
+              onChange={(e) =>
+                setForm((prev) =>
+                  prev
+                    ? { ...prev, phone: e.target.value }
+                    : prev
+                )
+              }
+            />
+          </div>
+        ) : (
+          <input
+            className="text-right outline-none"
+            value={form?.[key] ?? ""}
+            onChange={(e) =>
+              setForm((prev) =>
+                prev
+                  ? { ...prev, [key]: e.target.value }
+                  : prev
+              )
+            }
+          />
+        )
+      ) : key === "phone" ? (
+        <span>
+          {profile?.phone
+            ? `${dialCode} ${profile.phone}`
+            : t.profile_not_set}
+        </span>
+      ) : key === "country" ? (
+        <span>
+          {countries.find((c) => c.code === profile?.country)?.name ??
+            t.profile_not_set}
+        </span>
+      ) : (
+        <span>{profile?.[key] || t.profile_not_set}</span>
+      )}
+    </div>
+  ))}
+</div>
 
         {/* ACTION */}
         <div className="flex justify-center mt-6 gap-3">
