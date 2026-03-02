@@ -6,12 +6,28 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =====================================================
-   GET – LIST ADDRESSES
+   TYPES
+===================================================== */
+interface AddressInsert {
+  full_name: string;
+  phone: string;
+  country: string;
+  province: string;
+  district?: string | null;
+  ward?: string | null;
+  address_line: string;
+  postal_code?: string | null;
+  label?: "home" | "office" | "other";
+}
+
+/* =====================================================
+   GET – LIST
 ===================================================== */
 export async function GET() {
   const user = await getUserFromBearer();
-  if (!user)
+  if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
 
   const { data, error } = await supabaseAdmin
     .from("addresses")
@@ -19,19 +35,21 @@ export async function GET() {
     .eq("user_id", user.pi_uid)
     .order("created_at", { ascending: false });
 
-  if (error)
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true, items: data ?? [] });
 }
 
 /* =====================================================
-   POST – CREATE ADDRESS
+   POST – CREATE
 ===================================================== */
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
-  if (!user)
+  if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
 
   let body: unknown;
 
@@ -41,8 +59,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
   }
 
-  if (typeof body !== "object" || body === null)
+  if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 });
+  }
 
   const {
     full_name,
@@ -54,17 +73,7 @@ export async function POST(req: Request) {
     address_line,
     postal_code,
     label,
-  } = body as {
-    full_name?: unknown;
-    phone?: unknown;
-    country?: unknown;
-    province?: unknown;
-    district?: unknown;
-    ward?: unknown;
-    address_line?: unknown;
-    postal_code?: unknown;
-    label?: unknown;
-  };
+  } = body as Partial<AddressInsert>;
 
   if (
     typeof full_name !== "string" ||
@@ -76,11 +85,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 });
   }
 
-  /* Clear old default */
-  await supabaseAdmin
+  /* Clear previous default (safe even if none exists) */
+  const { error: clearError } = await supabaseAdmin
     .from("addresses")
     .update({ is_default: false })
     .eq("user_id", user.pi_uid);
+
+  if (clearError) {
+    return NextResponse.json({ error: clearError.message }, { status: 500 });
+  }
 
   const { data, error } = await supabaseAdmin
     .from("addresses")
@@ -90,26 +103,21 @@ export async function POST(req: Request) {
       phone: phone.trim(),
       country: country.trim(),
       province: province.trim(),
-      district:
-        typeof district === "string" ? district.trim() : null,
-      ward:
-        typeof ward === "string" ? ward.trim() : null,
+      district: typeof district === "string" ? district.trim() : null,
+      ward: typeof ward === "string" ? ward.trim() : null,
       address_line: address_line.trim(),
       postal_code:
-        typeof postal_code === "string"
-          ? postal_code.trim()
-          : null,
+        typeof postal_code === "string" ? postal_code.trim() : null,
       label:
-        label === "office" || label === "other"
-          ? label
-          : "home",
+        label === "office" || label === "other" ? label : "home",
       is_default: true,
     })
     .select()
     .single();
 
-  if (error)
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true, address: data });
 }
@@ -119,8 +127,9 @@ export async function POST(req: Request) {
 ===================================================== */
 export async function PUT(req: Request) {
   const user = await getUserFromBearer();
-  if (!user)
+  if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
 
   let body: unknown;
 
@@ -130,32 +139,36 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
   }
 
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("id" in body)
-  ) {
+  if (!body || typeof body !== "object" || !("id" in body)) {
     return NextResponse.json({ error: "INVALID_ID" }, { status: 400 });
   }
 
   const { id } = body as { id?: unknown };
 
-  if (typeof id !== "string")
+  if (typeof id !== "string") {
     return NextResponse.json({ error: "INVALID_ID" }, { status: 400 });
+  }
 
-  await supabaseAdmin
+  /* Clear old default */
+  const { error: clearError } = await supabaseAdmin
     .from("addresses")
     .update({ is_default: false })
     .eq("user_id", user.pi_uid);
 
+  if (clearError) {
+    return NextResponse.json({ error: clearError.message }, { status: 500 });
+  }
+
+  /* Set new default */
   const { error } = await supabaseAdmin
     .from("addresses")
     .update({ is_default: true })
     .eq("id", id)
     .eq("user_id", user.pi_uid);
 
-  if (error)
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }
@@ -165,14 +178,16 @@ export async function PUT(req: Request) {
 ===================================================== */
 export async function DELETE(req: Request) {
   const user = await getUserFromBearer();
-  if (!user)
+  if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
-  if (!id)
+  if (!id) {
     return NextResponse.json({ error: "INVALID_ID" }, { status: 400 });
+  }
 
   const { error } = await supabaseAdmin
     .from("addresses")
@@ -180,8 +195,9 @@ export async function DELETE(req: Request) {
     .eq("id", id)
     .eq("user_id", user.pi_uid);
 
-  if (error)
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }
