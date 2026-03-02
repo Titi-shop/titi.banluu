@@ -154,60 +154,59 @@ if (!token) return;
       {/* LIST */}
       <div className="max-w-md mx-auto px-4 pt-20 space-y-4">
         {addresses.map((a) => (
-          <div
-            key={a.id}
-            className={`rounded-xl bg-white p-4 shadow border ${
-              a.is_default ? "border-orange-500" : "border-gray-200"
-            }`}
-          >
-         <div>
-  <p className="font-semibold">{a.full_name}</p>
+  <div
+    key={a.id}
+    className={`rounded-xl bg-white p-4 shadow border ${
+      a.is_default ? "border-orange-500" : "border-gray-200"
+    }`}
+  >
+    <div className="flex justify-between">
+      <div>
+        <p className="font-semibold">{a.full_name}</p>
 
-  <p className="text-sm text-gray-600">
-    {a.phone}
-  </p>
+        <p className="text-sm text-gray-600">
+          {a.phone}
+        </p>
 
-  <p className="text-sm text-gray-500 mt-1">
-    {a.address_line}
-  </p>
+        <p className="text-sm text-gray-500 mt-1">
+          {a.address_line}
+        </p>
 
-  <p className="text-sm text-gray-500">
-    {a.province}
-  </p>
+        <p className="text-sm text-gray-500">
+          {a.province}
+        </p>
 
-  <p className="text-sm text-gray-500">
-    {getCountryDisplay(a.country)}
-  </p>
-</div>
-              </div>
+        <p className="text-sm text-gray-500">
+          {getCountryDisplay(a.country)}
+        </p>
+      </div>
 
-              {a.is_default && (
-                <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
-                  {t.default || "Mặc định"}
-                </span>
-              )}
-            </div>
+      {a.is_default && (
+        <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
+          {t.default || "Mặc định"}
+        </span>
+      )}
+    </div>
 
-            <div className="flex gap-4 mt-3 text-sm">
-              {!a.is_default && (
-                <button
-                  onClick={() => setDefault(a.id)}
-                  className="text-orange-600 font-medium"
-                >
-                  ⭐ {t.set_default || "Đặt mặc định"}
-                </button>
-              )}
+    <div className="flex gap-4 mt-3 text-sm">
+      {!a.is_default && (
+        <button
+          onClick={() => setDefault(a.id)}
+          className="text-orange-600 font-medium"
+        >
+          ⭐ {t.set_default || "Đặt mặc định"}
+        </button>
+      )}
 
-              <button
-                onClick={() => deleteAddress(a.id)}
-                className="text-red-500 font-medium"
-              >
-                {t.delete || "Xoá"}
-              </button>
-            </div>
-          </div>
-        ))}
-
+      <button
+        onClick={() => deleteAddress(a.id)}
+        className="text-red-500 font-medium"
+      >
+        {t.delete || "Xoá"}
+      </button>
+    </div>
+  </div>
+))}
         <button
           onClick={() => setShowForm(true)}
           className="w-full py-3 border-2 border-dashed border-orange-400 rounded-xl text-orange-600 font-semibold bg-white"
