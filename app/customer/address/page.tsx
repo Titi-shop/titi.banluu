@@ -37,20 +37,22 @@ export default function CustomerAddressPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-   const getCountryDisplay = (code: string) => {
-  const found = countries.find((c) => c.code === code);
-  return found ? `${found.flag} ${found.name}` : code;
-};
+  const getCountryDisplay = (code: string) => {
+    const found = countries.find((c) => c.code === code);
+    return found ? `${found.flag} ${found.name}` : code;
+  };
 
   /* =========================
      LOAD
   ========================= */
   const loadAddresses = async () => {
     const token = await getPiAccessToken();
-if (!token) return;
+    if (!token) return;
+
     const res = await fetch("/api/address", {
       headers: { Authorization: `Bearer ${token}` },
     });
+
     const data = await res.json();
     setAddresses(data.items || []);
   };
@@ -65,6 +67,7 @@ if (!token) return;
   const handleCountryChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const selected = countries.find((c) => c.code === e.target.value);
     if (!selected) return;
+
     setForm({
       ...form,
       country: selected.code,
@@ -72,21 +75,23 @@ if (!token) return;
   };
 
   const handleSave = async () => {
-     if (
-  !form.full_name ||
-  !form.phone ||
-  !form.country ||
-  !form.province ||
-  !form.address_line
-){
+    if (
+      !form.full_name ||
+      !form.phone ||
+      !form.country ||
+      !form.province ||
+      !form.address_line
+    ) {
       setMessage("⚠️ " + t.fill_all_fields);
       return;
     }
 
     setSaving(true);
+
     try {
       const token = await getPiAccessToken();
-if (!token) return;
+      if (!token) return;
+
       await fetch("/api/address", {
         method: "POST",
         headers: {
@@ -107,7 +112,8 @@ if (!token) return;
 
   const setDefault = async (id: string) => {
     const token = await getPiAccessToken();
-if (!token) return;
+    if (!token) return;
+
     await fetch("/api/address", {
       method: "PUT",
       headers: {
@@ -116,6 +122,7 @@ if (!token) return;
       },
       body: JSON.stringify({ id }),
     });
+
     loadAddresses();
   };
 
@@ -123,11 +130,13 @@ if (!token) return;
     if (!confirm(t.confirm_delete || "Xoá địa chỉ này?")) return;
 
     const token = await getPiAccessToken();
-if (!token) return;
+    if (!token) return;
+
     await fetch(`/api/address?id=${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
+
     loadAddresses();
   };
 
@@ -136,76 +145,89 @@ if (!token) return;
   ========================= */
   return (
     <main className="min-h-screen bg-gray-100 pb-28">
-   
+      {/* HEADER */}
+      <div className="fixed top-0 inset-x-0 bg-white border-b z-20">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center">
+          <button
+            onClick={() => router.back()}
+            className="text-orange-600 font-bold"
+          >
+            ←
+          </button>
+          <h1 className="flex-1 text-center font-semibold">
+            {t.shipping_address}
+          </h1>
+        </div>
+      </div>
 
       {/* LIST */}
       <div className="max-w-md mx-auto px-4 pt-20 space-y-4">
         {addresses.map((a) => (
-  <div
-    key={a.id}
-    className={`rounded-xl bg-white p-4 shadow border ${
-      a.is_default ? "border-orange-500" : "border-gray-200"
-    }`}
-  >
-    <div className="flex justify-between">
-      <div>
-        <p className="font-semibold">{a.full_name}</p>
+          <div
+            key={a.id}
+            className={`rounded-xl bg-white p-4 shadow border ${
+              a.is_default ? "border-orange-500" : "border-gray-200"
+            }`}
+          >
+            <div className="flex justify-between">
+              <div>
+                <p className="font-semibold">{a.full_name}</p>
 
-        <p className="text-sm text-gray-600">
-          {a.phone}
-        </p>
+                <p className="text-sm text-gray-600">{a.phone}</p>
 
-        <p className="text-sm text-gray-500 mt-1">
-          {a.address_line}
-        </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {a.address_line}
+                </p>
 
-        <p className="text-sm text-gray-500">
-          {a.province}
-        </p>
+                <p className="text-sm text-gray-500">
+                  {a.province}
+                </p>
 
-        <p className="text-sm text-gray-500">
-          {getCountryDisplay(a.country)}
-        </p>
-      </div>
+                <p className="text-sm text-gray-500">
+                  {getCountryDisplay(a.country)}
+                </p>
+              </div>
 
-      {a.is_default && (
-        <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
-          {t.default || "Mặc định"}
-        </span>
-      )}
-    </div>
+              {a.is_default && (
+                <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
+                  {t.default || "Mặc định"}
+                </span>
+              )}
+            </div>
 
-    <div className="flex gap-4 mt-3 text-sm">
-      {!a.is_default && (
-        <button
-          onClick={() => setDefault(a.id)}
-          className="text-orange-600 font-medium"
-        >
-          ⭐ {t.set_default || "Đặt mặc định"}
-        </button>
-      )}
+            <div className="flex gap-4 mt-3 text-sm">
+              {!a.is_default && (
+                <button
+                  onClick={() => setDefault(a.id)}
+                  className="text-orange-600 font-medium"
+                >
+                  ⭐ {t.set_default || "Đặt mặc định"}
+                </button>
+              )}
 
-      <button
-        onClick={() => deleteAddress(a.id)}
-        className="text-red-500 font-medium"
-      >
-        {t.delete || "Xoá"}
-      </button>
-    </div>
-  </div>
-))}
+              <button
+                onClick={() => deleteAddress(a.id)}
+                className="text-red-500 font-medium"
+              >
+                {t.delete || "Xoá"}
+              </button>
+            </div>
+          </div>
+        ))}
+
         <button
           onClick={() => setShowForm(true)}
           className="w-full py-3 border-2 border-dashed border-orange-400 rounded-xl text-orange-600 font-semibold bg-white"
         >
-           {t.add_address || "Thêm địa chỉ"}
+          {t.add_address || "Thêm địa chỉ"}
         </button>
 
         {message && (
           <p className="text-center text-sm text-gray-500">{message}</p>
         )}
       </div>
-   {/* OVERLAY */}
+
+      {/* OVERLAY */}
       {showForm && (
         <div
           className="fixed inset-0 bg-black/40 z-40"
@@ -217,34 +239,32 @@ if (!token) return;
       <div
         className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl
           transition-transform duration-300
-          ${showForm ? "translate-y-0" : "translate-y-full"}
-        `}
+          ${showForm ? "translate-y-0" : "translate-y-full"}`}
         style={{ height: "70vh" }}
       >
-        {/* DRAG HANDLE */}
         <div
           className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-4"
           onClick={() => setShowForm(false)}
         />
 
-        {/* FORM */}
         <div className="px-4 overflow-y-auto h-full pb-28">
           <div className="relative mb-4">
-  <button
-    onClick={() => setShowForm(false)}
-    className="absolute left-0 top-0 text-orange-600 font-semibold"
-  >
-    ← {t.back}
-  </button>
+            <button
+              onClick={() => setShowForm(false)}
+              className="absolute left-0 top-0 text-orange-600 font-semibold"
+            >
+              ← {t.back}
+            </button>
 
-  <h2 className="text-lg font-semibold text-center">
-    {t.add_address || "Thêm địa chỉ"}
-  </h2>
-</div>
+            <h2 className="text-lg font-semibold text-center">
+              {t.add_address || "Thêm địa chỉ"}
+            </h2>
+          </div>
 
           <label className="block text-sm font-medium mb-1">
             {t.country}
           </label>
+
           <select
             className="w-full border rounded-lg p-2 mb-3"
             value={form.country}
@@ -256,22 +276,23 @@ if (!token) return;
               </option>
             ))}
           </select>
-           <input
-  className="w-full border rounded-lg p-2 mb-3"
-  placeholder="Province / City"
-  value={form.province}
-  onChange={(e) =>
-    setForm({ ...form, province: e.target.value })
-  }
-/>
+
+          <input
+            className="w-full border rounded-lg p-2 mb-3"
+            placeholder="Province / City"
+            value={form.province}
+            onChange={(e) =>
+              setForm({ ...form, province: e.target.value })
+            }
+          />
 
           <input
             className="w-full border rounded-lg p-2 mb-3"
             placeholder={t.full_name}
             value={form.full_name}
             onChange={(e) =>
-  setForm({ ...form, full_name: e.target.value })
-}
+              setForm({ ...form, full_name: e.target.value })
+            }
           />
 
           <input
@@ -284,17 +305,16 @@ if (!token) return;
           />
 
           <textarea
-  className="w-full border rounded-lg p-2 mb-4"
-  rows={3}
-  placeholder={t.address}
-  value={form.address_line}
-  onChange={(e) =>
-    setForm({ ...form, address_line: e.target.value })  // ✅ ĐÚNG
-}
-/>
+            className="w-full border rounded-lg p-2 mb-4"
+            rows={3}
+            placeholder={t.address}
+            value={form.address_line}
+            onChange={(e) =>
+              setForm({ ...form, address_line: e.target.value })
+            }
+          />
         </div>
 
-        {/* SAVE BUTTON */}
         <div className="absolute bottom-12 left-0 right-0 bg-white border-t p-4">
           <button
             onClick={handleSave}
@@ -308,4 +328,3 @@ if (!token) return;
     </main>
   );
 }
-      
