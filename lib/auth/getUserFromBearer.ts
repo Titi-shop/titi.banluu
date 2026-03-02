@@ -17,7 +17,6 @@ export async function getUserFromBearer(): Promise<AuthUser | null> {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "X-PI-APP-ID": process.env.PI_APP_ID!,
         Accept: "application/json",
       },
       cache: "no-store",
