@@ -227,7 +227,6 @@ export default function ProfilePage() {
         </h2>
 
         {/* BASIC INFO */}
-        {/* BASIC INFO */}
 <div className="space-y-3 mt-4">
   {editableFields.map((key) => (
     <div key={key} className="flex justify-between border-b pb-2">
