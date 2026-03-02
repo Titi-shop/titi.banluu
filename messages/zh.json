@@ -342,8 +342,33 @@
   "phone": "电话",
   "seller_dashboard": "卖家控制台",
   "order_status": "订单状态",
-  "default_review_comment": "商品质量很好，发货速度快，包装也很仔细。"
+  "default_review_comment": "商品质量很好，发货速度快，包装也很仔细。",
 
+
+
+  
+  "profile_full_name": "姓名",
+  "profile_email": "电子邮箱",
+  "profile_phone": "电话号码",
+  "profile_bio": "个人简介",
+  "profile_country": "国家",
+  "profile_province": "省 / 市",
+  "profile_district": "区 / 县",
+  "profile_ward": "街道 / 乡镇",
+  "profile_address_line": "详细地址",
+  "profile_postal_code": "邮政编码",
+  "profile_not_set": "尚未更新",
+  "profile_error_loading": "无法加载个人资料",
+  "profile_avatar_updated": "头像已更新",
+  "upload_failed": "上传失败",
+  "saved_successfully": "保存成功",
+  "save_failed": "保存失败",
+  "loading_profile": "正在加载个人资料...",
+  "uploading": "正在上传...",
+  "saving": "正在保存...",
+  "save": "保存",
+  "cancel": "取消",
+  "edit": "编辑"
 
 
 
