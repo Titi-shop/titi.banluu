@@ -1,16 +1,15 @@
+import { headers } from "next/headers";
 import type { AuthUser } from "./types";
 
 /* =========================================================
-   PI AUTH — NETWORK FIRST (SECURE VERSION)
+   PI AUTH — NETWORK FIRST (SAFE + STABLE)
 ========================================================= */
-export async function getUserFromBearer(
-  req: Request
-): Promise<AuthUser | null> {
+export async function getUserFromBearer(): Promise<AuthUser | null> {
   try {
     // ==============================
     // 📌 READ AUTH HEADER
     // ==============================
-    const authHeader = req.headers.get("authorization");
+    const authHeader = headers().get("authorization");
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return null;
@@ -21,7 +20,7 @@ export async function getUserFromBearer(
 
     const appId = process.env.PI_APP_ID;
     if (!appId) {
-      console.error("❌ Missing PI_APP_ID env");
+      console.error("❌ Missing PI_APP_ID");
       return null;
     }
 
@@ -49,7 +48,7 @@ export async function getUserFromBearer(
     const data: unknown = await res.json();
 
     // ==============================
-    // 🔎 STRICT TYPE GUARD
+    // 🔎 STRICT VALIDATION
     // ==============================
     if (
       typeof data !== "object" ||
@@ -59,28 +58,30 @@ export async function getUserFromBearer(
       return null;
     }
 
-    const maybeUid = (data as { uid?: unknown }).uid;
-    const maybeUsername = (data as { username?: unknown }).username;
-    const maybeWallet = (data as { wallet_address?: unknown }).wallet_address;
+    const raw = data as {
+      uid?: unknown;
+      username?: unknown;
+      wallet_address?: unknown;
+    };
 
     if (
-      (typeof maybeUid !== "string" &&
-        typeof maybeUid !== "number")
+      raw.uid !== undefined &&
+      (typeof raw.uid === "string" || typeof raw.uid === "number")
     ) {
-      return null;
+      return {
+        pi_uid: String(raw.uid),
+        username:
+          typeof raw.username === "string"
+            ? raw.username
+            : "",
+        wallet_address:
+          typeof raw.wallet_address === "string"
+            ? raw.wallet_address
+            : null,
+      };
     }
 
-    return {
-      pi_uid: String(maybeUid),
-      username:
-        typeof maybeUsername === "string"
-          ? maybeUsername
-          : "",
-      wallet_address:
-        typeof maybeWallet === "string"
-          ? maybeWallet
-          : null,
-    };
+    return null;
   } catch (err) {
     if (
       typeof err === "object" &&
