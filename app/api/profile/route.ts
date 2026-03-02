@@ -5,6 +5,9 @@ import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/* =========================
+   DEFAULT PROFILE
+========================= */
 function emptyProfile() {
   return {
     full_name: null,
@@ -37,12 +40,27 @@ export async function GET() {
   try {
     const { rows } = await query(
       `
-      SELECT *
+      SELECT
+        full_name,
+        email,
+        phone,
+        avatar_url,
+        bio,
+        country,
+        province,
+        district,
+        ward,
+        address_line,
+        postal_code,
+        shop_name,
+        shop_slug,
+        shop_description,
+        shop_banner
       FROM user_profiles
       WHERE user_id = $1
       LIMIT 1
       `,
-      [user.id] // ✅ dùng users.id
+      [user.pi_uid]
     );
 
     const profile = rows[0] ?? emptyProfile();
@@ -58,7 +76,7 @@ export async function GET() {
 }
 
 /* =========================
-   POST /api/profile
+   POST /api/profile (UPSERT)
 ========================= */
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
@@ -72,6 +90,8 @@ export async function POST(req: Request) {
   }
 
   const body = raw as Record<string, unknown>;
+
+  /* ========= NORMALIZE ========= */
 
   const normalize = (v: unknown, max: number) =>
     typeof v === "string" ? v.trim().slice(0, max) : null;
@@ -102,6 +122,7 @@ export async function POST(req: Request) {
       : null;
 
   const shop_description = normalize(body.shop_description, 1000);
+
   const shop_banner =
     typeof body.shop_banner === "string" ? body.shop_banner : null;
 
@@ -152,7 +173,7 @@ export async function POST(req: Request) {
         updated_at = NOW()
       `,
       [
-        user.id, // ✅ dùng users.id
+        user.pi_uid,
         full_name,
         email,
         phone,
