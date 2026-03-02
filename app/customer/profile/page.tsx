@@ -227,44 +227,34 @@ export default function ProfilePage() {
         </h2>
 
         {/* BASIC INFO */}
-        <div className="space-y-3 mt-4">
-          {(
-            [
-              "full_name",
-              "phone",
-              "bio",
-              "country",
-              "province",
-              "district",
-              "ward",
-              "address_line",
-              "postal_code",
-            ] as const
-          ).{editableFields.map((key) => (
-  <div key={key} className="flex justify-between border-b pb-2">
-    <span className="text-gray-500">
-      {t(`profile_${key}`)}
-    </span>
-
-    {editMode ? (
-      <input
-        className="text-right outline-none"
-        value={form?.[key] ?? ""}
-        onChange={(e) =>
-          setForm((prev) =>
-            prev
-              ? { ...prev, [key]: e.target.value }
-              : prev
-          )
-        }
-      />
-    ) : (
-      <span>
-        {profile?.[key] || t.profile_not_set}
+        {/* BASIC INFO */}
+<div className="space-y-3 mt-4">
+  {editableFields.map((key) => (
+    <div key={key} className="flex justify-between border-b pb-2">
+      <span className="text-gray-500">
+        {t(`profile_${key}`)}
       </span>
-    )}
-  </div>
-))}
+
+      {editMode ? (
+        <input
+          className="text-right outline-none"
+          value={form?.[key] ?? ""}
+          onChange={(e) =>
+            setForm((prev) =>
+              prev
+                ? { ...prev, [key]: e.target.value }
+                : prev
+            )
+          }
+        />
+      ) : (
+        <span>
+          {profile?.[key] || t.profile_not_set}
+        </span>
+      )}
+    </div>
+  ))}
+</div>
 
         {/* ACTION */}
         <div className="flex justify-center mt-6 gap-3">
