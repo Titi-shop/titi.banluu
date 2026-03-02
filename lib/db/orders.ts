@@ -309,7 +309,17 @@ export async function createOrder(params: {
   const { buyerPiUid, items, total, shipping } = params;
 
   /* =========================
-     1️⃣ CREATE ORDER
+     1️⃣ CALCULATE SUBTOTAL
+  ========================= */
+  const subtotal = items.reduce(
+    (sum, i) => sum + i.price * i.quantity,
+    0
+  );
+
+  const order_number = `ORD-${Date.now()}`;
+
+  /* =========================
+     2️⃣ CREATE ORDER (FIXED)
   ========================= */
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders`,
@@ -320,18 +330,25 @@ export async function createOrder(params: {
         Prefer: "return=representation",
       },
       body: JSON.stringify({
+        order_number,
         buyer_id: buyerPiUid,
-        buyer_name: shipping.name,
-        buyer_phone: shipping.phone,
-        buyer_address: shipping.address,
+
+        subtotal: toMicroPi(subtotal),
         total: toMicroPi(total),
-        status: "pending",
+
+        shipping_name: shipping.name,
+        shipping_phone: shipping.phone,
+        shipping_address: shipping.address,
+
+        status: "created",
+        payment_status: "pending",
+        currency: "PI",
       }),
     }
   );
 
   if (!orderRes.ok) {
-    console.error(await orderRes.text());
+    console.error("ORDER INSERT ERROR:", await orderRes.text());
     return null;
   }
 
@@ -340,7 +357,7 @@ export async function createOrder(params: {
   if (!order?.id) return null;
 
   /* =========================
-     2️⃣ FETCH SELLER MAP
+     3️⃣ FETCH SELLER MAP
   ========================= */
   const productIds = items.map(i => `"${i.product_id}"`).join(",");
 
@@ -363,18 +380,15 @@ export async function createOrder(params: {
     Object.fromEntries(products.map(p => [p.id, p.seller_id]));
 
   /* =========================
-     3️⃣ INSERT ORDER ITEMS
+     4️⃣ INSERT ORDER ITEMS
   ========================= */
   for (const item of items) {
 
     const seller = sellerMap[item.product_id];
 
-    if (!seller) {
-      console.error("SELLER_NOT_FOUND_FOR_PRODUCT", item.product_id);
-      continue;
-    }
+    if (!seller) continue;
 
-    const itemRes = await fetch(
+    await fetch(
       `${SUPABASE_URL}/rest/v1/order_items`,
       {
         method: "POST",
@@ -389,15 +403,10 @@ export async function createOrder(params: {
         }),
       }
     );
-
-    if (!itemRes.ok) {
-      console.error(await itemRes.text());
-    }
   }
 
   return order as unknown as OrderRecord;
 }
-
 /* =====================================================
    GET ORDER DETAIL FOR SELLER
 ===================================================== */
