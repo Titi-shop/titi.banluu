@@ -127,70 +127,87 @@ export async function POST(req: Request) {
     typeof body.shop_banner === "string" ? body.shop_banner : null;
 
   try {
-    await query(
-      `
-      INSERT INTO user_profiles (
-        user_id,
-        full_name,
-        email,
-        phone,
-        avatar_url,
-        bio,
-        country,
-        province,
-        district,
-        ward,
-        address_line,
-        postal_code,
-        shop_name,
-        shop_slug,
-        shop_description,
-        shop_banner,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-        NOW(),NOW()
-      )
-      ON CONFLICT (user_id)
-      DO UPDATE SET
-        full_name = EXCLUDED.full_name,
-        email = EXCLUDED.email,
-        phone = EXCLUDED.phone,
-        avatar_url = EXCLUDED.avatar_url,
-        bio = EXCLUDED.bio,
-        country = EXCLUDED.country,
-        province = EXCLUDED.province,
-        district = EXCLUDED.district,
-        ward = EXCLUDED.ward,
-        address_line = EXCLUDED.address_line,
-        postal_code = EXCLUDED.postal_code,
-        shop_name = EXCLUDED.shop_name,
-        shop_slug = EXCLUDED.shop_slug,
-        shop_description = EXCLUDED.shop_description,
-        shop_banner = EXCLUDED.shop_banner,
-        updated_at = NOW()
-      `,
-      [
-        user.pi_uid,
-        full_name,
-        email,
-        phone,
-        avatar_url,
-        bio,
-        country,
-        province,
-        district,
-        ward,
-        address_line,
-        postal_code,
-        shop_name,
-        shop_slug,
-        shop_description,
-        shop_banner,
-      ]
-    );
+  /* ========= ENSURE USER EXISTS ========= */
+
+  const { rows: userRows } = await query(
+    `
+    INSERT INTO users (pi_uid, username, role, created_at)
+    VALUES ($1, $2, $3, NOW())
+    ON CONFLICT (pi_uid)
+    DO UPDATE SET username = EXCLUDED.username
+    RETURNING id
+    `,
+    [user.pi_uid, user.username, user.role]
+  );
+
+  const dbUserId: string = userRows[0].id;
+
+  /* ========= UPSERT PROFILE ========= */
+
+  await query(
+    `
+    INSERT INTO user_profiles (
+      user_id,
+      full_name,
+      email,
+      phone,
+      avatar_url,
+      bio,
+      country,
+      province,
+      district,
+      ward,
+      address_line,
+      postal_code,
+      shop_name,
+      shop_slug,
+      shop_description,
+      shop_banner,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
+      NOW(),NOW()
+    )
+    ON CONFLICT (user_id)
+    DO UPDATE SET
+      full_name = EXCLUDED.full_name,
+      email = EXCLUDED.email,
+      phone = EXCLUDED.phone,
+      avatar_url = EXCLUDED.avatar_url,
+      bio = EXCLUDED.bio,
+      country = EXCLUDED.country,
+      province = EXCLUDED.province,
+      district = EXCLUDED.district,
+      ward = EXCLUDED.ward,
+      address_line = EXCLUDED.address_line,
+      postal_code = EXCLUDED.postal_code,
+      shop_name = EXCLUDED.shop_name,
+      shop_slug = EXCLUDED.shop_slug,
+      shop_description = EXCLUDED.shop_description,
+      shop_banner = EXCLUDED.shop_banner,
+      updated_at = NOW()
+    `,
+    [
+      dbUserId,
+      full_name,
+      email,
+      phone,
+      avatar_url,
+      bio,
+      country,
+      province,
+      district,
+      ward,
+      address_line,
+      postal_code,
+      shop_name,
+      shop_slug,
+      shop_description,
+      shop_banner,
+    ]
+  );
 
     return NextResponse.json({ success: true });
   } catch (err) {
