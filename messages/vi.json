@@ -342,7 +342,33 @@
   "phone": "Điện thoại",
   "seller_dashboard": "Bảng điều khiển người bán",
   "order_status": "Trạng thái đơn hàng",
-  "default_review_comment": "Sản phẩm chất lượng tốt, giao hàng nhanh và đóng gói cẩn thận."
+  "default_review_comment": "Sản phẩm chất lượng tốt, giao hàng nhanh và đóng gói cẩn thận.",
+
+
+  
+  "profile_full_name": "Họ và tên",
+  "profile_email": "Email",
+  "profile_phone": "Điện thoại",
+  "profile_bio": "Giới thiệu",
+  "profile_country": "Quốc gia",
+  "profile_province": "Tỉnh / Thành",
+  "profile_district": "Quận / Huyện",
+  "profile_ward": "Phường / Xã",
+  "profile_address_line": "Địa chỉ",
+  "profile_postal_code": "Mã bưu điện",
+  "profile_not_set": "Chưa cập nhật",
+  "profile_error_loading": "Không thể tải hồ sơ",
+  "profile_avatar_updated": "Đã cập nhật ảnh đại diện",
+  "upload_failed": "Tải lên thất bại",
+  "saved_successfully": "Lưu thành công",
+  "save_failed": "Lưu thất bại",
+  "loading_profile": "Đang tải hồ sơ...",
+  "uploading": "Đang tải...",
+  "saving": "Đang lưu...",
+  "save": "Lưu",
+  "cancel": "Hủy",
+  "edit": "Chỉnh sửa"
+
 
   
 }
