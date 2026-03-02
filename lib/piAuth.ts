@@ -2,12 +2,6 @@ let cachedToken: string | null = null;
 let authPromise: Promise<string> | null = null;
 
 export async function getPiAccessToken(): Promise<string> {
-  // ✅ Nếu đã có token → dùng luôn
-  if (cachedToken) {
-    return cachedToken;
-  }
-
-  // ✅ Chặn gọi authenticate song song
   if (authPromise) {
     return authPromise;
   }
@@ -19,17 +13,24 @@ export async function getPiAccessToken(): Promise<string> {
   const scopes = ["username", "payments"];
 
   authPromise = (async () => {
-    const auth = await window.Pi.authenticate(scopes, () => {});
+    try {
+      const auth = await window.Pi.authenticate(scopes, () => {});
 
-    if (!auth?.accessToken) {
+      if (!auth?.accessToken) {
+        throw new Error("PI_AUTH_FAILED");
+      }
+
+      cachedToken = auth.accessToken;
+      return cachedToken;
+    } finally {
       authPromise = null;
-      throw new Error("PI_AUTH_FAILED");
     }
-
-    cachedToken = auth.accessToken;
-    authPromise = null;
-    return cachedToken;
   })();
 
   return authPromise;
+}
+
+/* 🔥 Quan trọng: thêm function này */
+export function clearPiToken() {
+  cachedToken = null;
 }
