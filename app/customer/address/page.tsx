@@ -160,16 +160,25 @@ if (!token) return;
               a.is_default ? "border-orange-500" : "border-gray-200"
             }`}
           >
-            <div className="flex justify-between">
-              <div>
-                <p className="font-semibold"><p>{a.full_name}</p>
-                <p className="text-sm text-gray-600">
-                   {a.phone}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">{a.address_line}</p>
-                 <p className="text-sm text-gray-500">
-  {getCountryDisplay(a.country)}
-</p>
+         <div>
+  <p className="font-semibold">{a.full_name}</p>
+
+  <p className="text-sm text-gray-600">
+    {a.phone}
+  </p>
+
+  <p className="text-sm text-gray-500 mt-1">
+    {a.address_line}
+  </p>
+
+  <p className="text-sm text-gray-500">
+    {a.province}
+  </p>
+
+  <p className="text-sm text-gray-500">
+    {getCountryDisplay(a.country)}
+  </p>
+</div>
               </div>
 
               {a.is_default && (
@@ -275,8 +284,8 @@ if (!token) return;
             placeholder={t.full_name}
             value={form.full_name}
             onChange={(e) =>
-              setForm({ ...form, name: e.target.value })
-            }
+  setForm({ ...form, full_name: e.target.value })
+}
           />
 
           <input
@@ -294,8 +303,8 @@ if (!token) return;
             placeholder={t.address}
             value={form.address_line}
             onChange={(e) =>
-              setForm({ ...form, address: e.target.value })
-            }
+  setForm({ ...form, full_name: e.target.value })
+}
           />
         </div>
 
