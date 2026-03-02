@@ -1,4 +1,4 @@
-// app/api/uploadAvatar/route.ts
+
 import { NextResponse } from "next/server";
 import { put, del } from "@vercel/blob";
 import { query } from "@/lib/db";
@@ -15,9 +15,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     // ==============================
-    // 🔐 AUTH (PI NETWORK)
+    // 🔐 AUTH – PI NETWORK (NETWORK-FIRST)
     // ==============================
-    const user = await getUserFromBearer(req);
+    const user = await getUserFromBearer();
     if (!user) {
       return NextResponse.json(
         { error: "UNAUTHORIZED" },
@@ -26,7 +26,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     // ==============================
-    // 📥 READ FILE
+    // 📥 READ FORM DATA
     // ==============================
     const formData = await req.formData();
     const file = formData.get("file");
@@ -39,26 +39,24 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     // ==============================
-    // 📄 LOAD CURRENT AVATAR
+    // 📄 LOAD CURRENT PROFILE
     // ==============================
     const result = await query<{
-      avatar_url: string | null;
+      avatar: string | null;
     }>(
-      `SELECT avatar_url FROM user_profiles WHERE user_id = $1`,
+      `SELECT avatar FROM user_profile WHERE uid = $1`,
       [user.pi_uid]
     );
 
-    const oldAvatarUrl =
-      result.rows.length > 0 ? result.rows[0].avatar_url : null;
+    const oldAvatarUrl: string | null =
+      result.rows.length > 0 ? result.rows[0].avatar : null;
 
     // ==============================
-    // 🗑 DELETE OLD AVATAR
+    // 🗑️ DELETE OLD AVATAR (IF EXISTS)
     // ==============================
     if (oldAvatarUrl) {
       try {
-        // ⚠️ del() cần pathname, không phải full URL
-        const url = new URL(oldAvatarUrl);
-        await del(url.pathname);
+        await del(oldAvatarUrl);
       } catch (err) {
         console.warn("⚠️ Failed to delete old avatar:", err);
       }
@@ -68,7 +66,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     // ☁️ UPLOAD NEW AVATAR
     // ==============================
     const blob = await put(
-      `avatars/${user.pi_uid}-${Date.now()}`,
+      `avatars/${user.pi_uid}-${Date.now()}.jpg`,
       file,
       {
         access: "public",
@@ -77,22 +75,22 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
 
     // ==============================
-    // 💾 UPSERT DB
+    // 💾 SAVE TO DB
     // ==============================
     await query(
       `
-      INSERT INTO user_profiles (user_id, username, avatar_url, updated_at)
+      INSERT INTO user_profile (uid, username, avatar, updated_at)
       VALUES ($1, $2, $3, NOW())
-      ON CONFLICT (user_id)
+      ON CONFLICT (uid)
       DO UPDATE SET
-        avatar_url = EXCLUDED.avatar_url,
+        avatar = EXCLUDED.avatar,
         updated_at = NOW()
       `,
       [user.pi_uid, user.username, blob.url]
     );
 
     // ==============================
-    // ✅ RESPONSE (CACHE BUST)
+    // ✅ RESPONSE (CACHE-BUST)
     // ==============================
     return NextResponse.json({
       success: true,
