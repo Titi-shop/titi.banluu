@@ -11,18 +11,20 @@ import { getPiAccessToken } from "@/lib/piAuth";
 ========================= */
 interface Address {
   id: string;
-  name: string;
+  full_name: string;
   phone: string;
-  address: string;
   country: string;
+  province: string;
+  address_line: string;
   is_default: boolean;
 }
 
-const emptyForm: Omit<Address, "id" | "is_default"> = {
-  name: "",
+const emptyForm = {
+  full_name: "",
   phone: "",
-  address: "",
   country: "",
+  province: "",
+  address_line: "",
 };
 
 export default function CustomerAddressPage() {
@@ -70,7 +72,13 @@ if (!token) return;
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.phone || !form.address) {
+     if (
+  !form.full_name ||
+  !form.phone ||
+  !form.country ||
+  !form.province ||
+  !form.address_line
+){
       setMessage("⚠️ " + t.fill_all_fields);
       return;
     }
@@ -154,11 +162,11 @@ if (!token) return;
           >
             <div className="flex justify-between">
               <div>
-                <p className="font-semibold">{a.name}</p>
+                <p className="font-semibold"><p>{a.full_name}</p>
                 <p className="text-sm text-gray-600">
                    {a.phone}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">{a.address}</p>
+                <p className="text-sm text-gray-500 mt-1">{a.address_line}</p>
                  <p className="text-sm text-gray-500">
   {getCountryDisplay(a.country)}
 </p>
@@ -253,11 +261,19 @@ if (!token) return;
               </option>
             ))}
           </select>
+           <input
+  className="w-full border rounded-lg p-2 mb-3"
+  placeholder="Province / City"
+  value={form.province}
+  onChange={(e) =>
+    setForm({ ...form, province: e.target.value })
+  }
+/>
 
           <input
             className="w-full border rounded-lg p-2 mb-3"
             placeholder={t.full_name}
-            value={form.name}
+            value={form.full_name}
             onChange={(e) =>
               setForm({ ...form, name: e.target.value })
             }
@@ -276,7 +292,7 @@ if (!token) return;
             className="w-full border rounded-lg p-2 mb-4"
             rows={3}
             placeholder={t.address}
-            value={form.address}
+            value={form.address_line}
             onChange={(e) =>
               setForm({ ...form, address: e.target.value })
             }
