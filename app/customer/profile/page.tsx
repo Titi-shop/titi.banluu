@@ -6,8 +6,7 @@ import Image from "next/image";
 import { Upload, Edit3, Save, X } from "lucide-react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
-import { getPiAccessToken } from "@/lib/piAuth";
-
+import { getPiAccessToken, clearPiToken } from "@/lib/piAuth";
 /* ================= TYPES ================= */
 
 interface ProfileData {
@@ -92,20 +91,21 @@ export default function ProfilePage() {
       try {
         const token = await getPiAccessToken();
 
-const res = await fetch("/api/profile", {
+let res = await fetch("/api/profile", {
   headers: { Authorization: `Bearer ${token}` },
 });
 
 if (res.status === 401) {
-  clearPiToken();               // 🔥 clear token cũ
+  clearPiToken();
   const newToken = await getPiAccessToken();
 
-  return fetch("/api/profile", {
+  res = await fetch("/api/profile", {
     headers: { Authorization: `Bearer ${newToken}` },
   });
 }
 
-        if (!res.ok) throw new Error();
+if (!res.ok) throw new Error();
+
 
         const raw = await res.json();
 
