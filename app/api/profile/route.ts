@@ -42,7 +42,7 @@ export async function GET() {
       WHERE user_id = $1
       LIMIT 1
       `,
-      [user.id] // ✅ dùng users.id
+      [user.pi_uid] // ✅ SỬA ĐÚNG
     );
 
     const profile = rows[0] ?? emptyProfile();
@@ -152,7 +152,7 @@ export async function POST(req: Request) {
         updated_at = NOW()
       `,
       [
-        user.id, // ✅ dùng users.id
+        user.pi_uid, // ✅ SỬA ĐÚNG
         full_name,
         email,
         phone,
