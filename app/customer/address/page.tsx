@@ -136,20 +136,7 @@ if (!token) return;
   ========================= */
   return (
     <main className="min-h-screen bg-gray-100 pb-28">
-      {/* HEADER */}
-      <div className="fixed top-0 inset-x-0 bg-white border-b z-20">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center">
-          <button
-            onClick={() => router.back()}
-            className="text-orange-600 font-bold"
-          >
-            ←
-          </button>
-          <h1 className="flex-1 text-center font-semibold">
-            {t.shipping_address}
-          </h1>
-        </div>
-      </div>
+   
 
       {/* LIST */}
       <div className="max-w-md mx-auto px-4 pt-20 space-y-4">
@@ -297,14 +284,14 @@ if (!token) return;
           />
 
           <textarea
-            className="w-full border rounded-lg p-2 mb-4"
-            rows={3}
-            placeholder={t.address}
-            value={form.address_line}
-            onChange={(e) =>
-  setForm({ ...form, full_name: e.target.value })
+  className="w-full border rounded-lg p-2 mb-4"
+  rows={3}
+  placeholder={t.address}
+  value={form.address_line}
+  onChange={(e) =>
+    setForm({ ...form, address_line: e.target.value })  // ✅ ĐÚNG
 }
-          />
+/>
         </div>
 
         {/* SAVE BUTTON */}
