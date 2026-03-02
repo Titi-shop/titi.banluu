@@ -1,19 +1,33 @@
-import { headers } from "next/headers";
 import type { AuthUser } from "./types";
 
 /* =========================================================
-   PI AUTH — NETWORK FIRST (CORRECT FOR PI)
+   PI AUTH — NETWORK FIRST (SECURE VERSION)
 ========================================================= */
-export async function getUserFromBearer(): Promise<AuthUser | null> {
+export async function getUserFromBearer(
+  req: Request
+): Promise<AuthUser | null> {
   try {
-    const auth = headers().get("authorization");
-    if (!auth || !auth.startsWith("Bearer ")) {
+    // ==============================
+    // 📌 READ AUTH HEADER
+    // ==============================
+    const authHeader = req.headers.get("authorization");
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return null;
     }
 
-    const accessToken = auth.slice(7).trim();
+    const accessToken = authHeader.slice(7).trim();
     if (!accessToken) return null;
 
+    const appId = process.env.PI_APP_ID;
+    if (!appId) {
+      console.error("❌ Missing PI_APP_ID env");
+      return null;
+    }
+
+    // ==============================
+    // ⏳ TIMEOUT CONTROL
+    // ==============================
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
 
@@ -21,7 +35,7 @@ export async function getUserFromBearer(): Promise<AuthUser | null> {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "X-PI-APP-ID": process.env.PI_APP_ID!,
+        "X-PI-APP-ID": appId,
         Accept: "application/json",
       },
       cache: "no-store",
@@ -34,27 +48,46 @@ export async function getUserFromBearer(): Promise<AuthUser | null> {
 
     const data: unknown = await res.json();
 
+    // ==============================
+    // 🔎 STRICT TYPE GUARD
+    // ==============================
     if (
-      !data ||
       typeof data !== "object" ||
+      data === null ||
       !("uid" in data)
     ) {
       return null;
     }
 
-    const { uid, username, wallet_address } = data as {
-      uid: string | number;
-      username?: string;
-      wallet_address?: string | null;
-    };
+    const maybeUid = (data as { uid?: unknown }).uid;
+    const maybeUsername = (data as { username?: unknown }).username;
+    const maybeWallet = (data as { wallet_address?: unknown }).wallet_address;
+
+    if (
+      (typeof maybeUid !== "string" &&
+        typeof maybeUid !== "number")
+    ) {
+      return null;
+    }
 
     return {
-      pi_uid: String(uid),
-      username: username ?? "",
-      wallet_address: wallet_address ?? null,
+      pi_uid: String(maybeUid),
+      username:
+        typeof maybeUsername === "string"
+          ? maybeUsername
+          : "",
+      wallet_address:
+        typeof maybeWallet === "string"
+          ? maybeWallet
+          : null,
     };
   } catch (err) {
-    if ((err as { name?: string })?.name === "AbortError") {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "name" in err &&
+      (err as { name?: string }).name === "AbortError"
+    ) {
       console.warn("⚠️ Pi auth timeout");
       return null;
     }
