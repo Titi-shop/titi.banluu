@@ -96,25 +96,38 @@ export async function POST(req: Request) {
   }
 
   const { data, error } = await supabaseAdmin
-    .from("addresses")
-    .insert({
-      user_id: user.pi_uid,
-      full_name: full_name.trim(),
-      phone: phone.trim(),
-      country: country.trim(),
-      province: province.trim(),
-      district: typeof district === "string" ? district.trim() : null,
-      ward: typeof ward === "string" ? ward.trim() : null,
-      address_line: address_line.trim(),
-      postal_code:
-        typeof postal_code === "string" ? postal_code.trim() : null,
-      label:
-        label === "office" || label === "other" ? label : "home",
-      is_default: true,
-    })
-    .select()
-    .single();
+  .from("addresses")
+  .insert({
+    user_id: user.pi_uid,
+    full_name: full_name.trim(),
+    phone: phone.trim(),
+    country: country.trim(),
+    province: province.trim(),
+    district:
+      typeof district === "string" && district.trim()
+        ? district.trim()
+        : null,
+    ward:
+      typeof ward === "string" && ward.trim()
+        ? ward.trim()
+        : null,
+    address_line: address_line.trim(),
 
+    // ✅ FIX quan trọng ở đây
+    postal_code:
+      typeof postal_code === "string" && postal_code.trim()
+        ? postal_code.trim()
+        : null,
+
+    label:
+      label === "office" || label === "other"
+        ? label
+        : "home",
+
+    is_default: true,
+  })
+  .select()
+  .single();
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
