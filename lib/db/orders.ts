@@ -409,20 +409,27 @@ if (microSubtotal < 1 || microTotal < 1) {
     if (!seller) continue;
 
     await fetch(
-      `${SUPABASE_URL}/rest/v1/order_items`,
-      {
-        method: "POST",
-        headers: headers(),
-        body: JSON.stringify({
-          order_id: order.id,
-          product_id: item.product_id,
-          seller_pi_uid: seller,
-          quantity: item.quantity,
-          price: toMicroPi(item.price),
-          status: "pending",
-        }),
-      }
-    );
+  `${SUPABASE_URL}/rest/v1/order_items`,
+  {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      order_id: order.id,
+      product_id: item.product_id,
+      seller_id: seller,   // ✅ đúng tên cột
+
+      product_name: product.name,      // ✅ snapshot
+      product_slug: product.slug ?? null,
+      thumbnail: product.thumbnail ?? null,
+
+      unit_price: toMicroPi(item.price),
+      quantity: item.quantity,
+      total_price: toMicroPi(item.price * item.quantity),
+
+      status: "pending",
+    }),
+  }
+);
   }
 
   return order as unknown as OrderRecord;
