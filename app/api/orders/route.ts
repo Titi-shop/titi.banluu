@@ -64,9 +64,9 @@ export async function POST(req: Request) {
   }
 if (
   !shipping ||
-  typeof shipping.full_name !== "string" ||
+  typeof shipping.name !== "string" ||
   typeof shipping.phone !== "string" ||
-  typeof shipping.address_line !== "string"
+  typeof shipping.address !== "string"
 ) {
   return NextResponse.json(
     { error: "INVALID_SHIPPING_INFO" },
