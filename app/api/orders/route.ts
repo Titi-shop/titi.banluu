@@ -66,7 +66,9 @@ if (
   !shipping ||
   typeof shipping.name !== "string" ||
   typeof shipping.phone !== "string" ||
-  typeof shipping.address !== "string"
+  typeof shipping.address !== "string" ||
+  typeof shipping.province !== "string" ||   
+  typeof shipping.country !== "string"       
 ) {
   return NextResponse.json(
     { error: "INVALID_SHIPPING_INFO" },
@@ -75,11 +77,24 @@ if (
 }
    
 
+
+  const normalizedShipping = {
+  name: shipping.name.trim(),
+  phone: shipping.phone.trim(),
+  address: shipping.address.trim(),
+  province: shipping.province.trim(),
+  country: shipping.country.trim(),
+  postal_code:
+    typeof shipping.postal_code === "string" &&
+    shipping.postal_code.trim()
+      ? shipping.postal_code.trim()
+      : null,
+};
   const order = await createOrder({
     buyerPiUid: user.pi_uid,
     items,
     total,
-    shipping,
+    shipping: normalizedShipping,
   });
 
   for (const item of items) {
