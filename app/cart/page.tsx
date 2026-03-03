@@ -110,13 +110,13 @@ const [shipping, setShipping] = useState<ShippingInfo | null>(null);
       );
 
       if (def) {
-        setShipping({
-          name: def.name,
-          phone: def.phone,
-          address: def.address,
-          country: def.country,
-        });
-      }
+  setShipping({
+    name: def.full_name,
+    phone: def.phone,
+    address: def.address_line,
+    country: def.country,
+  });
+}
     } catch (err) {
       console.error("Load address error", err);
     }
