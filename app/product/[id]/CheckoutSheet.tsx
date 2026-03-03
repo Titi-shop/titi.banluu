@@ -16,6 +16,7 @@ interface ShippingInfo {
   address_line: string;
   province: string;
   country?: string;
+  postal_code?: string | null;
 }
 
 
@@ -107,6 +108,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     address_line: def.address_line,
     province: def.province,
     country: def.country,
+    postal_code: def.postal_code ?? null,
   });
 }
       } catch {
@@ -196,9 +198,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const normalizedShipping = {
   name: shipping.name,
   phone: shipping.phone,
-  address: shipping.address_line, // ✅ convert đúng tại đây
+  address: shipping.address_line,
+  province: shipping.province,
+  country: shipping.country,
+  postal_code: shipping.postal_code ?? null,
 };
-
+             
 const orderRes = await apiAuthFetch("/api/orders", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -267,6 +272,9 @@ const orderRes = await apiAuthFetch("/api/orders", {
 <p className="text-sm text-gray-500">
   {shipping.province}
 </p>
+  <p className="text-sm text-gray-500">
+    {shipping.postal_code}
+  </p>
   <p className="text-sm text-gray-500">
     {getCountryDisplay(shipping.country)}
   </p>
