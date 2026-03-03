@@ -360,7 +360,7 @@ if (microSubtotal < 1 || microTotal < 1) {
   shipping_country: shipping.country,          // ✅ thêm
   shipping_postal_code: shipping.postal_code,  // ✅ thêm
 
-  status: "pending",
+  status: "created",
   payment_status: "pending",
   currency: "PI",
 }),
