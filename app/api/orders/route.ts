@@ -65,31 +65,34 @@ export async function POST(req: Request) {
     }
 
     if (
-      !shipping ||
-      typeof shipping.name !== "string" ||
-      typeof shipping.phone !== "string" ||
-      typeof shipping.address !== "string" ||
-      typeof shipping.province !== "string" ||
-      typeof shipping.country !== "string"
-    ) {
-      return NextResponse.json(
-        { error: "INVALID_SHIPPING_INFO" },
-        { status: 400 }
-      );
-    }
-
-    const normalizedShipping = {
-      name: shipping.name.trim(),
-      phone: shipping.phone.trim(),
-      address: shipping.address.trim(),
-      province: shipping.province.trim(),
-      country: shipping.country.trim(),
-      postal_code:
-        typeof shipping.postal_code === "string" &&
-        shipping.postal_code.trim()
-          ? shipping.postal_code.trim()
-          : null,
-    };
+  !shipping ||
+  typeof shipping.name !== "string" ||
+  !shipping.name.trim() ||
+  typeof shipping.phone !== "string" ||
+  !shipping.phone.trim() ||
+  typeof shipping.address !== "string" ||
+  !shipping.address.trim() ||
+  typeof shipping.city !== "string" ||
+  !shipping.city.trim() ||
+  typeof shipping.country !== "string" ||
+  !shipping.country.trim()
+) {
+  return NextResponse.json(
+    { error: "INVALID_SHIPPING_INFO" },
+    { status: 400 }
+  );
+}const normalizedShipping = {
+  name: shipping.name.trim(),
+  phone: shipping.phone.trim(),
+  address: shipping.address.trim(),
+  city: shipping.city.trim(),
+  country: shipping.country.trim(),
+  postal_code:
+    typeof shipping.postal_code === "string" &&
+    shipping.postal_code.trim()
+      ? shipping.postal_code.trim()
+      : null,
+};
 
     const order = await createOrder({
       buyerPiUid: user.pi_uid,
