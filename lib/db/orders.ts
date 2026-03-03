@@ -312,9 +312,23 @@ export async function createOrder(params: {
      1️⃣ CALCULATE SUBTOTAL
   ========================= */
   const subtotal = items.reduce(
-    (sum, i) => sum + i.price * i.quantity,
-    0
-  );
+  (sum, i) => sum + i.price * i.quantity,
+  0
+);
+
+const microSubtotal = toMicroPi(subtotal);
+const microTotal = toMicroPi(total);
+
+// 🚨 PROTECT DB CONSTRAINT
+if (microSubtotal < 1 || microTotal < 1) {
+  console.error("AMOUNT BELOW MINIMUM", {
+    subtotal,
+    total,
+    microSubtotal,
+    microTotal,
+  });
+  return null;
+}
 
   const order_number = `ORD-${Date.now()}`;
 
@@ -330,20 +344,20 @@ export async function createOrder(params: {
         Prefer: "return=representation",
       },
       body: JSON.stringify({
-        order_number,
-        buyer_id: buyerPiUid,
+  order_number,
+  buyer_id: buyerPiUid,
 
-        subtotal: toMicroPi(subtotal),
-        total: toMicroPi(total),
+  subtotal: microSubtotal,
+  total: microTotal,
 
-        shipping_name: shipping.name,
-        shipping_phone: shipping.phone,
-        shipping_address: shipping.address,
+  shipping_name: shipping.name,
+  shipping_phone: shipping.phone,
+  shipping_address: shipping.address,
 
-        status: "created",
-        payment_status: "pending",
-        currency: "PI",
-      }),
+  status: "created",
+  payment_status: "pending",
+  currency: "PI",
+}),
     }
   );
 
