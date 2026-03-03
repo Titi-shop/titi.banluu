@@ -432,7 +432,7 @@ if (microSubtotal < 1 || microTotal < 1) {
   quantity: item.quantity,
   total_price: toMicroPi(item.price * item.quantity), 
 
-  status: "created",
+  status: "pending",
 }),
   }
 );
