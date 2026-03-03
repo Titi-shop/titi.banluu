@@ -356,7 +356,7 @@ if (microSubtotal < 1 || microTotal < 1) {
   shipping_name: shipping.name,
   shipping_phone: shipping.phone,
   shipping_address: shipping.address,
-  shipping_province: shipping.province,        // ✅ thêm
+  shipping_city: shipping.province,
   shipping_country: shipping.country,          // ✅ thêm
   shipping_postal_code: shipping.postal_code,  // ✅ thêm
 
