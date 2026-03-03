@@ -303,7 +303,7 @@ export async function createOrder(params: {
   name: string;
   phone: string;
   address: string;
-  province: string;       
+  city: string;       
   country: string;         
   postal_code?: string | null; 
 };
@@ -356,7 +356,7 @@ if (microSubtotal < 1 || microTotal < 1) {
   shipping_name: shipping.name,
   shipping_phone: shipping.phone,
   shipping_address: shipping.address,
-  shipping_city: shipping.province,
+  shipping_city: shipping.city,
   shipping_country: shipping.country,          // ✅ thêm
   shipping_postal_code: shipping.postal_code,  // ✅ thêm
 
