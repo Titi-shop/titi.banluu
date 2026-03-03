@@ -193,19 +193,25 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     return;
   }
 
-  const orderRes = await apiAuthFetch("/api/orders", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      items: [{
-        product_id: item.id,
-        quantity,
-        price: unitPrice,
-      }],
-      total,
-      shipping,
-    }),
-  });
+  const normalizedShipping = {
+  name: shipping.name,
+  phone: shipping.phone,
+  address: shipping.address_line, // ✅ convert đúng tại đây
+};
+
+const orderRes = await apiAuthFetch("/api/orders", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    items: [{
+      product_id: item.id,
+      quantity,
+      price: unitPrice,
+    }],
+    total,
+    shipping: normalizedShipping,
+  }),
+});
 
   if (!orderRes.ok) {
     alert("Tạo order thất bại");
