@@ -188,6 +188,11 @@ export default function CustomerAddressPage() {
                 <p className="text-sm text-gray-500">
                   {getCountryDisplay(a.country)}
                 </p>
+
+            
+  <p className="text-sm text-gray-500">
+    {a.postal_code}
+  </p>
               </div>
 
               {a.is_default && (
