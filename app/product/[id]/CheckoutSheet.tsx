@@ -199,7 +199,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   name: shipping.name,
   phone: shipping.phone,
   address: shipping.address_line,
-  province: shipping.province,
+  city: shipping.province,
   country: shipping.country,
   postal_code: shipping.postal_code ?? null,
 };
