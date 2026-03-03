@@ -16,6 +16,7 @@ interface Address {
   country: string;
   province: string;
   address_line: string;
+  postal_code?: string;
   is_default: boolean;
 }
 
@@ -25,6 +26,7 @@ const emptyForm = {
   country: "",
   province: "",
   address_line: "",
+  postal_code: "",
 };
 
 export default function CustomerAddressPage() {
@@ -303,6 +305,15 @@ export default function CustomerAddressPage() {
               setForm({ ...form, phone: e.target.value })
             }
           />
+
+           <input
+  className="w-full border rounded-lg p-2 mb-3"
+  placeholder="Postal Code (optional)"
+  value={form.postal_code}
+  onChange={(e) =>
+    setForm({ ...form, postal_code: e.target.value })
+  }
+/>
 
           <textarea
             className="w-full border rounded-lg p-2 mb-4"
