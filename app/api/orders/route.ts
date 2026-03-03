@@ -73,12 +73,7 @@ if (
     { status: 400 }
   );
 }
-   {
-    return NextResponse.json(
-      { error: "INVALID_SHIPPING_INFO" },
-      { status: 400 }
-    );
-  }
+   
 
   const order = await createOrder({
     buyerPiUid: user.pi_uid,
