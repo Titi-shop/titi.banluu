@@ -75,12 +75,22 @@ export async function POST(req: Request) {
       );
 
       if (!completeRes.ok) {
-        return NextResponse.json(
-          { error: "COMPLETE_FAILED" },
-          { status: 500 }
-        );
-      }
+  // 🔥 Auto cancel nếu complete fail để tránh kẹt approved
+  await fetch(
+    `https://api.minepi.com/v2/payments/${paymentId}/cancel`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${process.env.PI_API_KEY}`,
+      },
     }
+  );
+
+  return NextResponse.json(
+    { error: "COMPLETE_FAILED_AUTO_CANCELLED" },
+    { status: 500 }
+  );
+}
 
     /* =====================================================
        5️⃣ RE-FETCH PAYMENT AFTER COMPLETE
