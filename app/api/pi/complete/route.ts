@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { createOrder } from "@/lib/db/orders";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
     const user = await getUserFromBearer();
-
     if (!user) {
       return NextResponse.json(
         { error: "UNAUTHORIZED" },
@@ -15,94 +13,72 @@ export async function POST(req: Request) {
       );
     }
 
-    const { paymentId, txid } = await req.json();
-
-    if (!paymentId || !txid) {
+    const { paymentId } = await req.json();
+    if (!paymentId) {
       return NextResponse.json(
-        { error: "MISSING_PAYMENT_DATA" },
+        { error: "MISSING_PAYMENT_ID" },
         { status: 400 }
       );
     }
 
-    /* =========================
-       1️⃣ VERIFY PAYMENT FIRST
-    ========================= */
+    const apiKey = process.env.PI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "SERVER_CONFIG_ERROR" },
+        { status: 500 }
+      );
+    }
+
     const verifyRes = await fetch(
       `https://api.minepi.com/v2/payments/${paymentId}`,
       {
-        headers: {
-          Authorization: `Key ${process.env.PI_API_KEY}`,
-        },
+        headers: { Authorization: `Key ${apiKey}` },
       }
     );
+
+    if (!verifyRes.ok) {
+      return NextResponse.json(
+        { error: "VERIFY_FAILED" },
+        { status: 400 }
+      );
+    }
 
     const payment = await verifyRes.json();
 
-    if (
-      !verifyRes.ok ||
-      payment.status !== "approved"
-    ) {
+    if (payment.user_uid !== user.pi_uid) {
       return NextResponse.json(
-        { error: "PAYMENT_NOT_APPROVED" },
+        { error: "PAYMENT_OWNER_MISMATCH" },
+        { status: 403 }
+      );
+    }
+
+    if (payment.status === "approved") {
+      return NextResponse.json({ success: true });
+    }
+
+    if (payment.status !== "created") {
+      return NextResponse.json(
+        { error: "INVALID_PAYMENT_STATUS" },
         { status: 400 }
       );
     }
 
-    /* =========================
-       2️⃣ COMPLETE PAYMENT
-    ========================= */
-    const completeRes = await fetch(
-      `https://api.minepi.com/v2/payments/${paymentId}/complete`,
+    const approveRes = await fetch(
+      `https://api.minepi.com/v2/payments/${paymentId}/approve`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Key ${process.env.PI_API_KEY}`,
-        },
-        body: JSON.stringify({ txid }),
+        headers: { Authorization: `Key ${apiKey}` },
       }
     );
 
-    if (!completeRes.ok) {
-      return NextResponse.json(
-        { error: "COMPLETE_FAILED" },
-        { status: 500 }
-      );
-    }
+    const data = await approveRes.json();
 
-    /* =========================
-       3️⃣ CREATE ORDER HERE
-    ========================= */
-
-    const metadata = payment.metadata;
-
-    if (!metadata?.shipping || !metadata?.item) {
-      return NextResponse.json(
-        { error: "INVALID_METADATA" },
-        { status: 400 }
-      );
-    }
-
-    const order = await createOrder({
-      buyerPiUid: user.pi_uid,
-      items: [metadata.item],
-      total: payment.amount,
-      shipping: metadata.shipping,
-      pi_payment_id: paymentId,
-      pi_txid: txid,
+    return NextResponse.json(data, {
+      status: approveRes.status,
     });
 
-    if (!order) {
-      return NextResponse.json(
-        { error: "ORDER_CREATION_FAILED" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(order);
-
   } catch (err) {
-    console.error("💥 PI COMPLETE ERROR:", err);
+    console.error("💥 PI APPROVE ERROR:", err);
     return NextResponse.json(
       { error: "SERVER_ERROR" },
       { status: 500 }
