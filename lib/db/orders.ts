@@ -303,13 +303,38 @@ export async function createOrder(params: {
     name: string;
     phone: string;
     address: string;
+    provider: string;
+    country: string;
+    postal_code?: string | null;
   };
 }): Promise<OrderRecord | null> {
-
   const { buyerPiUid, items, total, shipping } = params;
 
   /* =========================
-     1️⃣ CREATE ORDER
+     1️⃣ CALCULATE SUBTOTAL
+  ========================= */
+  const subtotal = items.reduce(
+    (sum, i) => sum + i.price * i.quantity,
+    0
+  );
+
+  const microSubtotal = toMicroPi(subtotal);
+  const microTotal = toMicroPi(total);
+
+  if (microSubtotal < 1 || microTotal < 1) {
+    console.error("AMOUNT BELOW MINIMUM", {
+      subtotal,
+      total,
+      microSubtotal,
+      microTotal,
+    });
+    return null;
+  }
+
+  const order_number = `ORD-${Date.now()}`;
+
+  /* =========================
+     2️⃣ CREATE ORDER
   ========================= */
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders`,
@@ -320,32 +345,43 @@ export async function createOrder(params: {
         Prefer: "return=representation",
       },
       body: JSON.stringify({
+        order_number,
         buyer_id: buyerPiUid,
-        buyer_name: shipping.name,
-        buyer_phone: shipping.phone,
-        buyer_address: shipping.address,
-        total: toMicroPi(total),
-        status: "pending",
+
+        subtotal: microSubtotal,
+        total: microTotal,
+
+        shipping_name: shipping.name,
+        shipping_phone: shipping.phone,
+        shipping_address: shipping.address,
+        shipping_provider: shipping.provider, // ✅ FIXED
+        shipping_country: shipping.country,
+        shipping_postal_code: shipping.postal_code ?? null,
+
+        status: "pending",          // ✅ FIXED
+        payment_status: "unpaid",  // ✅ FIXED
+        currency: "PI",
       }),
     }
   );
 
   if (!orderRes.ok) {
-    console.error(await orderRes.text());
+    console.error("ORDER INSERT ERROR:", await orderRes.text());
     return null;
   }
 
-  const [order] = await orderRes.json() as Array<{ id: string }>;
+  const orderData = (await orderRes.json()) as Array<{ id: string }>;
+  const order = orderData[0];
 
   if (!order?.id) return null;
 
   /* =========================
-     2️⃣ FETCH SELLER MAP
+     3️⃣ FETCH PRODUCT SNAPSHOT
   ========================= */
   const productIds = items.map(i => `"${i.product_id}"`).join(",");
 
   const productRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/products?id=in.(${productIds})&select=id,seller_id`,
+    `${SUPABASE_URL}/rest/v1/products?id=in.(${productIds})&select=id,seller_id,name,slug,thumbnail,images`,
     { headers: headers(), cache: "no-store" }
   );
 
@@ -357,24 +393,29 @@ export async function createOrder(params: {
   const products = await productRes.json() as Array<{
     id: string;
     seller_id: string;
+    name: string;
+    slug: string | null;
+    thumbnail: string | null;
+    images: string[] | null;
   }>;
 
-  const sellerMap: Record<string, string> =
-    Object.fromEntries(products.map(p => [p.id, p.seller_id]));
+  const productMap = Object.fromEntries(
+    products.map(p => [p.id, p])
+  );
 
   /* =========================
-     3️⃣ INSERT ORDER ITEMS
+     4️⃣ INSERT ORDER ITEMS
   ========================= */
   for (const item of items) {
+    const product = productMap[item.product_id];
+    if (!product) continue;
 
-    const seller = sellerMap[item.product_id];
-
-    if (!seller) {
-      console.error("SELLER_NOT_FOUND_FOR_PRODUCT", item.product_id);
-      continue;
+    if (!product.thumbnail) {
+      console.error("PRODUCT MISSING THUMBNAIL:", product.id);
+      return null;
     }
 
-    const itemRes = await fetch(
+    const insertItemRes = await fetch(
       `${SUPABASE_URL}/rest/v1/order_items`,
       {
         method: "POST",
@@ -382,16 +423,26 @@ export async function createOrder(params: {
         body: JSON.stringify({
           order_id: order.id,
           product_id: item.product_id,
-          seller_pi_uid: seller,
+
+          seller_id: product.seller_id,
+
+          product_name: product.name,
+          product_slug: product.slug ?? null,
+          thumbnail: product.thumbnail, // ✅ guaranteed not null
+          images: product.images ?? [],
+
+          unit_price: toMicroPi(item.price),
           quantity: item.quantity,
-          price: toMicroPi(item.price),
+          total_price: toMicroPi(item.price * item.quantity),
+
           status: "pending",
         }),
       }
     );
 
-    if (!itemRes.ok) {
-      console.error(await itemRes.text());
+    if (!insertItemRes.ok) {
+      console.error("ORDER ITEM INSERT ERROR:", await insertItemRes.text());
+      return null;
     }
   }
 
