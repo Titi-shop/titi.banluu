@@ -151,78 +151,78 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   return;
 }
       await window.Pi.createPayment(
-        {
-          amount: Number(total.toFixed(7)),
-          memo: "Thanh toán đơn hàng TiTi",
-          metadata: {
-            shipping,
-            item: {
-              product_id: item.id,
-              quantity,
-              price: unitPrice,
-            },
-          },
+  {
+    amount: Number(total.toFixed(7)),
+    memo: "Thanh toán đơn hàng TiTi",
+    metadata: {
+      shipping,
+      item: {
+        product_id: item.id,
+        quantity,
+        price: unitPrice,
+      },
+    },
+  },
+  {
+    onReadyForServerApproval: async (paymentId: string) => {
+      const token = await getPiAccessToken();
+      if (!token) {
+        setProcessing(false);
+        return;
+      }
+
+      const res = await fetch("/api/pi/approve", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        {
-          onReadyForServerApproval: async (paymentId) => {
-  const token = await getPiAccessToken();
-  if (!token) {
-    setProcessing(false);
-    return;
-  }
+        body: JSON.stringify({ paymentId }),
+      });
 
-  const res = await fetch("/api/pi/approve", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+      if (!res.ok) {
+        setProcessing(false);
+        throw new Error("Approve failed");
+      }
     },
-    body: JSON.stringify({ paymentId }),
-  });
 
-  if (!res.ok) {
-    alert("Approve thất bại");
-    setProcessing(false);
-    throw new Error("Approve failed");
-  }
-},
-onReadyForServerCompletion: async (paymentId, txid) => {
-  const token = await getPiAccessToken();
-  if (!token) {
-    setProcessing(false);
-    return;
-  }
+    onReadyForServerCompletion: async (
+      paymentId: string,
+      txid: string
+    ) => {
+      const token = await getPiAccessToken();
+      if (!token) {
+        setProcessing(false);
+        return;
+      }
 
-  const completeRes = await fetch("/api/pi/complete", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`, // 🔥 BẮT BUỘC
-      "Content-Type": "application/json",
+      const res = await fetch("/api/pi/complete", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paymentId, txid }),
+      });
+
+      if (!res.ok) {
+        setProcessing(false);
+        return;
+      }
+
+      onClose();
+      router.push("/customer/pending");
     },
-    body: JSON.stringify({ paymentId, txid }),
-  });
 
-  if (!completeRes.ok) {
-    alert("Complete thất bại");
-    setProcessing(false);
-    return;
-  }
-
-  // ✅ Không gọi /api/orders nữa
-  onClose();
-  router.push("/customer/pending");
-},
-},
-
-          onCancel: () => setProcessing(false),
-          onError: () => setProcessing(false),
-        }
-      );
-    } catch {
-      alert(t.transaction_failed);
+    onCancel: () => {
       setProcessing(false);
-    }
-  };
+    },
+
+    onError: () => {
+      setProcessing(false);
+    },
+  }
+);
 
   if (!open || !item) return null;
 
