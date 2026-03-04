@@ -151,6 +151,24 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   setProcessing(false);
   return;
 }
+
+       // 🔥 Force cancel payment pending trước khi tạo mới
+const token = await getPiAccessToken();
+if (!token) {
+  setProcessing(false);
+  return;
+}
+
+try {
+  await fetch("/api/pi/force-cancel", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+} catch {
+  console.log("Force cancel failed (có thể không có payment pending)");
+}
       await window.Pi.createPayment(
         {
           amount: Number(total),
