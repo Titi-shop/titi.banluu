@@ -1,84 +1,34 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const user = await getUserFromBearer();
-    if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+    const { paymentId, txid } = await req.json();
 
-    const { paymentId } = await req.json();
-    if (!paymentId) {
+    if (!paymentId || !txid) {
       return NextResponse.json(
-        { error: "MISSING_PAYMENT_ID" },
+        { error: "MISSING_PAYMENT_DATA" },
         { status: 400 }
       );
     }
 
-    const apiKey = process.env.PI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "SERVER_CONFIG_ERROR" },
-        { status: 500 }
-      );
-    }
-
-    const verifyRes = await fetch(
-      `https://api.minepi.com/v2/payments/${paymentId}`,
-      {
-        headers: { Authorization: `Key ${apiKey}` },
-      }
-    );
-
-    if (!verifyRes.ok) {
-      return NextResponse.json(
-        { error: "VERIFY_FAILED" },
-        { status: 400 }
-      );
-    }
-
-    const payment = await verifyRes.json();
-
-    if (payment.user_uid !== user.pi_uid) {
-      return NextResponse.json(
-        { error: "PAYMENT_OWNER_MISMATCH" },
-        { status: 403 }
-      );
-    }
-
-    if (payment.status === "approved") {
-      return NextResponse.json({ success: true });
-    }
-
-    if (payment.status !== "created") {
-      return NextResponse.json(
-        { error: "INVALID_PAYMENT_STATUS" },
-        { status: 400 }
-      );
-    }
-
-    const approveRes = await fetch(
-      `https://api.minepi.com/v2/payments/${paymentId}/approve`,
+    const res = await fetch(
+      `https://api.minepi.com/v2/payments/${paymentId}/complete`,
       {
         method: "POST",
-        headers: { Authorization: `Key ${apiKey}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Key ${process.env.PI_API_KEY}`,
+        },
+        body: JSON.stringify({ txid }),
       }
     );
 
-    const data = await approveRes.json();
-
-    return NextResponse.json(data, {
-      status: approveRes.status,
-    });
-
+    const text = await res.text();
+    return new NextResponse(text, { status: res.status });
   } catch (err) {
-    console.error("💥 PI APPROVE ERROR:", err);
+    console.error("💥 PI COMPLETE ERROR:", err);
     return NextResponse.json(
       { error: "SERVER_ERROR" },
       { status: 500 }
