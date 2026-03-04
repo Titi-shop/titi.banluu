@@ -6,11 +6,17 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    /* =====================================================
-       1️⃣ AUTH USER (AUTH-CENTRIC)
-    ===================================================== */
-    const user = await getUserFromBearer();
+    if (!process.env.PI_API_KEY) {
+      return NextResponse.json(
+        { error: "SERVER_MISCONFIGURED" },
+        { status: 500 }
+      );
+    }
 
+    /* =========================
+       1️⃣ AUTH USER
+    ========================= */
+    const user = await getUserFromBearer();
     if (!user) {
       return NextResponse.json(
         { error: "UNAUTHORIZED" },
@@ -27,9 +33,9 @@ export async function POST(req: Request) {
       );
     }
 
-    /* =====================================================
-       2️⃣ VERIFY PAYMENT FROM PI (NETWORK-FIRST)
-    ===================================================== */
+    /* =========================
+       2️⃣ VERIFY PAYMENT
+    ========================= */
     const verifyRes = await fetch(
       `https://api.minepi.com/v2/payments/${paymentId}`,
       {
@@ -48,9 +54,6 @@ export async function POST(req: Request) {
 
     const payment = await verifyRes.json();
 
-    /* =====================================================
-       3️⃣ VERIFY OWNER
-    ===================================================== */
     if (payment.user_uid !== user.pi_uid) {
       return NextResponse.json(
         { error: "PAYMENT_OWNER_MISMATCH" },
@@ -58,9 +61,9 @@ export async function POST(req: Request) {
       );
     }
 
-    /* =====================================================
-       4️⃣ COMPLETE IF STATUS = approved
-    ===================================================== */
+    /* =========================
+       3️⃣ COMPLETE IF APPROVED
+    ========================= */
     if (payment.status === "approved") {
       const completeRes = await fetch(
         `https://api.minepi.com/v2/payments/${paymentId}/complete`,
@@ -75,27 +78,28 @@ export async function POST(req: Request) {
       );
 
       if (!completeRes.ok) {
-  // 🔥 Auto cancel nếu complete fail để tránh kẹt approved
-  await fetch(
-    `https://api.minepi.com/v2/payments/${paymentId}/cancel`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${process.env.PI_API_KEY}`,
-      },
+        // 🔥 Auto cancel nếu complete fail
+        await fetch(
+          `https://api.minepi.com/v2/payments/${paymentId}/cancel`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Key ${process.env.PI_API_KEY}`,
+            },
+          }
+        );
+
+        return NextResponse.json(
+          { error: "COMPLETE_FAILED_AUTO_CANCELLED" },
+          { status: 500 }
+        );
+      }
     }
-  );
 
-  return NextResponse.json(
-    { error: "COMPLETE_FAILED_AUTO_CANCELLED" },
-    { status: 500 }
-  );
-}
-
-    /* =====================================================
-       5️⃣ RE-FETCH PAYMENT AFTER COMPLETE
-    ===================================================== */
-    const finalVerifyRes = await fetch(
+    /* =========================
+       4️⃣ VERIFY FINAL STATE
+    ========================= */
+    const finalRes = await fetch(
       `https://api.minepi.com/v2/payments/${paymentId}`,
       {
         headers: {
@@ -104,20 +108,15 @@ export async function POST(req: Request) {
       }
     );
 
-    if (!finalVerifyRes.ok) {
+    if (!finalRes.ok) {
       return NextResponse.json(
         { error: "FINAL_VERIFY_FAILED" },
         { status: 400 }
       );
     }
 
-    const finalPayment = await finalVerifyRes.json();
+    const finalPayment = await finalRes.json();
 
-    /* =====================================================
-       6️⃣ STRICT VALIDATION
-    ===================================================== */
-
-    // Must be completed
     if (finalPayment.status !== "completed") {
       return NextResponse.json(
         { error: "PAYMENT_NOT_COMPLETED" },
@@ -125,7 +124,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Owner must still match
     if (finalPayment.user_uid !== user.pi_uid) {
       return NextResponse.json(
         { error: "PAYMENT_OWNER_MISMATCH" },
@@ -133,7 +131,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // txid must match
     if (
       !finalPayment.transaction ||
       finalPayment.transaction.txid !== txid
@@ -144,18 +141,17 @@ export async function POST(req: Request) {
       );
     }
 
-    /* =====================================================
-       7️⃣ IDEMPOTENT CHECK
-    ===================================================== */
+    /* =========================
+       5️⃣ IDEMPOTENT CHECK
+    ========================= */
     const existing = await getOrderByPaymentId(paymentId);
-
     if (existing) {
       return NextResponse.json(existing);
     }
 
-    /* =====================================================
-       8️⃣ VALIDATE METADATA
-    ===================================================== */
+    /* =========================
+       6️⃣ VALIDATE METADATA
+    ========================= */
     const metadata = finalPayment.metadata;
 
     if (!metadata?.shipping || !metadata?.item) {
@@ -165,16 +161,19 @@ export async function POST(req: Request) {
       );
     }
 
-    if (typeof finalPayment.amount !== "number" || finalPayment.amount <= 0) {
+    if (
+      typeof finalPayment.amount !== "number" ||
+      finalPayment.amount <= 0
+    ) {
       return NextResponse.json(
         { error: "INVALID_AMOUNT" },
         { status: 400 }
       );
     }
 
-    /* =====================================================
-       9️⃣ CREATE ORDER (FINAL STEP)
-    ===================================================== */
+    /* =========================
+       7️⃣ CREATE ORDER
+    ========================= */
     const order = await createOrder({
       buyerPiUid: user.pi_uid,
       items: [metadata.item],
