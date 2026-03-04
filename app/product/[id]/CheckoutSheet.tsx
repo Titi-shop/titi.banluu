@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* =========================
    TYPES
@@ -85,52 +86,38 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
      LOAD ADDRESS
   ========================= */
   useEffect(() => {
-  async function loadAddress() {
-    try {
-      if (!user) return;
+    async function loadAddress() {
+      try {
+        const token = await getPiAccessToken();
+        if (!token) return;
 
-      const token = await getPiAccessToken();
-      if (!token) return;
+        const res = await fetch("/api/address", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
 
-      const res = await fetch("/api/address", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        console.error("ADDRESS API FAILED:", res.status);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!data.items || data.items.length === 0) {
-        setShipping(null);
-        return;
-      }
-
-      // ưu tiên default, nếu không có thì lấy cái đầu
-      const selected =
-        data.items.find(
+        const data = await res.json();
+        const def = data.items?.find(
           (a: { is_default: boolean }) => a.is_default
-        ) || data.items[0];
+        );
 
-      setShipping({
-        name: selected.full_name,
-        phone: selected.phone,
-        address_line: selected.address_line,
-        province: selected.province,
-        country: selected.country,
-        postal_code: selected.postal_code ?? null,
-      });
-
-    } catch (error) {
-      console.error("LOAD ADDRESS ERROR:", error);
-      setShipping(null);
+        if (def) {
+  setShipping({
+    name: def.full_name,
+    phone: def.phone,
+    address_line: def.address_line,
+    province: def.province,
+    country: def.country,
+    postal_code: def.postal_code ?? null,
+  });
+}
+      } catch {
+        setShipping(null);
+      }
     }
-  }
 
-  if (open) loadAddress();
-}, [open, user]);
+    if (open && user) loadAddress();
+  }, [open, user]);
 
   /* =========================
      PRICE + TOTAL (SALE FIRST)
@@ -150,99 +137,109 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
      PAY WITH PI
   ========================= */
   const handlePay = async () => {
-  if (!window.Pi || !piReady || !user || !shipping || !item) {
-    alert(t.transaction_failed);
-    return;
-  }
-
-  if (processing) return;
-  setProcessing(true);
-
-  try {
-    if (total < 0.0000001) {
-      alert("Số Pi quá nhỏ để thanh toán");
-      setProcessing(false);
+    if (!window.Pi || !piReady || !user || !shipping || !item) {
+      alert(t.transaction_failed);
       return;
     }
 
-    await window.Pi.createPayment(
-      {
-        amount: Number(total.toFixed(7)),
-        memo: "Thanh toán đơn hàng TiTi",
-        metadata: {
-          shipping,
-          item: {
-            product_id: item.id,
-            quantity,
-            price: unitPrice,
+    if (processing) return;
+    setProcessing(true);
+
+    try {
+       if (total < 0.0000001) {
+  alert("Số Pi quá nhỏ để thanh toán");
+  setProcessing(false);
+  return;
+}
+      await window.Pi.createPayment(
+        {
+          amount: Number(total),
+          memo: "Thanh toán đơn hàng TiTi",
+          metadata: {
+            shipping,
+            item: {
+              product_id: item.id,
+              quantity,
+              price: unitPrice,
+            },
           },
         },
-      },
-      {
-        onReadyForServerApproval: async (paymentId: string) => {
-          const token = await getPiAccessToken();
-          if (!token) {
-            setProcessing(false);
-            return;
-          }
-
-          const res = await fetch("/api/pi/approve", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ paymentId }),
-          });
-
-          if (!res.ok) {
-            setProcessing(false);
-            throw new Error("Approve failed");
-          }
-        },
-
-        onReadyForServerCompletion: async (
-          paymentId: string,
-          txid: string
-        ) => {
-          const token = await getPiAccessToken();
-          if (!token) {
-            setProcessing(false);
-            return;
-          }
-
-          const res = await fetch("/api/pi/complete", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ paymentId, txid }),
-          });
-
-          if (!res.ok) {
-            setProcessing(false);
-            return;
-          }
-
-          onClose();
-          router.push("/customer/pending");
-        },
-
-        onCancel: () => {
-          setProcessing(false);
-        },
-
-        onError: () => {
-          setProcessing(false);
-        },
-      }
-    );
-  } catch {
-    alert(t.transaction_failed);
+        {
+          onReadyForServerApproval: async (paymentId) => {
+  const token = await getPiAccessToken();
+  if (!token) {
     setProcessing(false);
+    return;
   }
+
+  await fetch("/api/pi/approve", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ paymentId }),
+  });
+},
+
+          onReadyForServerCompletion: async (paymentId, txid) => {
+  const completeRes = await fetch("/api/pi/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paymentId, txid }),
+  });
+
+  if (!completeRes.ok) {
+    alert("Complete thất bại");
+    setProcessing(false);
+    return;
+  }
+
+  const normalizedShipping = {
+  name: shipping.name,
+  phone: shipping.phone,
+  address: shipping.address_line,
+  provider: shipping.province,
+  country: shipping.country,
+  postal_code: shipping.postal_code ?? null,
 };
+             
+const orderRes = await apiAuthFetch("/api/orders", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    items: [{
+      product_id: item.id,
+      quantity,
+      price: unitPrice,
+    }],
+    total,
+    shipping: normalizedShipping,
+  }),
+});
+
+  if (!orderRes.ok) {
+    alert("Tạo order thất bại");
+    setProcessing(false);
+    return;
+  }
+
+  onClose();
+  router.push("/customer/pending");
+},
+
+          onCancel: () => setProcessing(false),
+          onError: () => setProcessing(false),
+        }
+      );
+    } catch {
+      alert(t.transaction_failed);
+      setProcessing(false);
+    }
+  };
+
+  if (!open || !item) return null;
+
   /* =========================
      UI
   ========================= */
