@@ -291,7 +291,7 @@ const sellerItems = o.order_items.filter(
 /* =====================================================
    CREATE ORDER
 ===================================================== */
-đây là đoạn cần kiểm tra .
+
 export async function createOrder(params: {
   buyerPiUid: string;
   items: {
