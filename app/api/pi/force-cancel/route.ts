@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     if (!process.env.PI_API_KEY) {
       return NextResponse.json(
@@ -18,36 +18,14 @@ export async function POST() {
       );
     }
 
-    // Lấy payments của user
-    const listRes = await fetch(
-      `https://api.minepi.com/v2/payments?user_uid=${user.pi_uid}`,
-      {
-        headers: {
-          Authorization: `Key ${process.env.PI_API_KEY}`,
-        },
-      }
-    );
+    const { paymentId } = await req.json().catch(() => ({}));
 
-    if (!listRes.ok) {
-      return NextResponse.json(
-        { error: "FETCH_FAILED" },
-        { status: 400 }
-      );
-    }
-
-    const data = await listRes.json();
-
-    const pending = data?.data?.find(
-      (p: { status: string }) =>
-        p.status === "created" || p.status === "approved"
-    );
-
-    if (!pending) {
+    if (!paymentId) {
       return NextResponse.json({ ok: true });
     }
 
-    await fetch(
-      `https://api.minepi.com/v2/payments/${pending.identifier}/cancel`,
+    const cancelRes = await fetch(
+      `https://api.minepi.com/v2/payments/${paymentId}/cancel`,
       {
         method: "POST",
         headers: {
@@ -56,9 +34,18 @@ export async function POST() {
       }
     );
 
+    if (!cancelRes.ok) {
+      const err = await cancelRes.text();
+      return NextResponse.json(
+        { error: err },
+        { status: cancelRes.status }
+      );
+    }
+
     return NextResponse.json({ cancelled: true });
 
-  } catch {
+  } catch (err) {
+    console.error("FORCE CANCEL ERROR:", err);
     return NextResponse.json(
       { error: "SERVER_ERROR" },
       { status: 500 }
