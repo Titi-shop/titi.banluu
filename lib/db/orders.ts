@@ -291,8 +291,11 @@ const sellerItems = o.order_items.filter(
 /* =====================================================
    CREATE ORDER
 ===================================================== */
+
 export async function createOrder(params: {
   buyerPiUid: string;
+  piPaymentId: string;
+  piTxid: string;
   items: {
     product_id: string;
     quantity: number;
@@ -308,10 +311,25 @@ export async function createOrder(params: {
     postal_code?: string | null;
   };
 }): Promise<OrderRecord | null> {
-  const { buyerPiUid, items, total, shipping } = params;
+  const {
+    buyerPiUid,
+    piPaymentId,
+    piTxid,
+    items,
+    total,
+    shipping,
+  } = params;
 
   /* =========================
-     1️⃣ CALCULATE SUBTOTAL
+     1️⃣ VALIDATE PI PAYMENT
+  ========================= */
+  if (!piPaymentId.trim() || !piTxid.trim()) {
+    console.error("MISSING PI PAYMENT DATA");
+    return null;
+  }
+
+  /* =========================
+     2️⃣ CALCULATE MONEY
   ========================= */
   const subtotal = items.reduce(
     (sum, i) => sum + i.price * i.quantity,
@@ -322,7 +340,7 @@ export async function createOrder(params: {
   const microTotal = toMicroPi(total);
 
   if (microSubtotal < 1 || microTotal < 1) {
-    console.error("AMOUNT BELOW MINIMUM", {
+    console.error("INVALID AMOUNT", {
       subtotal,
       total,
       microSubtotal,
@@ -334,7 +352,7 @@ export async function createOrder(params: {
   const order_number = `ORD-${Date.now()}`;
 
   /* =========================
-     2️⃣ CREATE ORDER
+     3️⃣ INSERT ORDER
   ========================= */
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders`,
@@ -348,19 +366,27 @@ export async function createOrder(params: {
         order_number,
         buyer_id: buyerPiUid,
 
+        // 🔒 REQUIRED BY SCHEMA
+        pi_payment_id: piPaymentId,
+        pi_txid: piTxid,
+        payment_status: "paid",
+        paid_at: new Date().toISOString(),
+
         subtotal: microSubtotal,
+        shipping_fee: 0,
+        discount: 0,
+        tax: 0,
         total: microTotal,
+        currency: "PI",
+
+        status: "pending",
 
         shipping_name: shipping.name,
         shipping_phone: shipping.phone,
         shipping_address: shipping.address,
-        shipping_provider: shipping.provider, // ✅ FIXED
+        shipping_provider: shipping.provider,
         shipping_country: shipping.country,
         shipping_postal_code: shipping.postal_code ?? null,
-
-        status: "pending",          // ✅ FIXED
-        payment_status: "unpaid",  // ✅ FIXED
-        currency: "PI",
       }),
     }
   );
@@ -373,20 +399,26 @@ export async function createOrder(params: {
   const orderData = (await orderRes.json()) as Array<{ id: string }>;
   const order = orderData[0];
 
-  if (!order?.id) return null;
+  if (!order?.id) {
+    console.error("ORDER INSERT FAILED: NO ID");
+    return null;
+  }
 
   /* =========================
-     3️⃣ FETCH PRODUCT SNAPSHOT
+     4️⃣ FETCH PRODUCT SNAPSHOT
   ========================= */
   const productIds = items.map(i => `"${i.product_id}"`).join(",");
 
   const productRes = await fetch(
     `${SUPABASE_URL}/rest/v1/products?id=in.(${productIds})&select=id,seller_id,name,slug,thumbnail,images`,
-    { headers: headers(), cache: "no-store" }
+    {
+      headers: headers(),
+      cache: "no-store",
+    }
   );
 
   if (!productRes.ok) {
-    console.error(await productRes.text());
+    console.error("PRODUCT FETCH ERROR:", await productRes.text());
     return null;
   }
 
@@ -404,7 +436,7 @@ export async function createOrder(params: {
   );
 
   /* =========================
-     4️⃣ INSERT ORDER ITEMS
+     5️⃣ INSERT ORDER ITEMS
   ========================= */
   for (const item of items) {
     const product = productMap[item.product_id];
@@ -428,7 +460,7 @@ export async function createOrder(params: {
 
           product_name: product.name,
           product_slug: product.slug ?? null,
-          thumbnail: product.thumbnail, // ✅ guaranteed not null
+          thumbnail: product.thumbnail,
           images: product.images ?? [],
 
           unit_price: toMicroPi(item.price),
@@ -441,14 +473,16 @@ export async function createOrder(params: {
     );
 
     if (!insertItemRes.ok) {
-      console.error("ORDER ITEM INSERT ERROR:", await insertItemRes.text());
+      console.error(
+        "ORDER ITEM INSERT ERROR:",
+        await insertItemRes.text()
+      );
       return null;
     }
   }
 
-  return order as unknown as OrderRecord;
+  return order;
 }
-
 /* =====================================================
    GET ORDER DETAIL FOR SELLER
 ===================================================== */
