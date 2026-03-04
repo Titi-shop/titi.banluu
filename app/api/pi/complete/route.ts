@@ -44,6 +44,12 @@ export async function POST(req: Request) {
     }
 
     const payment = await verifyRes.json();
+    if (payment.user_uid !== user.pi_uid) {
+  return NextResponse.json(
+    { error: "PAYMENT_OWNER_MISMATCH" },
+    { status: 403 }
+  );
+}
 
     if (
       payment.status !== "approved" &&
