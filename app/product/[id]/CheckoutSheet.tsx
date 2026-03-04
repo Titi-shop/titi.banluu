@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
-import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* =========================
    TYPES
@@ -172,7 +171,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     return;
   }
 
-  await fetch("/api/pi/approve", {
+  const res = await fetch("/api/pi/approve", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -180,6 +179,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     },
     body: JSON.stringify({ paymentId }),
   });
+
+  if (!res.ok) {
+    alert("Approve thất bại");
+    setProcessing(false);
+    throw new Error("Approve failed");
+  }
 },
 onReadyForServerCompletion: async (paymentId, txid) => {
   const token = await getPiAccessToken();
