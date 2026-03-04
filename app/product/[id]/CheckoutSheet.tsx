@@ -85,38 +85,52 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
      LOAD ADDRESS
   ========================= */
   useEffect(() => {
-    async function loadAddress() {
-      try {
-        const token = await getPiAccessToken();
-        if (!token) return;
+  async function loadAddress() {
+    try {
+      if (!user) return;
 
-        const res = await fetch("/api/address", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
+      const token = await getPiAccessToken();
+      if (!token) return;
 
-        const data = await res.json();
-        const def = data.items?.find(
-          (a: { is_default: boolean }) => a.is_default
-        );
+      const res = await fetch("/api/address", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        if (def) {
-  setShipping({
-    name: def.full_name,
-    phone: def.phone,
-    address_line: def.address_line,
-    province: def.province,
-    country: def.country,
-    postal_code: def.postal_code ?? null,
-  });
-}
-      } catch {
-        setShipping(null);
+      if (!res.ok) {
+        console.error("ADDRESS API FAILED:", res.status);
+        return;
       }
-    }
 
-    if (open && user) loadAddress();
-  }, [open, user]);
+      const data = await res.json();
+
+      if (!data.items || data.items.length === 0) {
+        setShipping(null);
+        return;
+      }
+
+      // ưu tiên default, nếu không có thì lấy cái đầu
+      const selected =
+        data.items.find(
+          (a: { is_default: boolean }) => a.is_default
+        ) || data.items[0];
+
+      setShipping({
+        name: selected.full_name,
+        phone: selected.phone,
+        address_line: selected.address_line,
+        province: selected.province,
+        country: selected.country,
+        postal_code: selected.postal_code ?? null,
+      });
+
+    } catch (error) {
+      console.error("LOAD ADDRESS ERROR:", error);
+      setShipping(null);
+    }
+  }
+
+  if (open) loadAddress();
+}, [open, user]);
 
   /* =========================
      PRICE + TOTAL (SALE FIRST)
