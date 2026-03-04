@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { createOrder } from "@/lib/db/orders";
+import { createOrder, getOrderByPaymentId } from "@/lib/db/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     /* =========================
-       1️⃣ VERIFY PAYMENT FIRST
+       1️⃣ VERIFY PAYMENT
     ========================= */
     const verifyRes = await fetch(
       `https://api.minepi.com/v2/payments/${paymentId}`,
@@ -36,43 +36,59 @@ export async function POST(req: Request) {
       }
     );
 
+    if (!verifyRes.ok) {
+      return NextResponse.json(
+        { error: "VERIFY_FAILED" },
+        { status: 400 }
+      );
+    }
+
     const payment = await verifyRes.json();
 
     if (
-      !verifyRes.ok ||
-      payment.status !== "approved"
+      payment.status !== "approved" &&
+      payment.status !== "completed"
     ) {
       return NextResponse.json(
-        { error: "PAYMENT_NOT_APPROVED" },
+        { error: "INVALID_PAYMENT_STATUS" },
         { status: 400 }
       );
     }
 
     /* =========================
-       2️⃣ COMPLETE PAYMENT
+       2️⃣ COMPLETE IF NEEDED
     ========================= */
-    const completeRes = await fetch(
-      `https://api.minepi.com/v2/payments/${paymentId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Key ${process.env.PI_API_KEY}`,
-        },
-        body: JSON.stringify({ txid }),
-      }
-    );
-
-    if (!completeRes.ok) {
-      return NextResponse.json(
-        { error: "COMPLETE_FAILED" },
-        { status: 500 }
+    if (payment.status === "approved") {
+      const completeRes = await fetch(
+        `https://api.minepi.com/v2/payments/${paymentId}/complete`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Key ${process.env.PI_API_KEY}`,
+          },
+          body: JSON.stringify({ txid }),
+        }
       );
+
+      if (!completeRes.ok) {
+        return NextResponse.json(
+          { error: "COMPLETE_FAILED" },
+          { status: 500 }
+        );
+      }
     }
 
     /* =========================
-       3️⃣ CREATE ORDER HERE
+       3️⃣ ENSURE ORDER EXISTS
+       (IDEMPOTENT)
     ========================= */
+
+    const existing = await getOrderByPaymentId(paymentId);
+
+    if (existing) {
+      return NextResponse.json(existing);
+    }
 
     const metadata = payment.metadata;
 
