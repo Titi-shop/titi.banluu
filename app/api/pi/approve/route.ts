@@ -54,12 +54,18 @@ export async function POST(req: Request) {
       );
     }
 
-    if (payment.status !== "created") {
-      return NextResponse.json(
-        { error: "INVALID_PAYMENT_STATUS" },
-        { status: 400 }
-      );
-    }
+   // Nếu đã approved rồi → coi như OK (idempotent)
+if (payment.status === "approved") {
+  return NextResponse.json({ ok: true });
+}
+
+// Chỉ cho phép approve khi status = created
+if (payment.status !== "created") {
+  return NextResponse.json(
+    { error: "INVALID_PAYMENT_STATUS" },
+    { status: 400 }
+  );
+} 
 
     /* =========================
        3️⃣ APPROVE
