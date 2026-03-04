@@ -183,9 +183,20 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
+  const token = await getPiAccessToken();
+
+  if (!token) {
+    alert("Không lấy được token");
+    setProcessing(false);
+    return;
+  }
+
   const completeRes = await fetch("/api/pi/complete", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ paymentId, txid }),
   });
 
@@ -195,38 +206,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     return;
   }
 
-  const normalizedShipping = {
-  name: shipping.name,
-  phone: shipping.phone,
-  address: shipping.address_line,
-  provider: shipping.province,
-  country: shipping.country,
-  postal_code: shipping.postal_code ?? null,
-};
-             
-const orderRes = await apiAuthFetch("/api/orders", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    items: [{
-      product_id: item.id,
-      quantity,
-      price: unitPrice,
-    }],
-    total,
-    shipping: normalizedShipping,
-  }),
-});
-
-  if (!orderRes.ok) {
-    alert("Tạo order thất bại");
-    setProcessing(false);
-    return;
-  }
+  // ⚠️ Nếu backend đã createOrder trong /complete
+  // thì KHÔNG cần gọi /api/orders nữa
 
   onClose();
   router.push("/customer/pending");
-},
+}
 
           onCancel: () => setProcessing(false),
           onError: () => setProcessing(false),
