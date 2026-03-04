@@ -308,11 +308,14 @@ export async function createOrder(params: {
     postal_code?: string | null;
   };
 }): Promise<OrderRecord | null> {
+
   const { buyerPiUid, items, total, shipping } = params;
 
   /* =========================
-     1️⃣ CALCULATE SUBTOTAL
+     1️⃣ VALIDATION
   ========================= */
+  if (!items.length) return null;
+
   const subtotal = items.reduce(
     (sum, i) => sum + i.price * i.quantity,
     0
@@ -328,6 +331,11 @@ export async function createOrder(params: {
       microSubtotal,
       microTotal,
     });
+    return null;
+  }
+
+  if (microTotal < microSubtotal) {
+    console.error("TOTAL INVALID");
     return null;
   }
 
@@ -354,12 +362,12 @@ export async function createOrder(params: {
         shipping_name: shipping.name,
         shipping_phone: shipping.phone,
         shipping_address: shipping.address,
-        shipping_provider: shipping.provider, // ✅ FIXED
+        shipping_provider: shipping.provider,
         shipping_country: shipping.country,
         shipping_postal_code: shipping.postal_code ?? null,
 
-        status: "unpaid",          // ✅ FIXED
-        payment_status: "unpaid",  // ✅ FIXED
+        status: "unpaid",
+        payment_status: "unpaid",
         currency: "PI",
       }),
     }
@@ -370,7 +378,7 @@ export async function createOrder(params: {
     return null;
   }
 
-  const orderData = (await orderRes.json()) as Array<{ id: string }>;
+  const orderData = (await orderRes.json()) as { id: string }[];
   const order = orderData[0];
 
   if (!order?.id) return null;
@@ -386,29 +394,29 @@ export async function createOrder(params: {
   );
 
   if (!productRes.ok) {
-    console.error(await productRes.text());
+    console.error("PRODUCT FETCH ERROR:", await productRes.text());
     return null;
   }
 
-  const products = await productRes.json() as Array<{
+  const products = await productRes.json() as {
     id: string;
     seller_id: string;
     name: string;
     slug: string | null;
     thumbnail: string | null;
     images: string[] | null;
-  }>;
+  }[];
 
-  const productMap = Object.fromEntries(
-    products.map(p => [p.id, p])
-  );
+  const productMap: Record<string, typeof products[number]> =
+    Object.fromEntries(products.map(p => [p.id, p]));
 
   /* =========================
      4️⃣ INSERT ORDER ITEMS
   ========================= */
   for (const item of items) {
+
     const product = productMap[item.product_id];
-    if (!product) continue;
+    if (!product) return null;
 
     if (!product.thumbnail) {
       console.error("PRODUCT MISSING THUMBNAIL:", product.id);
@@ -423,19 +431,18 @@ export async function createOrder(params: {
         body: JSON.stringify({
           order_id: order.id,
           product_id: item.product_id,
-
           seller_id: product.seller_id,
 
           product_name: product.name,
           product_slug: product.slug ?? null,
-          thumbnail: product.thumbnail, // ✅ guaranteed not null
+          thumbnail: product.thumbnail,
           images: product.images ?? [],
 
           unit_price: toMicroPi(item.price),
           quantity: item.quantity,
           total_price: toMicroPi(item.price * item.quantity),
 
-          status: "pending",
+          status: "unpaid", // ✅ FIXED (quan trọng)
         }),
       }
     );
@@ -446,7 +453,7 @@ export async function createOrder(params: {
     }
   }
 
-  return order as unknown as OrderRecord;
+  return order as OrderRecord;
 }
 /* =====================================================
    GET ORDER DETAIL FOR SELLER
