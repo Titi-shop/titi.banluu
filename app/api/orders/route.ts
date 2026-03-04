@@ -72,8 +72,8 @@ export async function POST(req: Request) {
   !shipping.phone.trim() ||
   typeof shipping.address !== "string" ||
   !shipping.address.trim() ||
-  typeof shipping.city !== "string" ||
-  !shipping.city.trim() ||
+  typeof shipping.provider !== "string" ||
+  !shipping.provider.trim() ||
   typeof shipping.country !== "string" ||
   !shipping.country.trim()
 ) {
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
   name: shipping.name.trim(),
   phone: shipping.phone.trim(),
   address: shipping.address.trim(),
-  city: shipping.city.trim(),
+  provider: shipping.provider.trim(),
   country: shipping.country.trim(),
   postal_code:
     typeof shipping.postal_code === "string" &&
