@@ -220,7 +220,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
     onError: () => {
       setProcessing(false);
-    },
+   
   }
 );
 
