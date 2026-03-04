@@ -300,43 +300,41 @@ export async function createOrder(params: {
   }[];
   total: number;
   shipping: {
-  name: string;
-  phone: string;
-  address: string;
-  provider: string;       
-  country: string;         
-  postal_code?: string | null; 
-};
+    name: string;
+    phone: string;
+    address: string;
+    provider: string;
+    country: string;
+    postal_code?: string | null;
+  };
 }): Promise<OrderRecord | null> {
-
   const { buyerPiUid, items, total, shipping } = params;
 
   /* =========================
      1️⃣ CALCULATE SUBTOTAL
   ========================= */
   const subtotal = items.reduce(
-  (sum, i) => sum + i.price * i.quantity,
-  0
-);
+    (sum, i) => sum + i.price * i.quantity,
+    0
+  );
 
-const microSubtotal = toMicroPi(subtotal);
-const microTotal = toMicroPi(total);
+  const microSubtotal = toMicroPi(subtotal);
+  const microTotal = toMicroPi(total);
 
-// 🚨 PROTECT DB CONSTRAINT
-if (microSubtotal < 1 || microTotal < 1) {
-  console.error("AMOUNT BELOW MINIMUM", {
-    subtotal,
-    total,
-    microSubtotal,
-    microTotal,
-  });
-  return null;
-}
+  if (microSubtotal < 1 || microTotal < 1) {
+    console.error("AMOUNT BELOW MINIMUM", {
+      subtotal,
+      total,
+      microSubtotal,
+      microTotal,
+    });
+    return null;
+  }
 
   const order_number = `ORD-${Date.now()}`;
 
   /* =========================
-     2️⃣ CREATE ORDER (FIXED)
+     2️⃣ CREATE ORDER
   ========================= */
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders`,
@@ -347,23 +345,23 @@ if (microSubtotal < 1 || microTotal < 1) {
         Prefer: "return=representation",
       },
       body: JSON.stringify({
-  order_number,
-  buyer_id: buyerPiUid,
+        order_number,
+        buyer_id: buyerPiUid,
 
-  subtotal: microSubtotal,
-  total: microTotal,
+        subtotal: microSubtotal,
+        total: microTotal,
 
-  shipping_name: shipping.name,
-  shipping_phone: shipping.phone,
-  shipping_address: shipping.address,
-  shipping_provider: shipping.city,
-  shipping_country: shipping.country,          // ✅ thêm
-  shipping_postal_code: shipping.postal_code,  // ✅ thêm
+        shipping_name: shipping.name,
+        shipping_phone: shipping.phone,
+        shipping_address: shipping.address,
+        shipping_provider: shipping.provider, // ✅ FIXED
+        shipping_country: shipping.country,
+        shipping_postal_code: shipping.postal_code ?? null,
 
-  status: "pending",
-  payment_status: "pending",
-  currency: "PI",
-}),
+        status: "unpaid",          // ✅ FIXED
+        payment_status: "unpaid",  // ✅ FIXED
+        currency: "PI",
+      }),
     }
   );
 
@@ -372,17 +370,18 @@ if (microSubtotal < 1 || microTotal < 1) {
     return null;
   }
 
-  const [order] = await orderRes.json() as Array<{ id: string }>;
+  const orderData = (await orderRes.json()) as Array<{ id: string }>;
+  const order = orderData[0];
 
   if (!order?.id) return null;
 
   /* =========================
-     3️⃣ FETCH SELLER MAP
+     3️⃣ FETCH PRODUCT SNAPSHOT
   ========================= */
   const productIds = items.map(i => `"${i.product_id}"`).join(",");
 
   const productRes = await fetch(
-  `${SUPABASE_URL}/rest/v1/products?id=in.(${productIds})&select=id,seller_id,name,slug,thumbnail`,
+    `${SUPABASE_URL}/rest/v1/products?id=in.(${productIds})&select=id,seller_id,name,slug,thumbnail,images`,
     { headers: headers(), cache: "no-store" }
   );
 
@@ -392,50 +391,59 @@ if (microSubtotal < 1 || microTotal < 1) {
   }
 
   const products = await productRes.json() as Array<{
-  id: string;
-  seller_id: string;
-  name: string;
-  slug: string | null;
-  thumbnail: string | null;
-}>;
+    id: string;
+    seller_id: string;
+    name: string;
+    slug: string | null;
+    thumbnail: string | null;
+    images: string[] | null;
+  }>;
 
   const productMap = Object.fromEntries(
-  products.map(p => [p.id, p])
-);
+    products.map(p => [p.id, p])
+  );
 
   /* =========================
      4️⃣ INSERT ORDER ITEMS
   ========================= */
-  
-   for (const item of items) {
+  for (const item of items) {
+    const product = productMap[item.product_id];
+    if (!product) continue;
 
-  const product = productMap[item.product_id];
+    if (!product.thumbnail) {
+      console.error("PRODUCT MISSING THUMBNAIL:", product.id);
+      return null;
+    }
 
-  if (!product) continue;
+    const insertItemRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/order_items`,
+      {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({
+          order_id: order.id,
+          product_id: item.product_id,
 
-    await fetch(
-  `${SUPABASE_URL}/rest/v1/order_items`,
-  {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({
-  order_id: order.id,
-  product_id: item.product_id,
+          seller_id: product.seller_id,
 
-  seller_id: product.seller_id,  
+          product_name: product.name,
+          product_slug: product.slug ?? null,
+          thumbnail: product.thumbnail, // ✅ guaranteed not null
+          images: product.images ?? [],
 
-  product_name: product.name,     
-  product_slug: product.slug ?? null,
-  thumbnail: product.thumbnail ?? null,
+          unit_price: toMicroPi(item.price),
+          quantity: item.quantity,
+          total_price: toMicroPi(item.price * item.quantity),
 
-  unit_price: toMicroPi(item.price),            
-  quantity: item.quantity,
-  total_price: toMicroPi(item.price * item.quantity), 
+          status: "pending",
+        }),
+      }
+    );
 
-  status: "pending",
-}),
-  }
-);
+    if (!insertItemRes.ok) {
+      console.error("ORDER ITEM INSERT ERROR:", await insertItemRes.text());
+      return null;
+    }
   }
 
   return order as unknown as OrderRecord;
