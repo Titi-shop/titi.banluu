@@ -291,7 +291,6 @@ const sellerItems = o.order_items.filter(
 /* =====================================================
    CREATE ORDER
 ===================================================== */
-
 export async function createOrder(params: {
   buyerPiUid: string;
   items: {
@@ -304,46 +303,13 @@ export async function createOrder(params: {
     name: string;
     phone: string;
     address: string;
-    provider: string;
-    country: string;
-    postal_code?: string | null;
   };
 }): Promise<OrderRecord | null> {
 
   const { buyerPiUid, items, total, shipping } = params;
 
   /* =========================
-     1️⃣ VALIDATION
-  ========================= */
-  if (!items.length) return null;
-
-  const subtotal = items.reduce(
-    (sum, i) => sum + i.price * i.quantity,
-    0
-  );
-
-  const microSubtotal = toMicroPi(subtotal);
-  const microTotal = toMicroPi(total);
-
-  if (microSubtotal < 1 || microTotal < 1) {
-    console.error("AMOUNT BELOW MINIMUM", {
-      subtotal,
-      total,
-      microSubtotal,
-      microTotal,
-    });
-    return null;
-  }
-
-  if (microTotal < microSubtotal) {
-    console.error("TOTAL INVALID");
-    return null;
-  }
-
-  const order_number = `ORD-${Date.now()}`;
-
-  /* =========================
-     2️⃣ CREATE ORDER
+     1️⃣ CREATE ORDER
   ========================= */
   const orderRes = await fetch(
     `${SUPABASE_URL}/rest/v1/orders`,
@@ -354,98 +320,84 @@ export async function createOrder(params: {
         Prefer: "return=representation",
       },
       body: JSON.stringify({
-        order_number,
         buyer_id: buyerPiUid,
-
-        subtotal: microSubtotal,
-        total: microTotal,
-
-        shipping_name: shipping.name,
-        shipping_phone: shipping.phone,
-        shipping_address: shipping.address,
-        shipping_provider: shipping.provider,
-        shipping_country: shipping.country,
-        shipping_postal_code: shipping.postal_code ?? null,
-
+        buyer_name: shipping.name,
+        buyer_phone: shipping.phone,
+        buyer_address: shipping.address,
+        total: toMicroPi(total),
         status: "pending",
-        payment_status: "unpaid",
-        currency: "PI",
       }),
     }
   );
 
   if (!orderRes.ok) {
-    console.error("ORDER INSERT ERROR:", await orderRes.text());
+    console.error(await orderRes.text());
     return null;
   }
 
-  const orderData = (await orderRes.json()) as { id: string }[];
-  const order = orderData[0];
+  const [order] = await orderRes.json() as Array<{ id: string }>;
 
   if (!order?.id) return null;
 
   /* =========================
-     3️⃣ FETCH PRODUCT SNAPSHOT
+     2️⃣ FETCH SELLER MAP
   ========================= */
   const productIds = items.map(i => `"${i.product_id}"`).join(",");
 
   const productRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/products?id=in.(${productIds})&select=id,seller_id,name,slug,thumbnail,images`,
+    `${SUPABASE_URL}/rest/v1/products?id=in.(${productIds})&select=id,seller_id`,
     { headers: headers(), cache: "no-store" }
   );
 
   if (!productRes.ok) {
-    console.error("PRODUCT FETCH ERROR:", await productRes.text());
+    console.error(await productRes.text());
     return null;
   }
 
-  const products = await productRes.json() as {
+  const products = await productRes.json() as Array<{
     id: string;
     seller_id: string;
-    name: string;
-    slug: string | null;
-    thumbnail: string | null;
-    images: string[] | null;
-  }[];
+  }>;
 
-  const productMap: Record<string, typeof products[number]> =
-    Object.fromEntries(products.map(p => [p.id, p]));
+  const sellerMap: Record<string, string> =
+    Object.fromEntries(products.map(p => [p.id, p.seller_id]));
 
   /* =========================
-     4️⃣ INSERT ORDER ITEMS
+     3️⃣ INSERT ORDER ITEMS
   ========================= */
   for (const item of items) {
 
-    
-const fallbackThumbnail =
-  product.thumbnail ??
-  (Array.isArray(product.images) && product.images.length > 0
-    ? product.images[0]
-    : "/placeholder.png"); // hoặc null nếu bạn muốn
+    const seller = sellerMap[item.product_id];
 
-const insertItemRes = await fetch(
-  `${SUPABASE_URL}/rest/v1/order_items`,
-  {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({
-      order_id: order.id,
-      product_id: item.product_id,
-      seller_id: product.seller_id,
+    if (!seller) {
+      console.error("SELLER_NOT_FOUND_FOR_PRODUCT", item.product_id);
+      continue;
+    }
 
-      product_name: product.name,
-      product_slug: product.slug ?? null,
-      thumbnail: fallbackThumbnail,
-      images: product.images ?? [],
+    const itemRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/order_items`,
+      {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({
+          order_id: order.id,
+          product_id: item.product_id,
+          seller_pi_uid: seller,
+          quantity: item.quantity,
+          price: toMicroPi(item.price),
+          status: "pending",
+        }),
+      }
+    );
 
-      unit_price: toMicroPi(item.price),
-      quantity: item.quantity,
-      total_price: toMicroPi(item.price * item.quantity),
-
-      status: "pending",
-    }),
+    if (!itemRes.ok) {
+      console.error(await itemRes.text());
+    }
   }
-);
+
+  return order as unknown as OrderRecord;
+}
+
 /* =====================================================
    GET ORDER DETAIL FOR SELLER
 ===================================================== */
