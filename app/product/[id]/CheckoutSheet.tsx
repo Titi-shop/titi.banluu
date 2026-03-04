@@ -211,7 +211,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   onClose();
   router.push("/customer/pending");
-}
+},
 
           onCancel: () => setProcessing(false),
           onError: () => setProcessing(false),
