@@ -52,18 +52,25 @@ export async function POST(req: Request) {
     }
 
     for (const i of items) {
-      if (
-        !i.product_id ||
-        typeof i.quantity !== "number" ||
-        typeof i.price !== "number"
-      ) {
-        return NextResponse.json(
-          { error: "INVALID_ORDER_ITEM", item: i },
-          { status: 400 }
-        );
-      }
-    }
-
+  if (
+    !i.product_id ||
+    typeof i.quantity !== "number" ||
+    i.quantity <= 0 ||
+    typeof i.price !== "number" ||
+    i.price <= 0
+  ) {
+    return NextResponse.json(
+      { error: "INVALID_ORDER_ITEM", item: i },
+      { status: 400 }
+    );
+  }
+}
+    if (total <= 0) {
+  return NextResponse.json(
+    { error: "INVALID_TOTAL" },
+    { status: 400 }
+  );
+}
     if (
   !shipping ||
   typeof shipping.name !== "string" ||
@@ -108,10 +115,6 @@ export async function POST(req: Request) {
       );
     }
 
-    for (const item of items) {
-      const rpcRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/rpc/increment_product_sold`,
-        {
           method: "POST",
           headers: {
             apikey: SERVICE_KEY,
