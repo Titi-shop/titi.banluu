@@ -850,52 +850,67 @@ export async function getOrderByIdForBuyer(
 /* =====================================================
    GET ORDER BY PAYMENT ID
 ===================================================== */
-export async function getOrderByPaymentId(
-  paymentId: string
-): Promise<OrderRecord | null> {
+/* =====================================================
+   GET ORDER BY PI PAYMENT ID
+   - Idempotent safe
+   - Production ready
+===================================================== */
+
+export async function getOrderByPiPaymentId(
+  piPaymentId: string
+): Promise<{
+  id: string;
+  status: string;
+  total: number;
+  created_at: string;
+  pi_payment_id: string;
+  order_items: {
+    product_id: string;
+    quantity: number;
+    price: number;
+    status: string;
+  }[];
+} | null> {
+
+  if (!piPaymentId || !piPaymentId.trim()) {
+    return null;
+  }
 
   const select =
-    "id,status,total,created_at,payment_id," +
-    "order_items(quantity,price,product_id,status)";
+    "id,status,total,created_at,pi_payment_id," +
+    "order_items(product_id,quantity,price,status)";
 
   const url =
     `${SUPABASE_URL}/rest/v1/orders` +
-    `?payment_id=eq.${encodeURIComponent(paymentId)}` +
+    `?pi_payment_id=eq.${encodeURIComponent(piPaymentId)}` +
     `&select=${select}`;
 
   const res = await fetch(url, {
-    headers: headers(),
+    headers: {
+      apikey: SERVICE_KEY,
+      Authorization: `Bearer ${SERVICE_KEY}`,
+    },
     cache: "no-store",
   });
 
   if (!res.ok) {
-    console.error("GET ORDER BY PAYMENT ERROR:", await res.text());
+    console.error("GET ORDER BY PI PAYMENT ERROR");
     return null;
   }
 
-  const data = await res.json();
+  const data = await res.json() as {
+    id: string;
+    status: string;
+    total: number;
+    created_at: string;
+    pi_payment_id: string;
+    order_items: {
+      product_id: string;
+      quantity: number;
+      price: number;
+      status: string;
+    }[];
+  }[];
 
-  if (!data.length) return null;
-
-  const raw = data[0];
-
-  const productIds = [
-    ...new Set(raw.order_items.map((i: any) => i.product_id)),
-  ];
-
-  const productsMap = await fetchProductsMap(productIds);
-
-  return {
-    id: raw.id,
-    status: raw.status,
-    total: fromMicroPi(raw.total),
-    created_at: raw.created_at,
-    order_items: raw.order_items.map((i: any) => ({
-      product_id: i.product_id,
-      quantity: i.quantity,
-      price: fromMicroPi(i.price),
-      status: i.status,
-      product: productsMap[i.product_id],
-    })),
-  };
+  return data.length > 0 ? data[0] : null;
 }
