@@ -151,24 +151,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   setProcessing(false);
   return;
 }
-
-       // 🔥 Force cancel payment pending trước khi tạo mới
-const token = await getPiAccessToken();
-if (!token) {
-  setProcessing(false);
-  return;
-}
-
-try {
-  await fetch("/api/pi/force-cancel", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-} catch {
-  console.log("Force cancel failed (có thể không có payment pending)");
-}
       await window.Pi.createPayment(
         {
           amount: Number(total),
@@ -201,20 +183,9 @@ try {
 },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
-  const token = await getPiAccessToken();
-
-  if (!token) {
-    alert("Không lấy được token");
-    setProcessing(false);
-    return;
-  }
-
   const completeRes = await fetch("/api/pi/complete", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ paymentId, txid }),
   });
 
@@ -224,8 +195,34 @@ try {
     return;
   }
 
-  // ⚠️ Nếu backend đã createOrder trong /complete
-  // thì KHÔNG cần gọi /api/orders nữa
+  const normalizedShipping = {
+  name: shipping.name,
+  phone: shipping.phone,
+  address: shipping.address_line,
+  provider: shipping.province,
+  country: shipping.country,
+  postal_code: shipping.postal_code ?? null,
+};
+             
+const orderRes = await apiAuthFetch("/api/orders", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    items: [{
+      product_id: item.id,
+      quantity,
+      price: unitPrice,
+    }],
+    total,
+    shipping: normalizedShipping,
+  }),
+});
+
+  if (!orderRes.ok) {
+    alert("Tạo order thất bại");
+    setProcessing(false);
+    return;
+  }
 
   onClose();
   router.push("/customer/pending");
