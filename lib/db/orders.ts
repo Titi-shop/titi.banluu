@@ -291,6 +291,7 @@ const sellerItems = o.order_items.filter(
 /* =====================================================
    CREATE ORDER
 ===================================================== */
+đây là đoạn cần kiểm tra .
 export async function createOrder(params: {
   buyerPiUid: string;
   items: {
@@ -366,7 +367,7 @@ export async function createOrder(params: {
         shipping_country: shipping.country,
         shipping_postal_code: shipping.postal_code ?? null,
 
-        status: "unpaid",
+        status: "pending",
         payment_status: "unpaid",
         currency: "PI",
       }),
@@ -413,53 +414,38 @@ export async function createOrder(params: {
   /* =========================
      4️⃣ INSERT ORDER ITEMS
   ========================= */
-  /* =========================
-   4️⃣ INSERT ORDER ITEMS
-========================= */
-for (const item of items) {
+  for (const item of items) {
 
-  const product = productMap[item.product_id];
+    
+const fallbackThumbnail =
+  product.thumbnail ??
+  (Array.isArray(product.images) && product.images.length > 0
+    ? product.images[0]
+    : "/placeholder.png"); // hoặc null nếu bạn muốn
 
-  if (!product) {
-    console.error("PRODUCT NOT FOUND:", item.product_id);
-    return null;
+const insertItemRes = await fetch(
+  `${SUPABASE_URL}/rest/v1/order_items`,
+  {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      order_id: order.id,
+      product_id: item.product_id,
+      seller_id: product.seller_id,
+
+      product_name: product.name,
+      product_slug: product.slug ?? null,
+      thumbnail: fallbackThumbnail,
+      images: product.images ?? [],
+
+      unit_price: toMicroPi(item.price),
+      quantity: item.quantity,
+      total_price: toMicroPi(item.price * item.quantity),
+
+      status: "pending",
+    }),
   }
-
-  const fallbackThumbnail =
-    product.thumbnail ??
-    (Array.isArray(product.images) && product.images.length > 0
-      ? product.images[0]
-      : "/placeholder.png");
-
-  const insertItemRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/order_items`,
-    {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify({
-        order_id: order.id,
-        product_id: item.product_id,
-        seller_id: product.seller_id,
-
-        product_name: product.name,
-        product_slug: product.slug ?? null,
-        thumbnail: fallbackThumbnail,
-        images: product.images ?? [],
-
-        unit_price: toMicroPi(item.price),
-        quantity: item.quantity,
-        total_price: toMicroPi(item.price * item.quantity),
-
-        status: "unpaid",
-      }),
-    }
-  );
-
-  if (!insertItemRes.ok) {
-    console.error("ORDER ITEM INSERT ERROR:", await insertItemRes.text());
-    return null;
-  }
-}
+);
 /* =====================================================
    GET ORDER DETAIL FOR SELLER
 ===================================================== */
