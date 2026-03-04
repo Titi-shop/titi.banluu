@@ -812,3 +812,56 @@ export async function getOrderByIdForBuyer(
     })),
   };
 }
+
+/* =====================================================
+   GET ORDER BY PAYMENT ID
+===================================================== */
+export async function getOrderByPaymentId(
+  paymentId: string
+): Promise<OrderRecord | null> {
+
+  const select =
+    "id,status,total,created_at,payment_id," +
+    "order_items(quantity,price,product_id,status)";
+
+  const url =
+    `${SUPABASE_URL}/rest/v1/orders` +
+    `?payment_id=eq.${encodeURIComponent(paymentId)}` +
+    `&select=${select}`;
+
+  const res = await fetch(url, {
+    headers: headers(),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    console.error("GET ORDER BY PAYMENT ERROR:", await res.text());
+    return null;
+  }
+
+  const data = await res.json();
+
+  if (!data.length) return null;
+
+  const raw = data[0];
+
+  const productIds = [
+    ...new Set(raw.order_items.map((i: any) => i.product_id)),
+  ];
+
+  const productsMap = await fetchProductsMap(productIds);
+
+  return {
+    id: raw.id,
+    status: raw.status,
+    total: fromMicroPi(raw.total),
+    created_at: raw.created_at,
+    order_items: raw.order_items.map((i: any) => ({
+      product_id: i.product_id,
+      quantity: i.quantity,
+      price: fromMicroPi(i.price),
+      status: i.status,
+      product: productsMap[i.product_id],
+    })),
+  };
+}
