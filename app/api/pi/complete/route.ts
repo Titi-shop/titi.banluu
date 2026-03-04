@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ interface CompleteBody {
 export async function POST(req: Request) {
   try {
     /* =========================
-       AUTH CHECK (Bearer Token)
+       AUTH CHECK
     ========================= */
     const authHeader = req.headers.get("authorization");
 
@@ -34,7 +35,6 @@ export async function POST(req: Request) {
        BODY VALIDATION
     ========================= */
     const body: CompleteBody = await req.json();
-
     const { paymentId, txid } = body;
 
     if (!paymentId || !txid) {
@@ -44,13 +44,9 @@ export async function POST(req: Request) {
       );
     }
 
-    /* =========================
-       PI API KEY CHECK
-    ========================= */
     const apiKey = process.env.PI_API_KEY;
 
     if (!apiKey) {
-      console.error("PI_API_KEY missing");
       return NextResponse.json(
         { error: "SERVER_CONFIG_ERROR" },
         { status: 500 }
@@ -58,9 +54,9 @@ export async function POST(req: Request) {
     }
 
     /* =========================
-       COMPLETE PAYMENT ON PI
+       COMPLETE PAYMENT
     ========================= */
-    const piRes = await fetch(
+    const completeRes = await fetch(
       `https://api.minepi.com/v2/payments/${paymentId}/complete`,
       {
         method: "POST",
@@ -72,20 +68,108 @@ export async function POST(req: Request) {
       }
     );
 
-    const data = await piRes.json();
+    const completeData = await completeRes.json();
 
-    if (!piRes.ok) {
-      console.error("PI COMPLETE FAILED:", data);
+    if (!completeRes.ok) {
       return NextResponse.json(
-        { error: "PI_COMPLETE_FAILED", details: data },
-        { status: piRes.status }
+        { error: "PI_COMPLETE_FAILED", details: completeData },
+        { status: completeRes.status }
       );
     }
 
     /* =========================
-       SUCCESS
+       FETCH PAYMENT DETAIL
     ========================= */
-    return NextResponse.json(data);
+    const paymentRes = await fetch(
+      `https://api.minepi.com/v2/payments/${paymentId}`,
+      {
+        headers: {
+          Authorization: `Key ${apiKey}`,
+        },
+      }
+    );
+
+    const payment = await paymentRes.json();
+
+    if (!paymentRes.ok) {
+      return NextResponse.json(
+        { error: "PI_FETCH_FAILED" },
+        { status: 500 }
+      );
+    }
+
+    /* =========================
+       VERIFY PAYMENT
+    ========================= */
+    if (payment.status !== "COMPLETED") {
+      return NextResponse.json(
+        { error: "PAYMENT_NOT_COMPLETED" },
+        { status: 400 }
+      );
+    }
+
+    if (!payment.metadata) {
+      return NextResponse.json(
+        { error: "MISSING_METADATA" },
+        { status: 400 }
+      );
+    }
+
+    const metadata = payment.metadata;
+
+    /* =========================
+       IDEMPOTENCY CHECK
+    ========================= */
+    const existing = await query(
+      `SELECT id FROM orders WHERE payment_id = $1 LIMIT 1`,
+      [paymentId]
+    );
+
+    if (existing.rows.length > 0) {
+      return NextResponse.json({ success: true });
+    }
+
+    /* =========================
+       INSERT ORDER
+    ========================= */
+    await query(
+      `
+      INSERT INTO orders (
+        payment_id,
+        txid,
+        user_uid,
+        product_id,
+        quantity,
+        price,
+        shipping_name,
+        shipping_phone,
+        shipping_address,
+        shipping_province,
+        shipping_country,
+        shipping_postal_code,
+        status
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending'
+      )
+      `,
+      [
+        paymentId,
+        txid,
+        payment.user_uid,
+        metadata.item.product_id,
+        metadata.item.quantity,
+        metadata.item.price,
+        metadata.shipping.name,
+        metadata.shipping.phone,
+        metadata.shipping.address_line,
+        metadata.shipping.province,
+        metadata.shipping.country ?? null,
+        metadata.shipping.postal_code ?? null,
+      ]
+    );
+
+    return NextResponse.json({ success: true });
 
   } catch (error: unknown) {
     console.error("PI COMPLETE SERVER ERROR:", error);
