@@ -136,96 +136,99 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
      PAY WITH PI
   ========================= */
   const handlePay = async () => {
-    if (!window.Pi || !piReady || !user || !shipping || !item) {
-      alert(t.transaction_failed);
+  if (!window.Pi || !piReady || !user || !shipping || !item) {
+    alert(t.transaction_failed);
+    return;
+  }
+
+  if (processing) return;
+  setProcessing(true);
+
+  try {
+    if (total < 0.0000001) {
+      alert("Số Pi quá nhỏ để thanh toán");
+      setProcessing(false);
       return;
     }
 
-    if (processing) return;
-    setProcessing(true);
-
-    try {
-       if (total < 0.0000001) {
-  alert("Số Pi quá nhỏ để thanh toán");
-  setProcessing(false);
-  return;
-}
-      await window.Pi.createPayment(
-  {
-    amount: Number(total.toFixed(7)),
-    memo: "Thanh toán đơn hàng TiTi",
-    metadata: {
-      shipping,
-      item: {
-        product_id: item.id,
-        quantity,
-        price: unitPrice,
+    await window.Pi.createPayment(
+      {
+        amount: Number(total.toFixed(7)),
+        memo: "Thanh toán đơn hàng TiTi",
+        metadata: {
+          shipping,
+          item: {
+            product_id: item.id,
+            quantity,
+            price: unitPrice,
+          },
+        },
       },
-    },
-  },
-  {
-    onReadyForServerApproval: async (paymentId: string) => {
-      const token = await getPiAccessToken();
-      if (!token) {
-        setProcessing(false);
-        return;
-      }
+      {
+        onReadyForServerApproval: async (paymentId: string) => {
+          const token = await getPiAccessToken();
+          if (!token) {
+            setProcessing(false);
+            return;
+          }
 
-      const res = await fetch("/api/pi/approve", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          const res = await fetch("/api/pi/approve", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ paymentId }),
+          });
+
+          if (!res.ok) {
+            setProcessing(false);
+            throw new Error("Approve failed");
+          }
         },
-        body: JSON.stringify({ paymentId }),
-      });
 
-      if (!res.ok) {
-        setProcessing(false);
-        throw new Error("Approve failed");
-      }
-    },
+        onReadyForServerCompletion: async (
+          paymentId: string,
+          txid: string
+        ) => {
+          const token = await getPiAccessToken();
+          if (!token) {
+            setProcessing(false);
+            return;
+          }
 
-    onReadyForServerCompletion: async (
-      paymentId: string,
-      txid: string
-    ) => {
-      const token = await getPiAccessToken();
-      if (!token) {
-        setProcessing(false);
-        return;
-      }
+          const res = await fetch("/api/pi/complete", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ paymentId, txid }),
+          });
 
-      const res = await fetch("/api/pi/complete", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          if (!res.ok) {
+            setProcessing(false);
+            return;
+          }
+
+          onClose();
+          router.push("/customer/pending");
         },
-        body: JSON.stringify({ paymentId, txid }),
-      });
 
-      if (!res.ok) {
-        setProcessing(false);
-        return;
+        onCancel: () => {
+          setProcessing(false);
+        },
+
+        onError: () => {
+          setProcessing(false);
+        },
       }
-
-      onClose();
-      router.push("/customer/pending");
-    },
-
-    onCancel: () => {
-      setProcessing(false);
-    },
-
-    onError: () => {
-      setProcessing(false);
-   
+    );
+  } catch {
+    alert(t.transaction_failed);
+    setProcessing(false);
   }
-);
-
-  if (!open || !item) return null;
-
+};
   /* =========================
      UI
   ========================= */
