@@ -181,11 +181,19 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     body: JSON.stringify({ paymentId }),
   });
 },
+onReadyForServerCompletion: async (paymentId, txid) => {
+  const token = await getPiAccessToken();
+  if (!token) {
+    setProcessing(false);
+    return;
+  }
 
-          onReadyForServerCompletion: async (paymentId, txid) => {
   const completeRes = await fetch("/api/pi/complete", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${token}`, // 🔥 BẮT BUỘC
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ paymentId, txid }),
   });
 
@@ -195,37 +203,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     return;
   }
 
-  const normalizedShipping = {
-  name: shipping.name,
-  phone: shipping.phone,
-  address: shipping.address_line,
-  provider: shipping.province,
-  country: shipping.country,
-  postal_code: shipping.postal_code ?? null,
-};
-             
-const orderRes = await apiAuthFetch("/api/orders", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    items: [{
-      product_id: item.id,
-      quantity,
-      price: unitPrice,
-    }],
-    total,
-    shipping: normalizedShipping,
-  }),
-});
-
-  if (!orderRes.ok) {
-    alert("Tạo order thất bại");
-    setProcessing(false);
-    return;
-  }
-
+  // ✅ Không gọi /api/orders nữa
   onClose();
   router.push("/customer/pending");
+},
 },
 
           onCancel: () => setProcessing(false),
