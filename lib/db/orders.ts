@@ -415,46 +415,36 @@ export async function createOrder(params: {
   ========================= */
   for (const item of items) {
 
-    const product = productMap[item.product_id];
-    if (!product) return null;
+    
+const fallbackThumbnail =
+  product.thumbnail ??
+  (Array.isArray(product.images) && product.images.length > 0
+    ? product.images[0]
+    : "/placeholder.png"); // hoặc null nếu bạn muốn
 
-    if (!product.thumbnail) {
-      console.error("PRODUCT MISSING THUMBNAIL:", product.id);
-      return null;
-    }
+const insertItemRes = await fetch(
+  `${SUPABASE_URL}/rest/v1/order_items`,
+  {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      order_id: order.id,
+      product_id: item.product_id,
+      seller_id: product.seller_id,
 
-    const insertItemRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/order_items`,
-      {
-        method: "POST",
-        headers: headers(),
-        body: JSON.stringify({
-          order_id: order.id,
-          product_id: item.product_id,
-          seller_id: product.seller_id,
+      product_name: product.name,
+      product_slug: product.slug ?? null,
+      thumbnail: fallbackThumbnail,
+      images: product.images ?? [],
 
-          product_name: product.name,
-          product_slug: product.slug ?? null,
-          thumbnail: product.thumbnail,
-          images: product.images ?? [],
+      unit_price: toMicroPi(item.price),
+      quantity: item.quantity,
+      total_price: toMicroPi(item.price * item.quantity),
 
-          unit_price: toMicroPi(item.price),
-          quantity: item.quantity,
-          total_price: toMicroPi(item.price * item.quantity),
-
-          status: "unpaid", // ✅ FIXED (quan trọng)
-        }),
-      }
-    );
-
-    if (!insertItemRes.ok) {
-      console.error("ORDER ITEM INSERT ERROR:", await insertItemRes.text());
-      return null;
-    }
+      status: "unpaid",
+    }),
   }
-
-  return order as OrderRecord;
-}
+);
 /* =====================================================
    GET ORDER DETAIL FOR SELLER
 ===================================================== */
