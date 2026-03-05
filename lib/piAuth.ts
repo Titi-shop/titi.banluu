@@ -2,16 +2,11 @@ let cachedToken: string | null = null;
 let authPromise: Promise<string> | null = null;
 
 /* =========================
-   CLIENT: Get Pi access token
+   CLIENT: GET ACCESS TOKEN
 ========================= */
-export async function getPiAccessToken(): Promise<string> {
-  if (cachedToken) {
-    return cachedToken;
-  }
 
-  if (authPromise) {
-    return authPromise;
-  }
+export async function getPiAccessToken(): Promise<string> {
+  if (authPromise) return authPromise;
 
   if (typeof window === "undefined" || !window.Pi) {
     throw new Error("PI_NOT_AVAILABLE");
@@ -38,25 +33,40 @@ export async function getPiAccessToken(): Promise<string> {
 }
 
 /* =========================
-   SERVER: Verify Pi token
+   SERVER: VERIFY TOKEN
 ========================= */
-export async function verifyPiToken(token: string) {
+
+export type PiUser = {
+  uid: string;
+  username: string;
+};
+
+export async function verifyPiToken(token: string): Promise<PiUser> {
+  if (!token) {
+    throw new Error("PI_TOKEN_MISSING");
+  }
+
   const res = await fetch("https://api.minepi.com/v2/me", {
     headers: {
       Authorization: `Bearer ${token}`,
     },
+    cache: "no-store",
   });
 
   if (!res.ok) {
     throw new Error("PI_TOKEN_INVALID");
   }
 
-  return res.json();
+  const data = await res.json();
+
+  return {
+    uid: data.uid,
+    username: data.username,
+  };
 }
 
-/* =========================
-   Clear cached token
-========================= */
+/* ========================= */
+
 export function clearPiToken() {
   cachedToken = null;
 }
