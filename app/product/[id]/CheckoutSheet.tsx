@@ -193,7 +193,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     const res = await fetch("/api/pi/approve", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
+        
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ paymentId }),
