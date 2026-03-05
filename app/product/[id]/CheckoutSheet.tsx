@@ -218,16 +218,17 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       },
     ],
     total,
-    shipping,
 
-      shippingName: shipping.name,
-      shippingPhone: shipping.phone,
-      shippingAddress: shipping.address_line,
-       shipping_provider = "self"
-      shippingCountry: shipping.country,
-      shippingPostalCode: shipping.postal_code,
-    }),
-  });
+    shipping: {
+      name: shipping.name,
+      phone: shipping.phone,
+      address: shipping.address_line,
+      provider: "self",
+      country: shipping.country,
+      postal_code: shipping.postal_code,
+    },
+  }),
+});
 
   onClose();
   router.push("/customer/pending");
