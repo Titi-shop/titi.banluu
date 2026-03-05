@@ -198,29 +198,41 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
-            await fetch("/api/pi/complete", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentId, txid }),
-            });
 
-            await apiAuthFetch("/api/orders", {
-              method: "POST",
-              body: JSON.stringify({
-                items: [
-                  {
-                    product_id: item.id,
-                    quantity,
-                    price: unitPrice,
-                  },
-                ],
-                total,
-              }),
-            });
+  await fetch("/api/pi/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paymentId, txid }),
+  });
 
-            onClose();
-            router.push("/customer/pending");
-          },
+  await apiAuthFetch("/api/orders", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      paymentId,
+      items: [
+        {
+          product_id: item.id,
+          quantity,
+          price: unitPrice,
+        },
+      ],
+      total,
+
+      shippingName: shipping.name,
+      shippingPhone: shipping.phone,
+      shippingAddress: shipping.address_line,
+
+      shippingCountry: shipping.country,
+      shippingPostalCode: shipping.postal_code,
+    }),
+  });
+
+  onClose();
+  router.push("/customer/pending");
+},
 
           onCancel: () => setProcessing(false),
           onError: () => setProcessing(false),
