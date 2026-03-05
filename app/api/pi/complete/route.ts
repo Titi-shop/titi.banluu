@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 export async function POST(req: Request) {
   try {
-    const { paymentId, txid } = await req.json();
+    const body = await req.json();
+
+    const { paymentId, txid } = body;
 
     if (!paymentId || !txid) {
       return NextResponse.json(
-        { error: "MISSING_PAYMENT_DATA" },
+        { error: "INVALID_PAYMENT_DATA" },
         { status: 400 }
       );
     }
@@ -18,17 +18,25 @@ export async function POST(req: Request) {
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Key ${process.env.PI_API_KEY}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ txid }),
+        body: JSON.stringify({
+          txid,
+        }),
       }
     );
 
-    const text = await res.text();
-    return new NextResponse(text, { status: res.status });
-  } catch (err) {
-    console.error("💥 PI COMPLETE ERROR:", err);
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: "PI_COMPLETE_FAILED" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+
+  } catch {
     return NextResponse.json(
       { error: "SERVER_ERROR" },
       { status: 500 }
