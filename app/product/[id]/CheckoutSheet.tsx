@@ -19,6 +19,19 @@ interface ShippingInfo {
   postal_code?: string | null;
 }
 
+interface AddressApiItem {
+  is_default: boolean;
+  full_name: string;
+  phone: string;
+  address_line: string;
+  province: string;
+  country?: string;
+  postal_code?: string | null;
+}
+
+interface AddressApiResponse {
+  items?: AddressApiItem[];
+}
 
 interface Props {
   open: boolean;
@@ -32,6 +45,15 @@ interface Props {
     images?: string[];
   };
 }
+
+/* =========================
+   HELPERS
+========================= */
+function getCountryDisplay(country?: string) {
+  if (!country) return "";
+  return country;
+}
+
 /* =========================
    COMPONENT
 ========================= */
@@ -43,24 +65,25 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState<string>("1");
-  const quantity = useMemo(() => {
-  const n = Number(qtyDraft);
-  return Number.isInteger(n) && n >= 1 ? n : 1;
-}, [qtyDraft]);
-   
-  const item = useMemo(() => {
-  if (!product) return null;
 
-  return {
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    finalPrice: product.finalPrice,
-    image: product.image,
-    images: product.images,
-    quantity: 1,
-  };
-}, [product]);
+  const quantity = useMemo(() => {
+    const n = Number(qtyDraft);
+    return Number.isInteger(n) && n >= 1 ? n : 1;
+  }, [qtyDraft]);
+
+  const item = useMemo(() => {
+    if (!product) return null;
+
+    return {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      finalPrice: product.finalPrice,
+      image: product.image,
+      images: product.images,
+      quantity: 1,
+    };
+  }, [product]);
 
   /* =========================
      LOCK BODY SCROLL
@@ -71,8 +94,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       document.body.style.overflow = "";
     };
   }, [open]);
-
-
 
   /* =========================
      LOAD ADDRESS
@@ -86,21 +107,21 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         const res = await fetch("/api/address", {
           headers: { Authorization: `Bearer ${token}` },
         });
+
         if (!res.ok) return;
 
-        const data = await res.json();
-        const def = data.items?.find(
-          (a: { is_default: boolean }) => a.is_default
-        );
+        const data: AddressApiResponse = await res.json();
+
+        const def = data.items?.find((a) => a.is_default);
 
         if (def) {
           setShipping({
             name: def.full_name,
             phone: def.phone,
-           address_line: def.address_line,
-           province: def.province,
-           country: def.country,
-           postal_code: def.postal_code ?? null,
+            address_line: def.address_line,
+            province: def.province,
+            country: def.country,
+            postal_code: def.postal_code ?? null,
           });
         }
       } catch {
@@ -115,12 +136,13 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
      PRICE + TOTAL (SALE FIRST)
   ========================= */
   const unitPrice = useMemo(() => {
-  if (!item) return 0;
-  return typeof item.finalPrice === "number"
-    ? item.finalPrice
-    : item.price;
-}, [item]);
-   
+    if (!item) return 0;
+
+    return typeof item.finalPrice === "number"
+      ? item.finalPrice
+      : item.price;
+  }, [item]);
+
   const total = useMemo(() => {
     return unitPrice * quantity;
   }, [unitPrice, quantity]);
@@ -138,11 +160,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     setProcessing(true);
 
     try {
-       if (total < 0.0000001) {
-  alert("Số Pi quá nhỏ để thanh toán");
-  setProcessing(false);
-  return;
-}
+      if (total < 0.0000001) {
+        alert("Số Pi quá nhỏ để thanh toán");
+        setProcessing(false);
+        return;
+      }
+
       await window.Pi.createPayment(
         {
           amount: Number(total),
@@ -158,21 +181,21 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         },
         {
           onReadyForServerApproval: async (paymentId) => {
-  const token = await getPiAccessToken();
-  if (!token) {
-    setProcessing(false);
-    return;
-  }
+            const token = await getPiAccessToken();
+            if (!token) {
+              setProcessing(false);
+              return;
+            }
 
-  await fetch("/api/pi/approve", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ paymentId }),
-  });
-},
+            await fetch("/api/pi/approve", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ paymentId }),
+            });
+          },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
             await fetch("/api/pi/complete", {
@@ -194,6 +217,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
                 total,
               }),
             });
+
             onClose();
             router.push("/customer/pending");
           },
@@ -232,23 +256,25 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           >
             {shipping ? (
               <>
-  <p className="font-medium">{shipping.name}</p>
-  <p className="text-sm text-gray-600">{shipping.phone}</p>
+                <p className="font-medium">{shipping.name}</p>
+                <p className="text-sm text-gray-600">{shipping.phone}</p>
 
-  <p className="text-sm text-gray-500">
-  {shipping.address_line}
-</p>
+                <p className="text-sm text-gray-500">
+                  {shipping.address_line}
+                </p>
 
-<p className="text-sm text-gray-500">
-  {shipping.province}
-</p>
-  <p className="text-sm text-gray-500">
-    {shipping.postal_code}
-  </p>
-  <p className="text-sm text-gray-500">
-    {getCountryDisplay(shipping.country)}
-  </p>
-</>
+                <p className="text-sm text-gray-500">
+                  {shipping.province}
+                </p>
+
+                <p className="text-sm text-gray-500">
+                  {shipping.postal_code}
+                </p>
+
+                <p className="text-sm text-gray-500">
+                  {getCountryDisplay(shipping.country)}
+                </p>
+              </>
             ) : (
               <p className="text-gray-500">➕ {t.add_shipping}</p>
             )}
@@ -267,29 +293,29 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
               </p>
 
               <input
-            type="text"
-          inputMode="numeric"
-       value={qtyDraft}
-         onChange={(e) => {
-          const v = e.target.value;
-    // chỉ cho nhập số hoặc rỗng
-    if (/^\d*$/.test(v)) {
-      setQtyDraft(v);
-       }
-      }}
-      onBlur={() => {
-      if (qtyDraft === "" || Number(qtyDraft) < 1) {
-      setQtyDraft("1");
-      }
-         }}
-         className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-        />
+                type="text"
+                inputMode="numeric"
+                value={qtyDraft}
+                onChange={(e) => {
+                  const v = e.target.value;
+
+                  // chỉ cho nhập số hoặc rỗng
+                  if (/^\d*$/.test(v)) {
+                    setQtyDraft(v);
+                  }
+                }}
+                onBlur={() => {
+                  if (qtyDraft === "" || Number(qtyDraft) < 1) {
+                    setQtyDraft("1");
+                  }
+                }}
+                className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
+              />
             </div>
 
             <p className="font-semibold text-orange-600">
-  {total.toFixed(6)} π
-</p>
-             
+              {total.toFixed(6)} π
+            </p>
           </div>
         </div>
 
