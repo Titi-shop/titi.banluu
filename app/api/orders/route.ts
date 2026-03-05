@@ -1,23 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPiUser } from "@/lib/piAuth";
-import { createOrder, getOrderByPiPaymentId } from "@/lib/db/orders";
+import { getOrderByPiPaymentId, createOrder } from "@/lib/db/orders";
+import { verifyPiToken } from "@/lib/piAuth";
 
 export async function POST(req: NextRequest) {
   try {
+
     /* =========================
-       1. VERIFY PI USER
+       1️⃣ VERIFY TOKEN
     ========================= */
-    const user = await getPiUser(req);
+    const authHeader = req.headers.get("authorization");
+
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: "Missing Authorization header" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+
+    const user = await verifyPiToken(token);
 
     if (!user) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Invalid Pi token" },
         { status: 401 }
       );
     }
 
     /* =========================
-       2. READ BODY
+       2️⃣ READ BODY
     ========================= */
     const body = await req.json();
 
@@ -26,40 +38,30 @@ export async function POST(req: NextRequest) {
       txid,
       items,
       total,
-      shipping
+      shipping,
     } = body;
 
     if (!paymentId || !txid) {
       return NextResponse.json(
-        { error: "Missing Pi payment data" },
+        { error: "Missing payment data" },
         { status: 400 }
       );
     }
 
     /* =========================
-       3. CHECK DUPLICATE ORDER
+       3️⃣ CHECK DUPLICATE
     ========================= */
     const existing = await getOrderByPiPaymentId(paymentId);
 
     if (existing) {
       return NextResponse.json({
         success: true,
-        orderId: existing.id
+        orderId: existing.id,
       });
     }
 
     /* =========================
-       4. VALIDATE ITEMS
-    ========================= */
-    if (!items || items.length === 0) {
-      return NextResponse.json(
-        { error: "No items" },
-        { status: 400 }
-      );
-    }
-
-    /* =========================
-       5. CREATE ORDER
+       4️⃣ CREATE ORDER
     ========================= */
     const order = await createOrder({
       buyerPiUid: user.pi_uid,
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
       piTxid: txid,
       items,
       total,
-      shipping
+      shipping,
     });
 
     if (!order) {
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      orderId: order.id
+      orderId: order.id,
     });
 
   } catch (err) {
