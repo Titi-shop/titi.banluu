@@ -1,36 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getOrderByPiPaymentId, createOrder } from "@/lib/db/orders";
+import { NextResponse } from "next/server";
 import { verifyPiToken } from "@/lib/piAuth";
+import { query } from "@/lib/db";
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
+    const auth = req.headers.get("authorization");
 
-    /* =========================
-       1️⃣ VERIFY TOKEN
-    ========================= */
-    const authHeader = req.headers.get("authorization");
-
-    if (!authHeader) {
+    if (!auth) {
       return NextResponse.json(
-        { error: "Missing Authorization header" },
+        { error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = auth.replace("Bearer ", "");
 
-    const user = await verifyPiToken(token);
+    const piUser = await verifyPiToken(token);
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "Invalid Pi token" },
-        { status: 401 }
-      );
-    }
+    const buyer_id = piUser.uid;
 
-    /* =========================
-       2️⃣ READ BODY
-    ========================= */
     const body = await req.json();
 
     const {
@@ -38,57 +26,60 @@ export async function POST(req: NextRequest) {
       txid,
       items,
       total,
-      shipping,
+      shipping
     } = body;
 
-    if (!paymentId || !txid) {
+    if (!paymentId || !txid || !items?.length) {
       return NextResponse.json(
-        { error: "Missing payment data" },
+        { error: "INVALID_ORDER" },
         { status: 400 }
       );
     }
 
-    /* =========================
-       3️⃣ CHECK DUPLICATE
-    ========================= */
-    const existing = await getOrderByPiPaymentId(paymentId);
+    const order_number =
+      "ORD-" + Date.now().toString().slice(-8);
 
-    if (existing) {
-      return NextResponse.json({
-        success: true,
-        orderId: existing.id,
-      });
-    }
+    await query(
+      `
+      insert into orders (
+        order_number,
+        buyer_id,
+        pi_payment_id,
+        pi_txid,
+        subtotal,
+        total,
+        shipping_name,
+        shipping_phone,
+        shipping_address,
+        shipping_provider,
+        shipping_country,
+        shipping_postal_code
+      )
+      values (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+      )
+    `,
+      [
+        order_number,
+        buyer_id,
+        paymentId,
+        txid,
+        total,
+        total,
+        shipping.name,
+        shipping.phone,
+        shipping.address_line,
+        "self",
+        shipping.country,
+        shipping.postal_code,
+      ]
+    );
 
-    /* =========================
-       4️⃣ CREATE ORDER
-    ========================= */
-    const order = await createOrder({
-      buyerPiUid: user.pi_uid,
-      piPaymentId: paymentId,
-      piTxid: txid,
-      items,
-      total,
-      shipping,
-    });
-
-    if (!order) {
-      return NextResponse.json(
-        { error: "Order creation failed" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      orderId: order.id,
-    });
+    return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error("CREATE ORDER ERROR:", err);
-
     return NextResponse.json(
-      { error: "Server error" },
+      { error: "ORDER_FAILED" },
       { status: 500 }
     );
   }
