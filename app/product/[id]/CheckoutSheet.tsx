@@ -199,36 +199,45 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
           onReadyForServerCompletion: async (paymentId, txid) => {
 
+  const token = await getPiAccessToken();
+
+  if (!token) {
+    setProcessing(false);
+    return;
+  }
+
   await fetch("/api/pi/complete", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ paymentId, txid }),
   });
 
   await apiAuthFetch("/api/orders", {
-  method: "POST",
-  body: JSON.stringify({
-    paymentId,
-    txid,
-    items: [
-      {
-        product_id: item.id,
-        quantity,
-        price: unitPrice,
+    method: "POST",
+    body: JSON.stringify({
+      paymentId,
+      txid,
+      items: [
+        {
+          product_id: item.id,
+          quantity,
+          price: unitPrice,
+        },
+      ],
+      total,
+      shipping: {
+        name: shipping.name,
+        phone: shipping.phone,
+        address: shipping.address_line,
+        provider: "self",
+        country: shipping.country,
+        postal_code: shipping.postal_code,
       },
-    ],
-    total,
-
-    shipping: {
-      name: shipping.name,
-      phone: shipping.phone,
-      address: shipping.address_line,
-      provider: "self",
-      country: shipping.country,
-      postal_code: shipping.postal_code,
-    },
-  }),
-});
+    }),
+  });
 
   onClose();
   router.push("/customer/pending");
