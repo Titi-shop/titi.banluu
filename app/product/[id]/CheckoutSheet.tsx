@@ -206,20 +206,19 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   });
 
   await apiAuthFetch("/api/orders", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      paymentId,
-      items: [
-        {
-          product_id: item.id,
-          quantity,
-          price: unitPrice,
-        },
-      ],
-      total,
+  method: "POST",
+  body: JSON.stringify({
+    paymentId,
+    txid,
+    items: [
+      {
+        product_id: item.id,
+        quantity,
+        price: unitPrice,
+      },
+    ],
+    total,
+    shipping
 
       shippingName: shipping.name,
       shippingPhone: shipping.phone,
