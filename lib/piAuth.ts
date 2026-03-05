@@ -1,7 +1,14 @@
 let cachedToken: string | null = null;
 let authPromise: Promise<string> | null = null;
 
+/* =========================
+   CLIENT: Get Pi access token
+========================= */
 export async function getPiAccessToken(): Promise<string> {
+  if (cachedToken) {
+    return cachedToken;
+  }
+
   if (authPromise) {
     return authPromise;
   }
@@ -30,7 +37,26 @@ export async function getPiAccessToken(): Promise<string> {
   return authPromise;
 }
 
-/* 🔥 Quan trọng: thêm function này */
+/* =========================
+   SERVER: Verify Pi token
+========================= */
+export async function verifyPiToken(token: string) {
+  const res = await fetch("https://api.minepi.com/v2/me", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("PI_TOKEN_INVALID");
+  }
+
+  return res.json();
+}
+
+/* =========================
+   Clear cached token
+========================= */
 export function clearPiToken() {
   cachedToken = null;
 }
