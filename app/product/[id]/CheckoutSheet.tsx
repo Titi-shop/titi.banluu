@@ -223,7 +223,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       shippingName: shipping.name,
       shippingPhone: shipping.phone,
       shippingAddress: shipping.address_line,
-
+       shipping_provider = "self"
       shippingCountry: shipping.country,
       shippingPostalCode: shipping.postal_code,
     }),
