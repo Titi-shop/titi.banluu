@@ -190,10 +190,11 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     return;
   }
 
+  onReadyForServerApproval: async (paymentId) => {
+
   const res = await fetch("/api/pi/approve", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ paymentId }),
@@ -203,6 +204,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     console.error("Approve failed");
     setProcessing(false);
   }
+
 },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
