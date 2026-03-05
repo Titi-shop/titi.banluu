@@ -5,9 +5,11 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+
     /* =========================
        VERIFY USER
     ========================= */
+
     const auth = req.headers.get("authorization");
 
     if (!auth) {
@@ -31,46 +33,94 @@ export async function POST(req: NextRequest) {
     /* =========================
        BODY
     ========================= */
-    const { paymentId } = await req.json();
 
-    if (!paymentId) {
+    const body = await req.json();
+
+    const { paymentId, txid } = body;
+
+    if (!paymentId || !txid) {
       return NextResponse.json(
-        { error: "MISSING_PAYMENT_ID" },
+        { error: "INVALID_PAYMENT_DATA" },
         { status: 400 }
       );
     }
 
     /* =========================
-       APPROVE PAYMENT
+       VERIFY PAYMENT FROM PI
     ========================= */
-    const res = await fetch(
-      `${process.env.PI_API_URL}/${paymentId}/approve`,
+
+    const paymentRes = await fetch(
+      `${process.env.PI_API_URL}/${paymentId}`,
       {
-        method: "POST",
         headers: {
           Authorization: `Key ${process.env.PI_API_KEY}`,
         },
       }
     );
 
-    const data = await res.json();
+    const payment = await paymentRes.json();
 
-    if (!res.ok) {
-      console.error("PI APPROVE ERROR:", data);
+    if (!paymentRes.ok) {
+      console.error("PI VERIFY ERROR:", payment);
 
       return NextResponse.json(
-        { error: "PI_APPROVE_FAILED" },
+        { error: "PI_PAYMENT_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    /* =========================
+       CHECK APPROVED
+    ========================= */
+
+    if (!payment.approved) {
+      return NextResponse.json(
+        { error: "PAYMENT_NOT_APPROVED" },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       COMPLETE PAYMENT
+    ========================= */
+
+    const completeRes = await fetch(
+      `${process.env.PI_API_URL}/${paymentId}/complete`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Key ${process.env.PI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          txid,
+        }),
+      }
+    );
+
+    const completeData = await completeRes.json();
+
+    if (!completeRes.ok) {
+      console.error("PI COMPLETE ERROR:", completeData);
+
+      return NextResponse.json(
+        { error: "PI_COMPLETE_FAILED" },
         { status: 500 }
       );
     }
 
+    /* =========================
+       RETURN SUCCESS
+    ========================= */
+
     return NextResponse.json({
       success: true,
-      payment: data,
+      paymentId,
+      txid,
     });
 
   } catch (err) {
-    console.error("💥 PI APPROVE ERROR:", err);
+    console.error("💥 PI COMPLETE ERROR:", err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
