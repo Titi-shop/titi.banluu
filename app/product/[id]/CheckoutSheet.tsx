@@ -13,8 +13,10 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 interface ShippingInfo {
   name: string;
   phone: string;
-  address: string;
+  address_line: string;
+  province: string;
   country?: string;
+  postal_code?: string | null;
 }
 
 
@@ -93,10 +95,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
         if (def) {
           setShipping({
-            name: def.name,
+            name: def.full_name,
             phone: def.phone,
-            address: def.address,
-            country: def.country,
+           address_line: def.address_line,
+           province: def.province,
+           country: def.country,
+           postal_code: def.postal_code ?? null,
           });
         }
       } catch {
@@ -228,10 +232,23 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           >
             {shipping ? (
               <>
-                <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-600">{shipping.phone}</p>
-                <p className="text-sm text-gray-500">{shipping.address}</p>
-              </>
+  <p className="font-medium">{shipping.name}</p>
+  <p className="text-sm text-gray-600">{shipping.phone}</p>
+
+  <p className="text-sm text-gray-500">
+  {shipping.address_line}
+</p>
+
+<p className="text-sm text-gray-500">
+  {shipping.province}
+</p>
+  <p className="text-sm text-gray-500">
+    {shipping.postal_code}
+  </p>
+  <p className="text-sm text-gray-500">
+    {getCountryDisplay(shipping.country)}
+  </p>
+</>
             ) : (
               <p className="text-gray-500">➕ {t.add_shipping}</p>
             )}
