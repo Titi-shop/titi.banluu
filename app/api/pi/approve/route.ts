@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyPiToken } from "@/lib/piAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,31 @@ export async function POST(req: NextRequest) {
   try {
 
     /* =========================
-       1️⃣ READ BODY
+       1️⃣ VERIFY TOKEN
+    ========================= */
+
+    const auth = req.headers.get("authorization");
+
+    if (!auth) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const token = auth.replace("Bearer ", "").trim();
+
+    const user = await verifyPiToken(token);
+
+    if (!user?.pi_uid) {
+      return NextResponse.json(
+        { error: "INVALID_TOKEN" },
+        { status: 401 }
+      );
+    }
+
+    /* =========================
+       2️⃣ BODY
     ========================= */
 
     const body: ApproveBody = await req.json();
@@ -23,7 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       2️⃣ APPROVE PAYMENT
+       3️⃣ APPROVE PI PAYMENT
     ========================= */
 
     const res = await fetch(
@@ -39,7 +64,7 @@ export async function POST(req: NextRequest) {
     const text = await res.text();
 
     return new NextResponse(text, {
-      status: res.status
+      status: res.status,
     });
 
   } catch (err) {
