@@ -1,36 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { verifyPiToken } from "@/lib/piAuth";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    /* =========================
-       VERIFY USER
-    ========================= */
-    const auth = req.headers.get("authorization");
-
-    if (!auth) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
-
-    const token = auth.replace("Bearer ", "").trim();
-
-    const user = await verifyPiToken(token);
-
-    if (!user?.pi_uid) {
-      return NextResponse.json(
-        { error: "INVALID_TOKEN" },
-        { status: 401 }
-      );
-    }
-
-    /* =========================
-       BODY
-    ========================= */
     const { paymentId } = await req.json();
 
     if (!paymentId) {
@@ -40,11 +13,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* =========================
-       APPROVE PAYMENT
-    ========================= */
     const res = await fetch(
-      `${process.env.PI_API_URL}/${paymentId}/approve`,
+      `https://api.minepi.com/v2/payments/${paymentId}/approve`,
       {
         method: "POST",
         headers: {
@@ -53,10 +23,9 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    const data = await res.json();
-
     if (!res.ok) {
-      console.error("PI APPROVE ERROR:", data);
+      const text = await res.text();
+      console.error("PI APPROVE FAIL:", text);
 
       return NextResponse.json(
         { error: "PI_APPROVE_FAILED" },
@@ -64,13 +33,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      payment: data,
-    });
+    return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error("💥 PI APPROVE ERROR:", err);
+
+    console.error("PI APPROVE ERROR:", err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
