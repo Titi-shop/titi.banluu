@@ -218,7 +218,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       },
     ],
     total,
-    shipping
+    shipping,
 
       shippingName: shipping.name,
       shippingPhone: shipping.phone,
