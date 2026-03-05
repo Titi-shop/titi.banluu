@@ -180,79 +180,76 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           },
         },
         {
-          onReadyForServerApproval: async (paymentId) => {
-
-  const token = await getPiAccessToken();
-
-  if (!token) {
-    alert("Pi token missing");
-    setProcessing(false);
-    return;
-  }
-
+          
   onReadyForServerApproval: async (paymentId) => {
+    const token = await getPiAccessToken();
 
-  const res = await fetch("/api/pi/approve", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ paymentId }),
-  });
+    if (!token) {
+      alert("Pi token missing");
+      setProcessing(false);
+      return;
+    }
 
-  if (!res.ok) {
-    console.error("Approve failed");
-    setProcessing(false);
-  }
+    const res = await fetch("/api/pi/approve", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ paymentId }),
+    });
 
-},
+    if (!res.ok) {
+      console.error("Approve failed");
+      setProcessing(false);
+    }
+  },
 
-          onReadyForServerCompletion: async (paymentId, txid) => {
+  onReadyForServerCompletion: async (paymentId, txid) => {
+    const token = await getPiAccessToken();
 
-  const token = await getPiAccessToken();
+    if (!token) {
+      setProcessing(false);
+      return;
+    }
 
-  if (!token) {
-    setProcessing(false);
-    return;
-  }
+    const res = await fetch("/api/pi/complete", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        paymentId,
+        txid,
+        items: [
+          {
+            product_id: item.id,
+            quantity,
+            price: unitPrice,
+          },
+        ],
+        total,
+        shipping,
+      }),
+    });
 
-  const res = await fetch("/api/pi/complete", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      paymentId,
-      txid,
-      items: [
-        {
-          product_id: item.id,
-          quantity,
-          price: unitPrice,
-        },
-      ],
-      total,
-      shipping
-    }),
-  });
+    if (!res.ok) {
+      alert("Thanh toán chưa hoàn tất");
+      setProcessing(false);
+      return;
+    }
 
-  if (!res.ok) {
-    alert("Thanh toán chưa hoàn tất");
-    setProcessing(false);
-    return;
-  }
+    const data = await res.json();
 
-  const data = await res.json();
+    onClose();
+    router.push("/customer/pending");
+  },
 
-  onClose();
+  onCancel: () => setProcessing(false),
 
-  router.push("/customer/pending");
-
-},
-          onCancel: () => setProcessing(false),
-          onError: () => setProcessing(false),
-        }
+  onError: () => setProcessing(false),
+}
       );
     } catch {
       alert(t.transaction_failed);
