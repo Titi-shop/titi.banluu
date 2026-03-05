@@ -1,45 +1,53 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyPiToken } from "@/lib/piAuth";
 
-export async function POST(req: Request) {
+type PiCompleteBody = {
+  paymentId: string;
+  txid: string;
+};
+
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
 
-    const { paymentId, txid } = body;
+    const auth = req.headers.get("authorization");
 
-    if (!paymentId || !txid) {
+    if (!auth) {
       return NextResponse.json(
-        { error: "INVALID_PAYMENT_DATA" },
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const token = auth.replace("Bearer ", "").trim();
+
+    const user = await verifyPiToken(token);
+
+    if (!user?.pi_uid) {
+      return NextResponse.json(
+        { error: "INVALID_TOKEN" },
+        { status: 401 }
+      );
+    }
+
+    const body: PiCompleteBody = await req.json();
+
+    if (!body.paymentId || !body.txid) {
+      return NextResponse.json(
+        { error: "INVALID_PAYMENT" },
         { status: 400 }
       );
     }
 
-    const res = await fetch(
-      `https://api.minepi.com/v2/payments/${paymentId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Key ${process.env.PI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          txid,
-        }),
-      }
-    );
+    return NextResponse.json({
+      success: true
+    });
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "PI_COMPLETE_FAILED" },
-        { status: 500 }
-      );
-    }
+  } catch (err) {
 
-    return NextResponse.json({ success: true });
-
-  } catch {
     return NextResponse.json(
-      { error: "SERVER_ERROR" },
+      { error: "COMPLETE_FAILED" },
       { status: 500 }
     );
+
   }
 }
