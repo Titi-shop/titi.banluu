@@ -1,20 +1,58 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyPiToken } from "@/lib/piAuth";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
-  try {
-    const { paymentId } = await req.json();
+type ApproveBody = {
+  paymentId: string;
+};
 
-    if (!paymentId) {
+export async function POST(req: NextRequest) {
+  try {
+
+    /* =========================
+       1️⃣ VERIFY TOKEN
+    ========================= */
+
+    const auth = req.headers.get("authorization");
+
+    if (!auth) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const token = auth.replace("Bearer ", "").trim();
+
+    const user = await verifyPiToken(token);
+
+    if (!user?.pi_uid) {
+      return NextResponse.json(
+        { error: "INVALID_TOKEN" },
+        { status: 401 }
+      );
+    }
+
+    /* =========================
+       2️⃣ READ BODY
+    ========================= */
+
+    const body: ApproveBody = await req.json();
+
+    if (!body.paymentId) {
       return NextResponse.json(
         { error: "MISSING_PAYMENT_ID" },
         { status: 400 }
       );
     }
 
+    /* =========================
+       3️⃣ APPROVE PAYMENT
+    ========================= */
+
     const res = await fetch(
-      `https://api.minepi.com/v2/payments/${paymentId}/approve`,
+      `https://api.minepi.com/v2/payments/${body.paymentId}/approve`,
       {
         method: "POST",
         headers: {
@@ -24,12 +62,19 @@ export async function POST(req: Request) {
     );
 
     const text = await res.text();
-    return new NextResponse(text, { status: res.status });
+
+    return new NextResponse(text, {
+      status: res.status
+    });
+
   } catch (err) {
-    console.error("💥 PI APPROVE ERROR:", err);
+
+    console.error("PI APPROVE ERROR:", err);
+
     return NextResponse.json(
       { error: "SERVER_ERROR" },
       { status: 500 }
     );
+
   }
 }
