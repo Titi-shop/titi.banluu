@@ -206,7 +206,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     return;
   }
 
-  await fetch("/api/pi/complete", {
+  const completeRes = await fetch("/api/pi/complete", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -215,7 +215,13 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     body: JSON.stringify({ paymentId, txid }),
   });
 
-  await apiAuthFetch("/api/orders", {
+  if (!completeRes.ok) {
+    alert("Thanh toán chưa hoàn tất");
+    setProcessing(false);
+    return;
+  }
+
+  const orderRes = await apiAuthFetch("/api/orders", {
     method: "POST",
     body: JSON.stringify({
       paymentId,
@@ -238,6 +244,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       },
     }),
   });
+
+  if (!orderRes.ok) {
+    alert("Tạo đơn thất bại");
+    setProcessing(false);
+    return;
+  }
 
   onClose();
   router.push("/customer/pending");
