@@ -1,149 +1,77 @@
-/* =========================================================
-   app/api/seller/orders/route.ts
-   - NETWORK–FIRST Pi Auth
-   - AUTH-CENTRIC + RBAC
-   - DIRECT SQL (NO db/orders)
-   - Bearer ONLY
-========================================================= */
-
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { resolveRole } from "@/lib/auth/resolveRole";
+import { getPiUser } from "@/lib/serverAuth";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-/* =========================
-   TYPES
-========================= */
-
-type OrderStatus =
-  | "pending"
-  | "confirmed"
-  | "shipping"
-  | "completed"
-  | "cancelled"
-  | "returned";
-
-/* =========================
-   HELPERS
-========================= */
-
-function parseOrderStatus(
-  value: string | null
-): OrderStatus | undefined {
-  if (!value) return undefined;
-
-  const allowed: OrderStatus[] = [
-    "pending",
-    "confirmed",
-    "shipping",
-    "completed",
-    "cancelled",
-    "returned",
-  ];
-
-  return allowed.includes(value as OrderStatus)
-    ? (value as OrderStatus)
-    : undefined;
-}
-
-/* =========================================================
-   GET /api/seller/orders
-========================================================= */
-
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    /* =========================
-       1️⃣ AUTH
-    ========================= */
-
-    const user = await getUserFromBearer();
+    const user = await getPiUser();
 
     if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    /* =========================
-       2️⃣ RBAC
-    ========================= */
-
-    const role = await resolveRole(user);
-
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json([], { status: 200 });
-    }
-
-    /* =========================
-       3️⃣ QUERY PARAM
-    ========================= */
-
-    const { searchParams } = new URL(req.url);
-
-    const status = parseOrderStatus(
-      searchParams.get("status")
-    );
-
-    let statusFilter = "";
-    const params: unknown[] = [user.pi_uid];
-
-    if (status) {
-      statusFilter = "and oi.status = $2";
-      params.push(status);
-    }
-
-    /* =========================
-       4️⃣ DATABASE
-    ========================= */
+    const sellerId = user.pi_uid;
 
     const { rows } = await query(
       `
       select
         o.id,
+        o.order_number,
         o.created_at,
+        o.status,
+
+        o.shipping_name,
+        o.shipping_phone,
+        o.shipping_address,
+        o.shipping_provider,
+        o.shipping_country,
+        o.shipping_postal_code,
 
         sum(oi.total_price)::int as total,
 
-        json_build_object(
-          'name', o.buyer_name,
-          'phone', o.buyer_phone,
-          'address', o.buyer_address
-        ) as buyer,
-
         json_agg(
           json_build_object(
+            'id', oi.id,
             'product_id', oi.product_id,
+            'product_name', oi.product_name,
+            'images', oi.images,
+            'thumbnail', oi.thumbnail,
             'quantity', oi.quantity,
-            'price', oi.unit_price,
-            'product', json_build_object(
-              'id', oi.product_id,
-              'name', oi.product_name,
-              'images', oi.images
-            )
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+            'status', oi.status
           )
-        ) as order_items
+        ) as items
 
       from order_items oi
       join orders o
         on o.id = oi.order_id
 
       where oi.seller_id = $1
-      ${statusFilter}
 
-      group by o.id
+      group by
+        o.id,
+        o.order_number,
+        o.created_at,
+        o.status,
+        o.shipping_name,
+        o.shipping_phone,
+        o.shipping_address,
+        o.shipping_provider,
+        o.shipping_country,
+        o.shipping_postal_code
+
       order by o.created_at desc
       `,
-      params
+      [sellerId]
     );
 
     return NextResponse.json(rows);
-  } catch (err) {
-    console.error("SELLER ORDERS ERROR:", err);
-
-    return NextResponse.json([], { status: 200 });
+  } catch (error) {
+    console.error("SELLER ORDERS ERROR:", error);
+    return NextResponse.json(
+      { error: "Failed to load seller orders" },
+      { status: 500 }
+    );
   }
 }
