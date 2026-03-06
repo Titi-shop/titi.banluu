@@ -242,34 +242,36 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
           onReadyForServerCompletion: async (paymentId, txid) => {
 
-            const token = await getPiAccessToken();
+  const token = await getPiAccessToken();
 
-            const res = await fetch("/api/pi/complete", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                paymentId,
-                txid,
-                product_id: product.id,
-                quantity,
-                total,
-                shipping,
-              }),
-            });
+  const res = await fetch("/api/pi/complete", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      paymentId,
+      txid,
+      product_id: product.id,
+      quantity,
+      total,
+      shipping,
+      user: {
+        pi_uid: user.uid
+      }
+    }),
+  });
 
-            if (!res.ok) {
-              setProcessing(false);
-              alert("Complete thất bại");
-              return;
-            }
+  if (!res.ok) {
+    setProcessing(false);
+    alert("Complete thất bại");
+    return;
+  }
 
-            onClose();
-
-            router.push("/customer/pending");
-          },
+  onClose();
+  router.push("/customer/pending");
+},
 
           onCancel: () => setProcessing(false),
 
