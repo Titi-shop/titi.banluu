@@ -90,12 +90,10 @@ const user = await window.Pi.getCurrentUser();
 
 const res = await fetch("/api/orders", {
   headers: {
-    Authorization: `Bearer ${accessToken}`,
+    Authorization: `Bearer ${token}`,
   },
+  cache: "no-store",
 });
-cache: "no-store",
-}
-);
 
 if (!res.ok) throw new Error("UNAUTHORIZED");
 
