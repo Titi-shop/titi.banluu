@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db"; // dùng db hiện tại của bạn
+import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,6 @@ const PI_KEY = process.env.PI_API_KEY!;
 
 export async function POST(req: Request) {
   try {
-
     const body = await req.json();
 
     const paymentId = body.paymentId;
@@ -20,6 +19,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    /* =========================
+       COMPLETE PI PAYMENT
+    ========================= */
 
     const piRes = await fetch(
       `${PI_API}/payments/${paymentId}/complete`,
@@ -41,17 +44,16 @@ export async function POST(req: Request) {
     }
 
     /* =========================
-       CREATE ORDER (NEW)
+       CREATE ORDER (SAFE)
     ========================= */
 
     if (piRes.ok) {
-
       try {
+        const shipping = body.shipping ?? {};
+        const user = body.user ?? {};
 
-        const shipping = body.shipping;
-
-        const subtotal = Math.round(body.total);
-        const total = Math.round(body.total);
+        const subtotal = Math.round(body.total ?? 0);
+        const total = Math.round(body.total ?? 0);
 
         await query(
           `
@@ -70,39 +72,26 @@ export async function POST(req: Request) {
           )
           values (
             gen_random_uuid()::text,
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            $6,
-            $7,
-            $8,
-            $9,
-            $10
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
           )
           on conflict (pi_payment_id) do nothing
           `,
           [
-            body.user?.pi_uid ?? "",
+            user.pi_uid ?? "",
             paymentId,
             txid,
             subtotal,
             total,
-            shipping?.name,
-            shipping?.phone,
-            shipping?.address_line,
-            shipping?.country,
-            shipping?.postal_code,
+            shipping.name ?? "",
+            shipping.phone ?? "",
+            shipping.address_line ?? "",
+            shipping.country ?? "",
+            shipping.postal_code ?? "",
           ]
         );
-
       } catch (e) {
-
         console.error("ORDER CREATE FAIL:", e);
-
       }
-
     }
 
     /* ========================= */
@@ -115,7 +104,6 @@ export async function POST(req: Request) {
     });
 
   } catch (err) {
-
     console.error("PI COMPLETE ERROR:", err);
 
     return NextResponse.json(
