@@ -1,100 +1,164 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { verifyPiAccessToken } from "@/lib/piAuth";
 
-export const dynamic = "force-dynamic";
+/* =========================================================
+   TYPES
+========================================================= */
 
-const PI_API = process.env.PI_API_URL!;
-const PI_KEY = process.env.PI_API_KEY!;
-
-type PiUser = {
-  uid: string;
-  username: string;
+type OrderRow = {
+  id: string;
+  buyer_id: string;
+  status: string;
+  created_at: string;
 };
 
-async function getPiUser(accessToken: string): Promise<PiUser | null> {
-  const res = await fetch(`${PI_API}/me`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      "X-API-Key": PI_KEY,
-    },
-    cache: "no-store",
-  });
+type OrderItemRow = {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  seller_id: string;
 
-  if (!res.ok) {
-    return null;
+  product_name: string;
+  product_slug: string | null;
+
+  thumbnail: string;
+  images: string[] | null;
+
+  unit_price: number;
+  quantity: number;
+  total_price: number;
+
+  status: string;
+
+  tracking_code: string | null;
+  shipped_at: string | null;
+  delivered_at: string | null;
+
+  seller_message: string | null;
+  seller_cancel_reason: string | null;
+
+  created_at: string;
+};
+
+type OrderResponse = {
+  id: string;
+  status: string;
+  created_at: string;
+  items: OrderItemRow[];
+  total_price: number;
+};
+
+/* =========================================================
+   AUTH
+========================================================= */
+
+async function getUser(req: NextRequest) {
+  const auth = req.headers.get("authorization");
+
+  if (!auth || !auth.startsWith("Bearer ")) {
+    throw new Error("UNAUTHORIZED");
   }
 
-  const data = (await res.json()) as PiUser;
+  const token = auth.replace("Bearer ", "");
 
-  return data;
+  const user = await verifyPiAccessToken(token);
+
+  if (!user) {
+    throw new Error("INVALID_TOKEN");
+  }
+
+  return user;
 }
 
-export async function GET(req: Request) {
+/* =========================================================
+   GET /api/orders
+   - buyer: list orders
+   - seller: list orders containing seller items
+========================================================= */
+
+export async function GET(req: NextRequest) {
   try {
-    const auth = req.headers.get("authorization");
+    const user = await getUser(req);
 
-    if (!auth?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
+    const url = new URL(req.url);
+    const sellerView = url.searchParams.get("seller") === "true";
+
+    let orders: OrderRow[] = [];
+
+    if (sellerView) {
+      orders = await query<OrderRow>(
+        `
+        select distinct o.*
+        from orders o
+        join order_items i on i.order_id = o.id
+        where i.seller_id = $1
+        order by o.created_at desc
+        `,
+        [user.pi_uid]
+      );
+    } else {
+      orders = await query<OrderRow>(
+        `
+        select *
+        from orders
+        where buyer_id = $1
+        order by created_at desc
+        `,
+        [user.pi_uid]
       );
     }
 
-    const accessToken = auth.replace("Bearer ", "");
+    const orderIds = orders.map((o) => o.id);
 
-    /* =========================
-       VERIFY PI USER
-    ========================= */
-
-    const piUser = await getPiUser(accessToken);
-
-    if (!piUser) {
-      return NextResponse.json(
-        { error: "INVALID_TOKEN" },
-        { status: 401 }
-      );
+    if (orderIds.length === 0) {
+      return NextResponse.json({ orders: [] });
     }
 
-    /* =========================
-       LOAD ORDERS
-    ========================= */
-
-    const { rows } = await query(
+    const items = await query<OrderItemRow>(
       `
-      select
-        id,
-        order_number,
-        subtotal,
-        shipping_fee,
-        discount,
-        tax,
-        total,
-        currency,
-        status,
-        payment_status,
-        created_at
-      from orders
-      where buyer_id = $1
-      order by created_at desc
+      select *
+      from order_items
+      where order_id = any($1)
+      order by created_at asc
       `,
-      [piUser.uid]
+      [orderIds]
     );
 
-    return NextResponse.json(
-      {
-        orders: rows,
-      },
-      {
-        status: 200,
+    const map = new Map<string, OrderItemRow[]>();
+
+    for (const item of items) {
+      if (!map.has(item.order_id)) {
+        map.set(item.order_id, []);
       }
-    );
-  } catch (err) {
-    console.error("ORDERS API ERROR:", err);
 
+      map.get(item.order_id)!.push(item);
+    }
+
+    const result: OrderResponse[] = orders.map((order) => {
+      const orderItems = map.get(order.id) ?? [];
+
+      const total = orderItems.reduce(
+        (sum, item) => sum + item.total_price,
+        0
+      );
+
+      return {
+        id: order.id,
+        status: order.status,
+        created_at: order.created_at,
+        items: orderItems,
+        total_price: total,
+      };
+    });
+
+    return NextResponse.json({
+      orders: result,
+    });
+  } catch (err) {
     return NextResponse.json(
-      { error: "SERVER_ERROR" },
-      { status: 500 }
+      { error: "UNAUTHORIZED" },
+      { status: 401 }
     );
   }
 }
