@@ -1,37 +1,86 @@
+/* =========================================================
+   app/api/seller/orders/count/route.ts
+   COUNT ORDERS BY STATUS
+========================================================= */
+
 import { NextResponse } from "next/server";
+import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { resolveRole } from "@/lib/auth/resolveRole";
-import { getSellerOrdersCount } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/* =========================================================
+   GET /api/seller/orders/count
+========================================================= */
+
 export async function GET() {
-  /* 1️⃣ AUTH */
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json(
-      { error: "UNAUTHENTICATED" },
-      { status: 401 }
-    );
-  }
-
-  /* 2️⃣ RBAC — giống hệt route orders */
-  const role = await resolveRole(user);
-
-  if (role !== "seller" && role !== "admin") {
-    return NextResponse.json(
-      { error: "FORBIDDEN" },
-      { status: 403 }
-    );
-  }
-
-  /* 3️⃣ DB */
   try {
-    const stats = await getSellerOrdersCount(user.pi_uid);
-    return NextResponse.json(stats);
+    /* =========================
+       AUTH
+    ========================= */
+
+    const user = await getUserFromBearer();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "UNAUTHENTICATED" },
+        { status: 401 }
+      );
+    }
+
+    const role = await resolveRole(user);
+
+    if (role !== "seller" && role !== "admin") {
+      return NextResponse.json(
+        {
+          pending: 0,
+          confirmed: 0,
+          shipping: 0,
+          completed: 0,
+          returned: 0,
+          cancelled: 0,
+        },
+        { status: 200 }
+      );
+    }
+
+    /* =========================
+       DATABASE
+    ========================= */
+
+    const { rows } = await query(
+      `
+      select
+        status,
+        count(*)::int as total
+      from order_items
+      where seller_id = $1
+      group by status
+      `,
+      [user.pi_uid]
+    );
+
+    const counts = {
+      pending: 0,
+      confirmed: 0,
+      shipping: 0,
+      completed: 0,
+      returned: 0,
+      cancelled: 0,
+    };
+
+    for (const r of rows) {
+      if (r.status in counts) {
+        counts[r.status as keyof typeof counts] =
+          r.total;
+      }
+    }
+
+    return NextResponse.json(counts);
   } catch (err) {
-    console.warn("SELLER COUNT WARN:", err);
+    console.error("SELLER ORDER COUNT ERROR:", err);
 
     return NextResponse.json(
       {
@@ -41,7 +90,6 @@ export async function GET() {
         completed: 0,
         returned: 0,
         cancelled: 0,
-        total: 0,
       },
       { status: 200 }
     );
