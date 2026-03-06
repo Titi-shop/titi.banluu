@@ -74,7 +74,8 @@ where id=$1
     const quantity = body.quantity ?? 1;
 
     const subtotal = Math.round(body.total ?? 0);
-    const total = Math.round(body.total ?? 0);
+    const subtotal = product.price * quantity;
+    const total = subtotal;
 
     /* CREATE ORDER */
 
@@ -132,12 +133,11 @@ insert into order_items (
   total_price
 )
 values (
-  (select id from orders where pi_payment_id=$1),
-  $2,$3,$4,$5,$6,$7,$8,$9
+  $1,$2,$3,$4,$5,$6,$7,$8,$9
 )
 `,
 [
-  paymentId,
+  orderId,
   product.id,
   product.seller_id,
   product.name,
