@@ -7,8 +7,43 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 
 /* =========================
+   PI TYPE
+========================= */
+
+type PiPayment = {
+  createPayment: (
+    data: {
+      amount: number;
+      memo: string;
+      metadata: unknown;
+    },
+    callbacks: {
+      onReadyForServerApproval: (
+        paymentId: string,
+        callback: () => void
+      ) => void;
+
+      onReadyForServerCompletion: (
+        paymentId: string,
+        txid: string
+      ) => void;
+
+      onCancel: () => void;
+      onError: (error: unknown) => void;
+    }
+  ) => Promise<void>;
+};
+
+declare global {
+  interface Window {
+    Pi?: PiPayment;
+  }
+}
+
+/* =========================
    TYPES
 ========================= */
+
 interface ShippingInfo {
   name: string;
   phone: string;
@@ -48,14 +83,15 @@ interface Props {
 /* =========================
    HELPERS
 ========================= */
+
 function getCountryDisplay(country?: string) {
-  if (!country) return "";
-  return country;
+  return country ?? "";
 }
 
 /* =========================
    COMPONENT
 ========================= */
+
 export default function CheckoutSheet({ open, onClose, product }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -63,7 +99,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [qtyDraft, setQtyDraft] = useState<string>("1");
+  const [qtyDraft, setQtyDraft] = useState("1");
 
   const quantity = useMemo(() => {
     const n = Number(qtyDraft);
@@ -80,31 +116,22 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       finalPrice: product.finalPrice,
       image: product.image,
       images: product.images,
-      quantity: 1,
     };
   }, [product]);
 
   /* =========================
-     LOCK BODY SCROLL
-  ========================= */
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
-
-  /* =========================
      LOAD ADDRESS
   ========================= */
+
   useEffect(() => {
     async function loadAddress() {
       try {
         const token = await getPiAccessToken();
-        if (!token) return;
 
         const res = await fetch("/api/address", {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         if (!res.ok) return;
@@ -113,27 +140,30 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
         const def = data.items?.find((a) => a.is_default);
 
-        if (def) {
-          setShipping({
-            name: def.full_name,
-            phone: def.phone,
-            address_line: def.address_line,
-            province: def.province,
-            country: def.country,
-            postal_code: def.postal_code ?? null,
-          });
-        }
+        if (!def) return;
+
+        setShipping({
+          name: def.full_name,
+          phone: def.phone,
+          address_line: def.address_line,
+          province: def.province,
+          country: def.country,
+          postal_code: def.postal_code ?? null,
+        });
       } catch {
         setShipping(null);
       }
     }
 
-    if (open && user) loadAddress();
+    if (open && user) {
+      loadAddress();
+    }
   }, [open, user]);
 
   /* =========================
-     PRICE + TOTAL (SALE FIRST)
+     PRICE
   ========================= */
+
   const unitPrice = useMemo(() => {
     if (!item) return 0;
 
@@ -142,13 +172,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       : item.price;
   }, [item]);
 
-  const total = useMemo(() => {
-    return unitPrice * quantity;
-  }, [unitPrice, quantity]);
+  const total = useMemo(() => unitPrice * quantity, [unitPrice, quantity]);
 
   /* =========================
      PAY WITH PI
   ========================= */
+
   const handlePay = async () => {
     if (!window.Pi || !piReady || !user || !shipping || !item) {
       alert(t.transaction_failed);
@@ -156,102 +185,98 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     }
 
     if (processing) return;
+
     setProcessing(true);
 
     try {
-      if (total < 0.0000001) {
-        alert("Số Pi quá nhỏ để thanh toán");
-        setProcessing(false);
-        return;
-      }
-
       await window.Pi.createPayment(
         {
           amount: Number(total),
           memo: "Thanh toán đơn hàng TiTi",
           metadata: {
             shipping,
-            item: {
-              product_id: item.id,
-              quantity,
-              price: unitPrice,
-            },
+            product_id: item.id,
+            quantity,
           },
         },
         {
-          
-  onReadyForServerApproval: async (paymentId, callback) => {
+          onReadyForServerApproval: async (paymentId, callback) => {
+            try {
+              const token = await getPiAccessToken();
 
-  const token = await getPiAccessToken();
+              const res = await fetch("/api/pi/approve", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paymentId }),
+              });
 
-  if (!token) {
-    setProcessing(false);
-    return;
-  }
+              if (!res.ok) {
+                console.error("Approve failed");
+                setProcessing(false);
+                return;
+              }
 
-  const res = await fetch("/api/pi/approve", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ paymentId }),
-  });
+              const data = await res.json();
 
-  if (!res.ok) {
-    console.error("Approve failed");
-    setProcessing(false);
-    return;
-  }
+              if (!data.success) {
+                setProcessing(false);
+                return;
+              }
 
-  callback(); // ⚠️ BẮT BUỘC
-},
-           
-  onReadyForServerCompletion: async (paymentId, txid) => {
-    const token = await getPiAccessToken();
-
-    if (!token) {
-      setProcessing(false);
-      return;
-    }
-
-    const res = await fetch("/api/pi/complete", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        paymentId,
-        txid,
-        items: [
-          {
-            product_id: item.id,
-            quantity,
-            price: unitPrice,
+              callback();
+            } catch (err) {
+              console.error("Approve error", err);
+              setProcessing(false);
+            }
           },
-        ],
-        total,
-        shipping,
-      }),
-    });
 
-    if (!res.ok) {
-      alert("Thanh toán chưa hoàn tất");
-      setProcessing(false);
-      return;
-    }
+          onReadyForServerCompletion: async (paymentId, txid) => {
+            try {
+              const token = await getPiAccessToken();
 
-    const data = await res.json();
+              const res = await fetch("/api/pi/complete", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  paymentId,
+                  txid,
+                  product_id: item.id,
+                  quantity,
+                  total,
+                  shipping,
+                }),
+              });
 
-    onClose();
-    router.push("/customer/pending");
-  },
+              if (!res.ok) {
+                alert("Thanh toán chưa hoàn tất");
+                setProcessing(false);
+                return;
+              }
 
-  onCancel: () => setProcessing(false),
+              onClose();
+              setProcessing(false);
 
-  onError: () => setProcessing(false),
-}
+              router.push("/customer/pending");
+            } catch {
+              setProcessing(false);
+            }
+          },
+
+          onCancel: () => {
+            setProcessing(false);
+          },
+
+          onError: (err) => {
+            console.error("Pi payment error", err);
+            setProcessing(false);
+          },
+        }
       );
     } catch {
       alert(t.transaction_failed);
@@ -261,22 +286,14 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   if (!open || !item) return null;
 
-  /* =========================
-     UI
-  ========================= */
   return (
     <div className="fixed inset-0 z-[100]">
-      {/* BACKDROP */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      {/* SHEET */}
       <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[45vh] flex flex-col">
-        {/* HANDLE */}
-        <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-2 mb-2" />
 
-        {/* CONTENT */}
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
-          {/* ADDRESS */}
+
           <div
             className="border rounded-lg p-3 cursor-pointer mb-4"
             onClick={() => router.push("/customer/address")}
@@ -285,19 +302,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
               <>
                 <p className="font-medium">{shipping.name}</p>
                 <p className="text-sm text-gray-600">{shipping.phone}</p>
-
-                <p className="text-sm text-gray-500">
-                  {shipping.address_line}
-                </p>
-
-                <p className="text-sm text-gray-500">
-                  {shipping.province}
-                </p>
-
-                <p className="text-sm text-gray-500">
-                  {shipping.postal_code}
-                </p>
-
+                <p className="text-sm text-gray-500">{shipping.address_line}</p>
+                <p className="text-sm text-gray-500">{shipping.province}</p>
+                <p className="text-sm text-gray-500">{shipping.postal_code}</p>
                 <p className="text-sm text-gray-500">
                   {getCountryDisplay(shipping.country)}
                 </p>
@@ -307,7 +314,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
             )}
           </div>
 
-          {/* PRODUCT (ONLY ONE) */}
           <div className="flex items-center gap-3 border-b pb-3">
             <img
               src={item.image || item.images?.[0] || "/placeholder.png"}
@@ -324,15 +330,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
                 inputMode="numeric"
                 value={qtyDraft}
                 onChange={(e) => {
-                  const v = e.target.value;
-
-                  // chỉ cho nhập số hoặc rỗng
-                  if (/^\d*$/.test(v)) {
-                    setQtyDraft(v);
+                  if (/^\d*$/.test(e.target.value)) {
+                    setQtyDraft(e.target.value);
                   }
                 }}
                 onBlur={() => {
-                  if (qtyDraft === "" || Number(qtyDraft) < 1) {
+                  if (!qtyDraft || Number(qtyDraft) < 1) {
                     setQtyDraft("1");
                   }
                 }}
@@ -344,22 +347,19 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
               {total.toFixed(6)} π
             </p>
           </div>
+
         </div>
 
-        {/* FOOTER */}
         <div className="border-t p-4">
-          <p className="text-center text-sm text-gray-1000 mb-2">
-            {t.shop_confidence}
-          </p>
-
           <button
             onClick={handlePay}
             disabled={processing}
-            className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold disabled:bg-gray-300"
+            className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold"
           >
             {processing ? t.processing : t.pay_now}
           </button>
         </div>
+
       </div>
     </div>
   );
