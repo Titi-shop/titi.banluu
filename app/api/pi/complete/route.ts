@@ -149,3 +149,19 @@ values (
     console.error("ORDER CREATE FAIL:", e);
   }
 }
+        return new NextResponse(text || "{}", {
+      status: piRes.status,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+  } catch (err) {
+    console.error("PI COMPLETE ERROR:", err);
+
+    return NextResponse.json(
+      { error: "SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
+}
