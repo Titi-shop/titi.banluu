@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
+const PI_API_URL = process.env.PI_API_URL!;
+const PI_API_KEY = process.env.PI_API_KEY!;
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+
   try {
+
     const { paymentId } = await req.json();
 
     if (!paymentId) {
@@ -14,17 +17,19 @@ export async function POST(req: Request) {
     }
 
     const res = await fetch(
-      `https://api.minepi.com/v2/payments/${paymentId}/approve`,
+      `${PI_API_URL}/payments/${paymentId}/approve`,
       {
         method: "POST",
         headers: {
-          Authorization: `Key ${process.env.PI_API_KEY}`,
-        },
+          Authorization: `Key ${PI_API_KEY}`
+        }
       }
     );
 
     if (!res.ok) {
+
       const text = await res.text();
+
       console.error("PI APPROVE FAIL:", text);
 
       return NextResponse.json(
@@ -37,7 +42,7 @@ export async function POST(req: Request) {
 
   } catch (err) {
 
-    console.error("PI APPROVE ERROR:", err);
+    console.error(err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
