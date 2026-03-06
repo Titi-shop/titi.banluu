@@ -3,27 +3,74 @@ import { query } from "@/lib/db";
 import { verifyPiToken } from "@/lib/piAuth";
 
 /* =========================================================
+   TYPES
+========================================================= */
+
+type OrderRow = {
+  id: number;
+  order_number: string;
+  subtotal: number;
+  shipping_fee: number;
+  discount: number;
+  tax: number;
+  total: number;
+  currency: string;
+  status: string;
+  payment_status: string;
+  created_at: string;
+};
+
+type CreateOrderBody = {
+  order_number: string;
+  pi_payment_id: string | null;
+  pi_txid: string | null;
+  subtotal: number;
+  shipping_fee: number;
+  discount: number;
+  tax: number;
+  total: number;
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_address: string;
+};
+
+/* =========================================================
+   AUTH HELPER
+========================================================= */
+
+async function getUser(req: Request) {
+  const auth = req.headers.get("authorization");
+
+  if (!auth) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const token = auth.replace("Bearer ", "");
+
+  if (!token) {
+    throw new Error("TOKEN_MISSING");
+  }
+
+  return verifyPiToken(token);
+}
+
+/* =========================================================
    GET USER ORDERS
 ========================================================= */
 
 export async function GET(req: Request) {
   try {
+    const user = await getUser(req);
 
-    const auth = req.headers.get("authorization");
-
-    if (!auth) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-    }
-
-    const token = auth.replace("Bearer ", "");
-
-    const user = await verifyPiToken(token);
-
-    const { rows } = await query(
+    const result = await query(
       `
       select
         id,
         order_number,
+        subtotal,
+        shipping_fee,
+        discount,
+        tax,
         total,
         currency,
         status,
@@ -36,10 +83,13 @@ export async function GET(req: Request) {
       [user.pi_uid]
     );
 
-    return NextResponse.json(rows);
+    const orders: OrderRow[] = result.rows;
 
+    return NextResponse.json({
+      success: true,
+      orders,
+    });
   } catch (err) {
-
     console.error("orders GET error", err);
 
     return NextResponse.json(
@@ -55,18 +105,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const user = await getUser(req);
 
-    const auth = req.headers.get("authorization");
-
-    if (!auth) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-    }
-
-    const token = auth.replace("Bearer ", "");
-
-    const user = await verifyPiToken(token);
-
-    const body = await req.json();
+    const body: CreateOrderBody = await req.json();
 
     const {
       order_number,
@@ -79,10 +120,42 @@ export async function POST(req: Request) {
       total,
       shipping_name,
       shipping_phone,
-      shipping_address
+      shipping_address,
     } = body;
 
-    const { rows } = await query(
+    if (!order_number || !total) {
+      return NextResponse.json(
+        { error: "INVALID_ORDER_DATA" },
+        { status: 400 }
+      );
+    }
+
+    /* =====================================================
+       PREVENT DUPLICATE ORDER
+    ===================================================== */
+
+    const existing = await query(
+      `
+      select id
+      from orders
+      where order_number = $1
+      limit 1
+      `,
+      [order_number]
+    );
+
+    if (existing.rows.length > 0) {
+      return NextResponse.json(
+        { error: "ORDER_ALREADY_EXISTS" },
+        { status: 409 }
+      );
+    }
+
+    /* =====================================================
+       INSERT ORDER
+    ===================================================== */
+
+    const result = await query(
       `
       insert into orders (
         order_number,
@@ -101,7 +174,18 @@ export async function POST(req: Request) {
       values (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
       )
-      returning *
+      returning
+        id,
+        order_number,
+        subtotal,
+        shipping_fee,
+        discount,
+        tax,
+        total,
+        currency,
+        status,
+        payment_status,
+        created_at
       `,
       [
         order_number,
@@ -115,14 +199,17 @@ export async function POST(req: Request) {
         total,
         shipping_name,
         shipping_phone,
-        shipping_address
+        shipping_address,
       ]
     );
 
-    return NextResponse.json(rows[0]);
+    const order: OrderRow = result.rows[0];
 
+    return NextResponse.json({
+      success: true,
+      order,
+    });
   } catch (err) {
-
     console.error("orders POST error", err);
 
     return NextResponse.json(
