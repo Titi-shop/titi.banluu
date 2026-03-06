@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { query } from "@/lib/db"; // dùng db hiện tại của bạn
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,73 @@ export async function POST(req: Request) {
     if (!piRes.ok) {
       console.error("PI COMPLETE FAIL:", text);
     }
+
+    /* =========================
+       CREATE ORDER (NEW)
+    ========================= */
+
+    if (piRes.ok) {
+
+      try {
+
+        const shipping = body.shipping;
+
+        const subtotal = Math.round(body.total);
+        const total = Math.round(body.total);
+
+        await query(
+          `
+          insert into orders (
+            order_number,
+            buyer_id,
+            pi_payment_id,
+            pi_txid,
+            subtotal,
+            total,
+            shipping_name,
+            shipping_phone,
+            shipping_address,
+            shipping_country,
+            shipping_postal_code
+          )
+          values (
+            gen_random_uuid()::text,
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $7,
+            $8,
+            $9,
+            $10
+          )
+          on conflict (pi_payment_id) do nothing
+          `,
+          [
+            body.user?.pi_uid ?? "",
+            paymentId,
+            txid,
+            subtotal,
+            total,
+            shipping?.name,
+            shipping?.phone,
+            shipping?.address_line,
+            shipping?.country,
+            shipping?.postal_code,
+          ]
+        );
+
+      } catch (e) {
+
+        console.error("ORDER CREATE FAIL:", e);
+
+      }
+
+    }
+
+    /* ========================= */
 
     return new NextResponse(text || "{}", {
       status: piRes.status,
