@@ -94,7 +94,7 @@ on conflict (pi_payment_id) do nothing
 ]
 );
 
-    /* LOAD PRODUCT */
+    /* LOAD PRODUCT FROM DB */
 
     const { rows } = await query(
 `
@@ -147,11 +147,5 @@ values (
 
   } catch (e) {
     console.error("ORDER CREATE FAIL:", e);
-  }
-}
-    return NextResponse.json(
-      { error: "SERVER_ERROR" },
-      { status: 500 }
-    );
   }
 }
