@@ -200,38 +200,32 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           },
         },
         {
-          onReadyForServerApproval: async (paymentId, callback) => {
-            try {
-              const token = await getPiAccessToken();
+          onReadyForServerApproval: async (paymentId) => {
 
-              const res = await fetch("/api/pi/approve", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ paymentId }),
-              });
+  const token = await getPiAccessToken();
 
-              if (!res.ok) {
-                console.error("Approve failed");
-                setProcessing(false);
-                return;
-              }
+  if (!token) {
+    setProcessing(false);
+    return;
+  }
 
-              const data = await res.json();
+  const res = await fetch("/api/pi/approve", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ paymentId }),
+  });
 
-              if (!data.success) {
-                setProcessing(false);
-                return;
-              }
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Approve failed:", text);
+    setProcessing(false);
+    throw new Error("Approve failed");
+  }
 
-              callback();
-            } catch (err) {
-              console.error("Approve error", err);
-              setProcessing(false);
-            }
-          },
+},
 
           onReadyForServerCompletion: async (paymentId, txid) => {
             try {
