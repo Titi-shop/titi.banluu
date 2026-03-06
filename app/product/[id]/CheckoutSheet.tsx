@@ -194,10 +194,15 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           amount: Number(total.toFixed(6)),
           memo: "Thanh toán đơn hàng TiTi",
           metadata: {
-            shipping,
-            product_id: item.id,
-            quantity,
-          },
+  shipping,
+  product: {
+    id: item.id,
+    name: item.name,
+    image: item.image || item.images?.[0] || "",
+    price: unitPrice
+  },
+  quantity
+},
         },
         {
           onReadyForServerApproval: async (paymentId, callback) => {
