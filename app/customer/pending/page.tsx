@@ -82,9 +82,9 @@ async function loadOrders(): Promise<void> {
 try {
 const token = await getPiAccessToken();
 
-const res = await fetch("/api/orders", {  
-    headers: {  
-      Authorization: `Bearer ${token}`,  
+const user = await window.Pi.getCurrentUser();
+
+fetch(`/api/orders?buyer=${user.uid}`);  
     },  
     cache: "no-store",  
   });  
