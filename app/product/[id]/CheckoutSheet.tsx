@@ -181,7 +181,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         },
         {
           
-  onReadyForServerApproval: async (paymentId) => {
+  onReadyForServerApproval: async (paymentId, callback) => {
 
   const token = await getPiAccessToken();
 
@@ -202,8 +202,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   if (!res.ok) {
     console.error("Approve failed");
     setProcessing(false);
+    return;
   }
+
+  callback(); // ⚠️ BẮT BUỘC
 },
+           
   onReadyForServerCompletion: async (paymentId, txid) => {
     const token = await getPiAccessToken();
 
