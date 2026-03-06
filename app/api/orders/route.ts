@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { verifyPiAccessToken } from "@/lib/piAuth";
 
-/* =========================================================
-   TYPES
-========================================================= */
+export const dynamic = "force-dynamic";
 
 type OrderRow = {
   id: string;
+  order_number: string;
   buyer_id: string;
   status: string;
   created_at: string;
@@ -20,8 +19,6 @@ type OrderItemRow = {
   seller_id: string;
 
   product_name: string;
-  product_slug: string | null;
-
   thumbnail: string;
   images: string[] | null;
 
@@ -30,100 +27,84 @@ type OrderItemRow = {
   total_price: number;
 
   status: string;
-
-  tracking_code: string | null;
-  shipped_at: string | null;
-  delivered_at: string | null;
-
-  seller_message: string | null;
-  seller_cancel_reason: string | null;
-
   created_at: string;
 };
-
-type OrderResponse = {
-  id: string;
-  status: string;
-  created_at: string;
-  items: OrderItemRow[];
-  total_price: number;
-};
-
-/* =========================================================
-   AUTH
-========================================================= */
-
-async function getUser(req: NextRequest) {
-  const auth = req.headers.get("authorization");
-
-  if (!auth || !auth.startsWith("Bearer ")) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  const token = auth.replace("Bearer ", "");
-
-  const user = await verifyPiAccessToken(token);
-
-  if (!user) {
-    throw new Error("INVALID_TOKEN");
-  }
-
-  return user;
-}
-
-/* =========================================================
-   GET /api/orders
-   - buyer: list orders
-   - seller: list orders containing seller items
-========================================================= */
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getUser(req);
+    /* =========================
+       AUTH
+    ========================= */
 
-    const url = new URL(req.url);
-    const sellerView = url.searchParams.get("seller") === "true";
+    const auth = req.headers.get("authorization");
 
-    let orders: OrderRow[] = [];
-
-    if (sellerView) {
-      orders = await query<OrderRow>(
-        `
-        select distinct o.*
-        from orders o
-        join order_items i on i.order_id = o.id
-        where i.seller_id = $1
-        order by o.created_at desc
-        `,
-        [user.pi_uid]
+    if (!auth || !auth.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
       );
-    } else {
-      orders = await query<OrderRow>(
-        `
-        select *
-        from orders
-        where buyer_id = $1
-        order by created_at desc
-        `,
-        [user.pi_uid]
+    }
+
+    const token = auth.replace("Bearer ", "");
+
+    const user = await verifyPiAccessToken(token);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "INVALID_TOKEN" },
+        { status: 401 }
       );
+    }
+
+    /* =========================
+       LOAD ORDERS
+    ========================= */
+
+    const { rows: orders } = await query<OrderRow>(
+      `
+      select id,order_number,buyer_id,status,created_at
+      from orders
+      where buyer_id=$1
+      order by created_at desc
+      `,
+      [user.pi_uid]
+    );
+
+    if (orders.length === 0) {
+      return NextResponse.json({ orders: [] });
     }
 
     const orderIds = orders.map((o) => o.id);
 
-    if (orderIds.length === 0) {
-      return NextResponse.json({ orders: [] });
-    }
+    /* =========================
+       LOAD ORDER ITEMS
+    ========================= */
 
-    const items = await query<OrderItemRow>(
+    const { rows: items } = await query<OrderItemRow>(
       `
-      select *
+      select
+        id,
+        order_id,
+        product_id,
+        seller_id,
+        product_name,
+        thumbnail,
+        images,
+        unit_price,
+        quantity,
+        total_price,
+        status,
+        created_at
       from order_items
       where order_id = any($1)
       order by created_at asc
       `,
       [orderIds]
     );
+
+    /* =========================
+       GROUP ITEMS
+    ========================= */
 
     const map = new Map<string, OrderItemRow[]>();
 
@@ -135,7 +116,11 @@ export async function GET(req: NextRequest) {
       map.get(item.order_id)!.push(item);
     }
 
-    const result: OrderResponse[] = orders.map((order) => {
+    /* =========================
+       BUILD RESPONSE
+    ========================= */
+
+    const result = orders.map((order) => {
       const orderItems = map.get(order.id) ?? [];
 
       const total = orderItems.reduce(
@@ -145,20 +130,24 @@ export async function GET(req: NextRequest) {
 
       return {
         id: order.id,
+        order_number: order.order_number,
         status: order.status,
         created_at: order.created_at,
-        items: orderItems,
         total_price: total,
+        items: orderItems,
       };
     });
 
     return NextResponse.json({
       orders: result,
     });
+
   } catch (err) {
+    console.error("ORDERS API ERROR:", err);
+
     return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
+      { error: "SERVER_ERROR" },
+      { status: 500 }
     );
   }
 }
