@@ -4,17 +4,29 @@ import { getPiUserFromToken } from "@/lib/piAuth";
 
 export const dynamic = "force-dynamic";
 
+/* =========================
+ORDER
+========================= */
+
 type OrderRow = {
   id: string;
   order_number: string;
   buyer_id: string;
+
   status: string;
+  total: number;
+
   created_at: string;
 };
+
+/* =========================
+ORDER ITEM
+========================= */
 
 type OrderItemRow = {
   id: string;
   order_id: string;
+
   product_id: string | null;
   seller_id: string;
 
@@ -27,11 +39,15 @@ type OrderItemRow = {
   total_price: number;
 
   status: string;
-  created_at: string;
 };
+
+/* =========================
+GET ORDERS
+========================= */
 
 export async function GET(req: NextRequest) {
   try {
+
     /* =========================
        AUTH
     ========================= */
@@ -44,7 +60,13 @@ export async function GET(req: NextRequest) {
 
     const { rows: orders } = await query<OrderRow>(
       `
-      select id,order_number,buyer_id,status,created_at
+      select
+        id,
+        order_number,
+        buyer_id,
+        status,
+        total,
+        created_at
       from orders
       where buyer_id=$1
       order by created_at desc
@@ -75,8 +97,7 @@ export async function GET(req: NextRequest) {
         unit_price,
         quantity,
         total_price,
-        status,
-        created_at
+        status
       from order_items
       where order_id = any($1)
       order by created_at asc
@@ -91,6 +112,7 @@ export async function GET(req: NextRequest) {
     const map = new Map<string, OrderItemRow[]>();
 
     for (const item of items) {
+
       if (!map.has(item.order_id)) {
         map.set(item.order_id, []);
       }
@@ -103,28 +125,29 @@ export async function GET(req: NextRequest) {
     ========================= */
 
     const result = orders.map((order) => {
-      const orderItems = map.get(order.id) ?? [];
 
-      const total = orderItems.reduce(
-        (sum, item) => sum + item.total_price,
-        0
-      );
+      const orderItems = map.get(order.id) ?? [];
 
       return {
         id: order.id,
         order_number: order.order_number,
+
         status: order.status,
+        total: order.total,
+
         created_at: order.created_at,
-        total_price: total,
-        items: orderItems,
+
+        order_items: orderItems
       };
+
     });
 
     return NextResponse.json({
-      orders: result,
+      orders: result
     });
 
   } catch (err) {
+
     console.error("ORDERS API ERROR:", err);
 
     return NextResponse.json(
