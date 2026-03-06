@@ -73,7 +73,11 @@ where id=$1
     const user = body.user ?? {};
     const quantity = body.quantity ?? 1;
 
-    const subtotal = Math.round(body.total ?? 0);
+    if (!user.pi_uid) {
+  console.error("INVALID USER");
+  return;
+}
+    
     const subtotal = product.price * quantity;
     const total = subtotal;
 
@@ -115,7 +119,13 @@ returning id
 ]
 );
     
+const orderId = orderRows[0]?.id;
 
+if (!orderId) {
+  console.error("ORDER NOT CREATED");
+  return;
+}
+    
    
     /* CREATE ORDER ITEM */
 
