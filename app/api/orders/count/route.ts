@@ -18,12 +18,12 @@ export async function GET(req: Request) {
     `
     select count(*)::int as total
     from orders
-    where buyer_uid = $1
+    where buyer_id = $1
     `,
     [user.pi_uid]
   );
 
   return NextResponse.json({
-    total: rows[0].total,
+    total: rows[0].total
   });
 }
