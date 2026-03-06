@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { verifyPiAccessToken } from "@/lib/piAuth";
+import { getPiUserFromToken } from "@/lib/piAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -36,25 +36,7 @@ export async function GET(req: NextRequest) {
        AUTH
     ========================= */
 
-    const auth = req.headers.get("authorization");
-
-    if (!auth || !auth.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
-
-    const token = auth.replace("Bearer ", "");
-
-    const user = await verifyPiAccessToken(token);
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "INVALID_TOKEN" },
-        { status: 401 }
-      );
-    }
+    const user = await getPiUserFromToken(req);
 
     /* =========================
        LOAD ORDERS
