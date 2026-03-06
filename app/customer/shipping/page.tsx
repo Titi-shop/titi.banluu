@@ -29,7 +29,7 @@ interface Product {
 
 interface OrderItem {
   quantity: number;
-  price: number;
+  unit_price: number;
   product_id: string;
   seller_message?: string | null;
   seller_cancel_reason?: string | null;
@@ -48,7 +48,7 @@ interface Order {
 ========================= */
 export default function ShippingOrdersPage() {
   const { t } = useTranslation();
-   const router = useRouter();
+  const router = useRouter();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -78,7 +78,8 @@ export default function ShippingOrdersPage() {
 
       if (!res.ok) throw new Error("UNAUTHORIZED");
 
-      const rawOrders: Order[] = await res.json();
+      const data = await res.json();
+      const rawOrders: Order[] = data.orders ?? [];
 
       // ✅ chỉ lấy đơn đang shipping
       const filtered = rawOrders.filter(
@@ -129,64 +130,65 @@ export default function ShippingOrdersPage() {
       setLoading(false);
     }
   }
+
   /* =========================
    CONFIRM RECEIVED
 ========================= */
-async function handleConfirmReceived(orderId: string) {
-  try {
-    setProcessingId(orderId);
+  async function handleConfirmReceived(orderId: string) {
+    try {
+      setProcessingId(orderId);
 
-    const token = await getPiAccessToken();
+      const token = await getPiAccessToken();
 
-    const res = await fetch(`/api/orders/${orderId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        status: "completed",
-      }),
-    });
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: "completed",
+        }),
+      });
 
-    if (!res.ok) {
-      throw new Error("UPDATE_FAILED");
+      if (!res.ok) {
+        throw new Error("UPDATE_FAILED");
+      }
+
+      // ✅ Cập nhật UI ngay lập tức (xoá khỏi shipping list)
+      setOrders((prev) =>
+        prev.filter((o) => o.id !== orderId)
+      );
+
+      // ✅ Chuyển đúng flow sang completed page
+      router.push("/customer/completed");
+
+    } catch (err) {
+      console.error("❌ Confirm received error:", err);
+      alert(t.confirm_failed);
+    } finally {
+      setProcessingId(null);
     }
-
-    // ✅ Cập nhật UI ngay lập tức (xoá khỏi shipping list)
-    setOrders((prev) =>
-      prev.filter((o) => o.id !== orderId)
-    );
-
-    // ✅ Chuyển đúng flow sang completed page
-    router.push("/customer/completed");
-
-  } catch (err) {
-    console.error("❌ Confirm received error:", err);
-    alert(t.confirm_failed);
-  } finally {
-    setProcessingId(null);
   }
-}
-   const totalPi = orders.reduce(
-  (sum, o) => sum + Number(o.total),
-  0
-);
+
+  const totalPi = orders.reduce(
+    (sum, o) => sum + Number(o.total),
+    0
+  );
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
       {/* HEADER */}
-      
       <header className="bg-orange-500 text-white px-4 py-4">
-  <div className="bg-orange-400 rounded-lg p-4">
-    <p className="text-sm opacity-90">
-      {t.order_info}
-    </p>
-    <p className="text-xs opacity-80 mt-1">
-      {t.orders}: {orders.length} · π{formatPi(totalPi)}
-    </p>
-  </div>
-</header>
+        <div className="bg-orange-400 rounded-lg p-4">
+          <p className="text-sm opacity-90">
+            {t.order_info}
+          </p>
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders}: {orders.length} · π{formatPi(totalPi)}
+          </p>
+        </div>
+      </header>
 
       {/* CONTENT */}
       <section className="mt-6 px-4">
@@ -242,26 +244,26 @@ async function handleConfirmReceived(orderId: string) {
 
                         <p className="text-xs text-gray-500">
                           x{item.quantity} · π
-                          {formatPi(item.price)}
+                          {formatPi(item.unit_price)}
                         </p>
-                         {/* Seller message */}
-  {item.seller_message && (
-    <p className="text-xs text-blue-600 mt-1">
-      {t.seller_message ?? "Seller message"}: {item.seller_message}
-    </p>
-  )}
 
-  {/* Seller cancel reason */}
-  {item.seller_cancel_reason && (
-    <p className="text-xs text-red-500 mt-1">
-      {t.seller_cancel_reason ?? "Seller reason"}: {item.seller_cancel_reason}
-    </p>
-  )}
-</div>
+                        {/* Seller message */}
+                        {item.seller_message && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            {t.seller_message ?? "Seller message"}: {item.seller_message}
+                          </p>
+                        )}
 
-    </div>
-  ))}
-</div>
+                        {/* Seller cancel reason */}
+                        {item.seller_cancel_reason && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {t.seller_cancel_reason ?? "Seller reason"}: {item.seller_cancel_reason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
                 {/* FOOTER */}
                 <div className="flex justify-between items-center px-4 py-3 border-t">
@@ -277,9 +279,9 @@ async function handleConfirmReceived(orderId: string) {
                     disabled={processingId === o.id}
                     className="px-4 py-1.5 text-sm border border-orange-500 text-orange-500 rounded-md hover:bg-orange-500 hover:text-white transition disabled:opacity-50"
                   >
-                     {processingId === o.id
-                    ? t.processing
-                 : t.received}
+                    {processingId === o.id
+                      ? t.processing
+                      : t.received}
                   </button>
                 </div>
               </div>
