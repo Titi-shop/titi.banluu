@@ -4,11 +4,13 @@ import { verifyPiToken } from "@/lib/piAuth";
 const PI_API_URL = process.env.PI_API_URL!;
 const PI_API_KEY = process.env.PI_API_KEY!;
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
 
     /* =========================
-       1. VERIFY USER TOKEN
+       VERIFY USER TOKEN
     ========================= */
 
     const auth = req.headers.get("authorization");
@@ -21,9 +23,10 @@ export async function POST(req: NextRequest) {
     }
 
     const token = auth.replace("Bearer ", "").trim();
+
     const user = await verifyPiToken(token);
 
-    if (!user?.pi_uid) {
+    if (!user.pi_uid) {
       return NextResponse.json(
         { error: "INVALID_TOKEN" },
         { status: 401 }
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       2. READ BODY
+       BODY
     ========================= */
 
     const { paymentId } = await req.json();
@@ -44,16 +47,16 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       3. VERIFY PAYMENT FROM PI
+       VERIFY PAYMENT
     ========================= */
 
     const paymentRes = await fetch(
       `${PI_API_URL}/payments/${paymentId}`,
       {
         headers: {
-          Authorization: `Key ${PI_API_KEY}`,
+          Authorization: `Key ${PI_API_KEY}`
         },
-        cache: "no-store",
+        cache: "no-store"
       }
     );
 
@@ -67,18 +70,18 @@ export async function POST(req: NextRequest) {
     const payment = await paymentRes.json();
 
     /* =========================
-       4. CHECK PAYMENT OWNER
+       CHECK OWNER
     ========================= */
 
     if (payment.user_uid !== user.pi_uid) {
-      return NextResponse.json(
-        { error: "USER_MISMATCH" },
-        { status: 400 }
-      );
-    }
+  return NextResponse.json(
+    { error: "USER_MISMATCH" },
+    { status: 403 }
+  );
+}
 
     /* =========================
-       5. CHECK PAYMENT STATUS
+       CHECK STATUS
     ========================= */
 
     if (payment.status !== "CREATED") {
@@ -89,7 +92,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       6. APPROVE PAYMENT
+       APPROVE PAYMENT
     ========================= */
 
     const approveRes = await fetch(
@@ -97,12 +100,13 @@ export async function POST(req: NextRequest) {
       {
         method: "POST",
         headers: {
-          Authorization: `Key ${PI_API_KEY}`,
-        },
+          Authorization: `Key ${PI_API_KEY}`
+        }
       }
     );
 
     if (!approveRes.ok) {
+
       const text = await approveRes.text();
 
       console.error("PI APPROVE FAIL:", text);
@@ -114,8 +118,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      success: true,
-      paymentId,
+      success: true
     });
 
   } catch (err) {
