@@ -223,12 +223,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
       alert("Approve thất bại");
 
-      callback(); // 🔴 BẮT BUỘC
+      callback();
 
       return;
     }
 
-    callback(); // ✅ success
+    callback();
 
   } catch (err) {
 
@@ -236,9 +236,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
     setProcessing(false);
 
-    callback(); // 🔴 BẮT BUỘC
+    callback();
   }
-}
+
+},   // ✅ THIẾU DẤU NÀY
 
           /* COMPLETE */
 
