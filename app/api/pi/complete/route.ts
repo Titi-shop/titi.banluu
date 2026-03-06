@@ -96,6 +96,47 @@ export async function POST(req: Request) {
 
     /* ========================= */
 
+    const product = body.product ?? {};
+const quantity = body.quantity ?? 1;
+
+await query(
+`
+insert into order_items (
+  order_id,
+  product_id,
+  seller_id,
+  product_name,
+  thumbnail,
+  images,
+  unit_price,
+  quantity,
+  total_price
+)
+values (
+  (select id from orders where pi_payment_id=$1),
+  $2,
+  $3,
+  $4,
+  $5,
+  $6,
+  $7,
+  $8,
+  $9
+)
+`,
+[
+  paymentId,
+  product.id,
+  product.seller_id ?? "",
+  product.name,
+  product.image,
+  [product.image],
+  product.price,
+  quantity,
+  product.price * quantity
+]
+);
+
     return new NextResponse(text || "{}", {
       status: piRes.status,
       headers: {
