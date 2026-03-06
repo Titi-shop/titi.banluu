@@ -133,6 +133,29 @@ export async function verifyPiToken(
   };
 }
 
+
+/* =========================================================
+   SERVER: GET PI USER FROM REQUEST TOKEN
+========================================================= */
+
+export async function getPiUserFromToken(
+  req: Request
+): Promise<PiUser> {
+
+  const auth = req.headers.get("authorization");
+
+  if (!auth) {
+    throw new Error("PI_AUTH_HEADER_MISSING");
+  }
+
+  if (!auth.startsWith("Bearer ")) {
+    throw new Error("PI_AUTH_HEADER_INVALID");
+  }
+
+  const token = auth.replace("Bearer ", "").trim();
+
+  return verifyPiToken(token);
+}
 /* =========================================================
    CLEAR TOKEN (LOGOUT)
 ========================================================= */
