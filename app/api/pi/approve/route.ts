@@ -1,40 +1,92 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
+const PI_API_URL = process.env.PI_API_URL!;
+const PI_API_KEY = process.env.PI_API_KEY!;
 
 export const dynamic = "force-dynamic";
 
-const PI_API = process.env.PI_API_URL!;
-const PI_KEY = process.env.PI_API_KEY!;
+export async function POST(req: NextRequest) {
 
-export async function POST(req: Request) {
   try {
-    const { paymentId } = await req.json();
+
+    const body = await req.json();
+
+    const paymentId =
+      body.paymentId ||
+      body.payment_id ||
+      body.id;
 
     if (!paymentId) {
+
       return NextResponse.json(
-        { error: "MISSING_PAYMENT_ID" },
+        { error: "PAYMENT_ID_MISSING" },
         { status: 400 }
       );
     }
 
+    /* GET PAYMENT */
+
+    const paymentRes = await fetch(
+      `${PI_API_URL}/payments/${paymentId}`,
+      {
+        headers: {
+          Authorization: `Key ${PI_API_KEY}`,
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (!paymentRes.ok) {
+
+      const text = await paymentRes.text();
+
+      console.error("PI PAYMENT ERROR:", text);
+
+      return NextResponse.json(
+        { error: "PAYMENT_NOT_FOUND" },
+        { status: 400 }
+      );
+    }
+
+    const payment = await paymentRes.json();
+
+    if (payment.status !== "CREATED") {
+
+      return NextResponse.json(
+        { error: "INVALID_STATUS" },
+        { status: 400 }
+      );
+    }
+
+    /* APPROVE */
+
     const approveRes = await fetch(
-      `${PI_API}/payments/${paymentId}/approve`,
+      `${PI_API_URL}/payments/${paymentId}/approve`,
       {
         method: "POST",
         headers: {
-          Authorization: `Key ${PI_KEY}`,
+          Authorization: `Key ${PI_API_KEY}`,
         },
       }
     );
 
-    const text = await approveRes.text();
+    if (!approveRes.ok) {
 
-    return new NextResponse(text, {
-      status: approveRes.status,
-    });
+      const text = await approveRes.text();
+
+      console.error("PI APPROVE FAIL:", text);
+
+      return NextResponse.json(
+        { error: "APPROVE_FAILED" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
 
   } catch (err) {
 
-    console.error("PI APPROVE ERROR:", err);
+    console.error(err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
