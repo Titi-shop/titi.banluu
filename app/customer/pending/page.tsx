@@ -28,7 +28,7 @@ images: string[];
 
 interface OrderItem {
 quantity: number;
-price: number;
+unit_price: number;
 product_id: string;
 product?: Product;
 }
@@ -89,7 +89,7 @@ const token = await getPiAccessToken();
 const user = await window.Pi.getCurrentUser();
 
 const res = await fetch(
-`/api/orders?buyer=${user.uid}`,
+  `/api/orders`,
 {
 headers: {
 Authorization: `Bearer ${token}`,
@@ -100,7 +100,9 @@ cache: "no-store",
 
 if (!res.ok) throw new Error("UNAUTHORIZED");
 
-const rawOrders: Order[] = await res.json();
+const data = await res.json();
+
+const rawOrders: Order[] = data.orders ?? [];
 
 const filtered = rawOrders.filter(
 (o) => o.status === "pending"
@@ -295,7 +297,7 @@ className="w-full h-full object-cover"
 
 <p className="text-xs text-gray-500">
 x{item.quantity} · π
-{formatPi(item.price)}
+{formatPi(item.unit_price)}
 </p>
 
 </div>
