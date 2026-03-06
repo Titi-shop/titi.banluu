@@ -2,19 +2,54 @@
    Pi Auth Utility
    - Client: get accessToken từ Pi Browser
    - Server: verify accessToken với Pi API
+   Architecture:
+   NETWORK-FIRST + AUTH-CENTRIC
 ========================================================= */
+
+const PI_API_URL = process.env.PI_API_URL ?? "https://api.minepi.com/v2";
 
 let cachedToken: string | null = null;
 let authPromise: Promise<string> | null = null;
 
 /* =========================================================
+   PI TYPES
+========================================================= */
+
+export type PiUser = {
+  pi_uid: string;
+  username: string;
+};
+
+type PiAuthResult = {
+  accessToken: string;
+  user?: {
+    uid: string;
+    username: string;
+  };
+};
+
+type PiBrowser = {
+  authenticate(
+    scopes: string[],
+    onIncompletePaymentFound: (payment: unknown) => void
+  ): Promise<PiAuthResult>;
+};
+
+declare global {
+  interface Window {
+    Pi?: PiBrowser;
+  }
+}
+
+/* =========================================================
    CLIENT: GET PI ACCESS TOKEN
 ========================================================= */
 
-export async function getPiAccessToken(): Promise<string> {
+export async function getPiAccessToken(
+  forceRefresh = false
+): Promise<string> {
 
-  // dùng cache để tránh gọi authenticate nhiều lần
-  if (cachedToken) {
+  if (!forceRefresh && cachedToken) {
     return cachedToken;
   }
 
@@ -22,8 +57,12 @@ export async function getPiAccessToken(): Promise<string> {
     return authPromise;
   }
 
-  if (typeof window === "undefined" || !window.Pi) {
-    throw new Error("PI_NOT_AVAILABLE");
+  if (typeof window === "undefined") {
+    throw new Error("PI_BROWSER_REQUIRED");
+  }
+
+  if (!window.Pi) {
+    throw new Error("PI_SDK_NOT_AVAILABLE");
   }
 
   const scopes = ["username", "payments"];
@@ -31,7 +70,10 @@ export async function getPiAccessToken(): Promise<string> {
   authPromise = (async () => {
     try {
 
-      const auth = await window.Pi.authenticate(scopes, () => {});
+      const auth = await window.Pi.authenticate(
+        scopes,
+        () => {}
+      );
 
       if (!auth || !auth.accessToken) {
         throw new Error("PI_AUTH_FAILED");
@@ -53,19 +95,16 @@ export async function getPiAccessToken(): Promise<string> {
    SERVER: VERIFY PI TOKEN
 ========================================================= */
 
-export type PiUser = {
-  pi_uid: string;
-  username: string;
-};
-
-export async function verifyPiToken(token: string): Promise<PiUser> {
+export async function verifyPiToken(
+  token: string
+): Promise<PiUser> {
 
   if (!token) {
     throw new Error("PI_TOKEN_MISSING");
   }
 
   const res = await fetch(
-    "https://api.minepi.com/v2/me",
+    `${PI_API_URL}/me`,
     {
       method: "GET",
       headers: {
@@ -79,12 +118,12 @@ export async function verifyPiToken(token: string): Promise<PiUser> {
     throw new Error("PI_TOKEN_INVALID");
   }
 
-  const data = await res.json() as {
-    uid: string;
-    username: string;
+  const data = (await res.json()) as {
+    uid?: string;
+    username?: string;
   };
 
-  if (!data.uid) {
+  if (!data.uid || !data.username) {
     throw new Error("PI_USER_INVALID");
   }
 
