@@ -191,7 +191,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     try {
       await window.Pi.createPayment(
         {
-          amount: Number(total),
+          amount: Number(total.toFixed(6)),
           memo: "Thanh toán đơn hàng TiTi",
           metadata: {
             shipping,
