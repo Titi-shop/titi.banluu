@@ -16,12 +16,26 @@ export async function GET(req: Request) {
     }
 
     const { rows } = await query(
-      `
-      select *
-      from orders
-      where buyer_id = $1
-      order by created_at desc
-      `,
+`
+select
+  o.*,
+  coalesce(
+    json_agg(
+      json_build_object(
+        'product_id', oi.product_id,
+        'quantity', oi.quantity,
+        'price', oi.unit_price
+      )
+    ) filter (where oi.id is not null),
+    '[]'
+  ) as order_items
+from orders o
+left join order_items oi
+on oi.order_id = o.id
+where o.buyer_id = $1
+group by o.id
+order by o.created_at desc
+`,
       [buyer]
     );
 
