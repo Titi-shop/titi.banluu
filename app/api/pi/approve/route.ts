@@ -9,15 +9,9 @@ export async function POST(req: NextRequest) {
 
   try {
 
-    const body = await req.json();
-
-    const paymentId =
-      body.paymentId ||
-      body.payment_id ||
-      body.id;
+    const { paymentId } = await req.json();
 
     if (!paymentId) {
-
       return NextResponse.json(
         { error: "PAYMENT_ID_MISSING" },
         { status: 400 }
@@ -50,10 +44,18 @@ export async function POST(req: NextRequest) {
 
     const payment = await paymentRes.json();
 
+    /* ALREADY APPROVED */
+
+    if (payment.status === "APPROVED") {
+      return NextResponse.json({ success: true });
+    }
+
+    /* INVALID STATUS */
+
     if (payment.status !== "CREATED") {
 
       return NextResponse.json(
-        { error: "INVALID_STATUS" },
+        { error: "INVALID_PAYMENT_STATUS" },
         { status: 400 }
       );
     }
