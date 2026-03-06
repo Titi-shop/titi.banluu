@@ -1,17 +1,29 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { getPiUserFromToken } from "@/lib/piAuth";
 
 export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   try {
 
-    const { searchParams } = new URL(req.url);
-    const buyer = searchParams.get("buyer");
+    const auth = req.headers.get("authorization");
 
-    if (!buyer) {
+    if (!auth) {
       return NextResponse.json(
-        { error: "MISSING_BUYER" },
-        { status: 400 }
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const token = auth.replace("Bearer ", "");
+
+    const user = await getPiUserFromToken(token);
+
+    if (!user?.pi_uid) {
+      return NextResponse.json(
+        { error: "INVALID_USER" },
+        { status: 401 }
       );
     }
 
@@ -36,7 +48,7 @@ where o.buyer_id = $1
 group by o.id
 order by o.created_at desc
 `,
-      [buyer]
+      [user.pi_uid]
     );
 
     return NextResponse.json(rows);
@@ -51,7 +63,6 @@ order by o.created_at desc
     );
   }
 }
-
 export async function POST(req: Request) {
   try {
 
