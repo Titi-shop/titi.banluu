@@ -28,43 +28,42 @@ export async function GET(req: Request) {
   }
 
   const { rows } = await query(
-    `
-    select
-      o.id,
-      o.created_at,
-      o.total_price as total,
+`
+select
+  o.id,
+  o.created_at,
 
-      json_build_object(
-        'name', o.buyer_name,
-        'phone', o.buyer_phone,
-        'address', o.buyer_address
-      ) as buyer,
+  sum(oi.total_price) as total,
 
-      json_agg(
-        json_build_object(
-          'product_id', oi.product_id,
-          'quantity', oi.quantity,
-          'price', oi.unit_price,
-          'product', json_build_object(
-            'id', oi.product_id,
-            'name', oi.product_name,
-            'images', oi.images
-          )
-        )
-      ) as order_items
+  json_build_object(
+    'name', o.buyer_name,
+    'phone', o.buyer_phone,
+    'address', o.buyer_address
+  ) as buyer,
 
-    from order_items oi
-    join orders o on o.id = oi.order_id
+  json_agg(
+    json_build_object(
+      'product_id', oi.product_id,
+      'quantity', oi.quantity,
+      'price', oi.unit_price,
+      'product', json_build_object(
+        'id', oi.product_id,
+        'name', oi.product_name,
+        'images', oi.images
+      )
+    )
+  ) as order_items
 
-    where oi.seller_id = $1
-    ${statusFilter}
+from order_items oi
+join orders o on o.id = oi.order_id
 
-    group by o.id
-    order by o.created_at desc
-    `
-    ,
-    params
-  );
+where oi.seller_id = $1
+${statusFilter}
 
+group by o.id
+order by o.created_at desc
+`,
+params
+);
   return NextResponse.json(rows);
 }
