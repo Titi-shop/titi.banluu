@@ -88,12 +88,11 @@ const token = await getPiAccessToken();
 
 const user = await window.Pi.getCurrentUser();
 
-const res = await fetch(
-  `/api/orders`,
-{
-headers: {
-Authorization: `Bearer ${token}`,
-},
+const res = await fetch("/api/orders", {
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+  },
+});
 cache: "no-store",
 }
 );
