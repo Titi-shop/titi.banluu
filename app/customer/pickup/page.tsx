@@ -29,7 +29,7 @@ interface Product {
 
 interface OrderItem {
   quantity: number;
-  price: number;
+  unit_price: number;
   product_id: string;
   seller_cancel_reason?: string | null;
   seller_message?: string | null;
@@ -40,7 +40,7 @@ interface Order {
   id: string;
   total: number;
   status: OrderStatus;
-  order_items: OrderItem[];
+  order_items?: OrderItem[];
 }
 
 /* =========================
@@ -73,12 +73,14 @@ export default function CustomerPickupPage() {
 
       if (!res.ok) throw new Error("UNAUTHORIZED");
 
-      const rawOrders: Order[] = await res.json();
+      const data = await res.json();
+
+      const rawOrders: Order[] = data.orders ?? [];
 
       // ✅ chỉ lấy đơn pickup (seller đã xác nhận)
       const filtered = rawOrders.filter(
-  (o) => o.status === "confirmed"
-);
+        (o) => o.status === "confirmed"
+      );
 
       const productIds = Array.from(
         new Set(
@@ -135,8 +137,8 @@ export default function CustomerPickupPage() {
   ========================= */
   return (
   <main className="min-h-screen bg-gray-100 pb-24">
-    {/* HEADER */}
-    <header className="bg-orange-500 text-white px-4 py-4">
+
+<header className="bg-orange-500 text-white px-4 py-4">
   <div className="bg-orange-400 rounded-lg p-4">
     <p className="text-sm opacity-90">
       {t.order_info}
@@ -147,97 +149,117 @@ export default function CustomerPickupPage() {
   </div>
 </header>
 
-    {/* CONTENT */}
-    <section className="mt-6 px-4">
-      {loading ? (
-        <p className="text-center text-gray-400">
-          {t.loading_orders}
-        </p>
-      ) : orders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
-          <div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
-          <p>
-           {t.no_pickup_orders}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {orders.map((o) => (
-            <div
-              key={o.id}
-              className="bg-white rounded-xl shadow-sm overflow-hidden"
-            >
-              {/* HEADER CARD */}
-              <div className="flex justify-between items-center px-4 py-3 border-b">
-                <span className="font-medium text-sm break-all">
-                  #{o.id}
-                </span>
+<section className="mt-6 px-4">
+{loading ? (
 
-                <span className="text-orange-500 text-sm font-medium">
-           {t.order_status_confirmed}
-             </span>
-              </div>
+<p className="text-center text-gray-400">
+{t.loading_orders}
+</p>
 
-              {/* PRODUCT LIST */}
-              <div className="px-4 py-3 space-y-3">
-                {o.order_items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex gap-3 items-center"
-                  >
-                    <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
-                      {item.product?.images?.[0] && (
-                        <img
-                          src={item.product.images[0]}
-                          alt={item.product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
+) : orders.length === 0 ? (
 
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium line-clamp-1">
-                        {item.product?.name ?? "—"}
-                      </p>
-
-                      <p className="text-xs text-gray-500">
-                        x{item.quantity} · π
-                        {formatPi(item.price)}
-                      </p>
-                       {/* Seller message */}
-  {item.seller_message && (
-    <p className="text-xs text-blue-600 mt-1">
-      {t.seller_message ?? "Seller message"}: {item.seller_message}
-    </p>
-  )}
-
-  {/* Seller cancel reason */}
-  {item.seller_cancel_reason && (
-    <p className="text-xs text-red-500 mt-1">
-      {t.seller_cancel_reason ?? "Seller reason"}: {item.seller_cancel_reason}
-    </p>
-  )}
+<div className="flex flex-col items-center justify-center mt-20 text-gray-400">
+<div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
+<p>
+{t.no_pickup_orders}
+</p>
 </div>
 
-    </div>
-  ))}
+) : (
+
+<div className="space-y-4">
+
+{orders.map((o) => (
+
+<div
+key={o.id}
+className="bg-white rounded-xl shadow-sm overflow-hidden"
+>
+
+<div className="flex justify-between items-center px-4 py-3 border-b">
+<span className="font-medium text-sm break-all">
+#{o.id}
+</span>
+
+<span className="text-orange-500 text-sm font-medium">
+{t.order_status_confirmed}
+</span>
 </div>
-                       
-                    
-              {/* FOOTER */}
-              <div className="flex justify-between items-center px-4 py-3 border-t">
-                <p className="text-sm font-semibold">
-               {t.total}: π{formatPi(o.total)}
-                </p>
-                <button className="px-4 py-1.5 text-sm border border-orange-400 text-orange-500 rounded hover:bg-orange-500 hover:text-white transition">
-                {t.buy_now}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  </main>
+
+<div className="px-4 py-3 space-y-3">
+
+{o.order_items?.map((item, idx) => (
+
+<div
+key={idx}
+className="flex gap-3 items-center"
+>
+
+<div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
+
+{item.product?.images?.[0] && (
+<img
+src={item.product.images[0]}
+alt={item.product.name}
+className="w-full h-full object-cover"
+/>
+)}
+
+</div>
+
+<div className="flex-1 min-w-0">
+
+<p className="text-sm font-medium line-clamp-1">
+{item.product?.name ?? "—"}
+</p>
+
+<p className="text-xs text-gray-500">
+x{item.quantity} · π
+{formatPi(item.unit_price)}
+</p>
+
+{item.seller_message && (
+<p className="text-xs text-blue-600 mt-1">
+{t.seller_message ?? "Seller message"}: {item.seller_message}
+</p>
+)}
+
+{item.seller_cancel_reason && (
+<p className="text-xs text-red-500 mt-1">
+{t.seller_cancel_reason ?? "Seller reason"}: {item.seller_cancel_reason}
+</p>
+)}
+
+</div>
+
+</div>
+
+))}
+
+</div>
+
+<div className="flex justify-between items-center px-4 py-3 border-t">
+
+<p className="text-sm font-semibold">
+{t.total}: π{formatPi(o.total)}
+</p>
+
+<button className="px-4 py-1.5 text-sm border border-orange-400 text-orange-500 rounded hover:bg-orange-500 hover:text-white transition">
+{t.buy_now}
+</button>
+
+</div>
+
+</div>
+
+))}
+
+</div>
+
+)}
+
+</section>
+
+</main>
 );
 }
