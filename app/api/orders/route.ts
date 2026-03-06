@@ -17,21 +17,31 @@ type OrderRow = {
   currency: string;
   status: string;
   payment_status: string;
+  provider: string | null;
+  country: string | null;
+  postal_code: string | null;
   created_at: string;
 };
 
 type CreateOrderBody = {
   order_number: string;
+
   pi_payment_id: string | null;
   pi_txid: string | null;
+
   subtotal: number;
   shipping_fee: number;
   discount: number;
   tax: number;
   total: number;
+
   shipping_name: string;
   shipping_phone: string;
   shipping_address: string;
+
+  provider: string | null;
+  country: string;
+  postal_code: string;
 };
 
 /* =========================================================
@@ -60,17 +70,45 @@ async function getUser(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    const user = await getUser(req);
 
-    const result = await query(
+    const auth = req.headers.get("authorization");
+
+    if (!auth) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const token = auth.replace("Bearer ", "");
+
+    const user = await verifyPiToken(token);
+
+    /* GET INTERNAL USER ID */
+
+    const { rows: users } = await query(
+      `
+      select id
+      from users
+      where pi_uid = $1
+      limit 1
+      `,
+      [user.pi_uid]
+    );
+
+    const dbUser = users[0];
+
+    if (!dbUser) {
+      return NextResponse.json([]);
+    }
+
+    /* LOAD ORDERS */
+
+    const { rows } = await query(
       `
       select
         id,
         order_number,
-        subtotal,
-        shipping_fee,
-        discount,
-        tax,
         total,
         currency,
         status,
@@ -80,16 +118,13 @@ export async function GET(req: Request) {
       where buyer_id = $1
       order by created_at desc
       `,
-      [user.pi_uid]
+      [dbUser.id]
     );
 
-    const orders: OrderRow[] = result.rows;
+    return NextResponse.json(rows);
 
-    return NextResponse.json({
-      success: true,
-      orders,
-    });
   } catch (err) {
+
     console.error("orders GET error", err);
 
     return NextResponse.json(
@@ -102,7 +137,6 @@ export async function GET(req: Request) {
 /* =========================================================
    CREATE ORDER
 ========================================================= */
-
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
@@ -121,6 +155,9 @@ export async function POST(req: Request) {
       shipping_name,
       shipping_phone,
       shipping_address,
+      provider,
+      country,
+      postal_code,
     } = body;
 
     if (!order_number || !total) {
@@ -129,10 +166,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
-    /* =====================================================
-       PREVENT DUPLICATE ORDER
-    ===================================================== */
 
     const existing = await query(
       `
@@ -151,10 +184,6 @@ export async function POST(req: Request) {
       );
     }
 
-    /* =====================================================
-       INSERT ORDER
-    ===================================================== */
-
     const result = await query(
       `
       insert into orders (
@@ -169,10 +198,13 @@ export async function POST(req: Request) {
         total,
         shipping_name,
         shipping_phone,
-        shipping_address
+        shipping_address,
+        provider,
+        country,
+        postal_code
       )
       values (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
       )
       returning
         id,
@@ -185,6 +217,9 @@ export async function POST(req: Request) {
         currency,
         status,
         payment_status,
+        provider,
+        country,
+        postal_code,
         created_at
       `,
       [
@@ -200,6 +235,9 @@ export async function POST(req: Request) {
         shipping_name,
         shipping_phone,
         shipping_address,
+        provider,
+        country,
+        postal_code,
       ]
     );
 
