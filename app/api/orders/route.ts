@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getPiUserFromToken } from "@/lib/piAuth";
+import { verifyPiToken } from "@/lib/piAuth";
 
-export const dynamic = "force-dynamic";
+/* =========================================================
+   GET USER ORDERS
+========================================================= */
 
 export async function GET(req: Request) {
   try {
@@ -10,44 +12,27 @@ export async function GET(req: Request) {
     const auth = req.headers.get("authorization");
 
     if (!auth) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const token = auth.replace("Bearer ", "");
 
-    const user = await getPiUserFromToken(token);
-
-    if (!user?.pi_uid) {
-      return NextResponse.json(
-        { error: "INVALID_USER" },
-        { status: 401 }
-      );
-    }
+    const user = await verifyPiToken(token);
 
     const { rows } = await query(
-`
-select
-  o.*,
-  coalesce(
-    json_agg(
-      json_build_object(
-        'product_id', oi.product_id,
-        'quantity', oi.quantity,
-        'price', oi.unit_price
-      )
-    ) filter (where oi.id is not null),
-    '[]'
-  ) as order_items
-from orders o
-left join order_items oi
-on oi.order_id = o.id
-where o.buyer_id = $1
-group by o.id
-order by o.created_at desc
-`,
+      `
+      select
+        id,
+        order_number,
+        total,
+        currency,
+        status,
+        payment_status,
+        created_at
+      from orders
+      where buyer_id = $1
+      order by created_at desc
+      `,
       [user.pi_uid]
     );
 
@@ -55,42 +40,49 @@ order by o.created_at desc
 
   } catch (err) {
 
-    console.error("GET ORDERS ERROR:", err);
+    console.error("orders GET error", err);
 
     return NextResponse.json(
-      { error: "SERVER_ERROR" },
+      { error: "ORDERS_FETCH_FAILED" },
       { status: 500 }
     );
   }
 }
+
+/* =========================================================
+   CREATE ORDER
+========================================================= */
+
 export async function POST(req: Request) {
   try {
 
-    const body = await req.json();
+    const auth = req.headers.get("authorization");
 
-    const paymentId = body.paymentId;
-    const txid = body.txid;
-    const user = body.user;
-    const shipping = body.shipping;
-    const items = body.items ?? [];
-
-    if (!paymentId || !txid || !user?.pi_uid) {
-      return NextResponse.json(
-        { error: "INVALID_ORDER_DATA" },
-        { status: 400 }
-      );
+    if (!auth) {
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    const subtotal = Math.round(body.subtotal ?? 0);
-    const total = Math.round(body.total ?? 0);
+    const token = auth.replace("Bearer ", "");
 
-    /* =========================
-       START TRANSACTION
-    ========================= */
+    const user = await verifyPiToken(token);
 
-    await query("BEGIN");
+    const body = await req.json();
 
-    const orderRes = await query(
+    const {
+      order_number,
+      pi_payment_id,
+      pi_txid,
+      subtotal,
+      shipping_fee,
+      discount,
+      tax,
+      total,
+      shipping_name,
+      shipping_phone,
+      shipping_address
+    } = body;
+
+    const { rows } = await query(
       `
       insert into orders (
         order_number,
@@ -98,80 +90,43 @@ export async function POST(req: Request) {
         pi_payment_id,
         pi_txid,
         subtotal,
+        shipping_fee,
+        discount,
+        tax,
         total,
         shipping_name,
         shipping_phone,
-        shipping_address,
-        shipping_country,
-        shipping_postal_code
+        shipping_address
       )
       values (
-        gen_random_uuid()::text,
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
       )
-      on conflict (pi_payment_id) do update
-      set pi_txid = excluded.pi_txid
-      returning id
+      returning *
       `,
       [
+        order_number,
         user.pi_uid,
-        paymentId,
-        txid,
+        pi_payment_id,
+        pi_txid,
         subtotal,
+        shipping_fee,
+        discount,
+        tax,
         total,
-        shipping?.name ?? "",
-        shipping?.phone ?? "",
-        shipping?.address_line ?? "",
-        shipping?.country ?? "",
-        shipping?.postal_code ?? "",
+        shipping_name,
+        shipping_phone,
+        shipping_address
       ]
     );
 
-    const orderId = orderRes.rows[0]?.id;
-
-    /* =========================
-       INSERT ORDER ITEMS
-    ========================= */
-
-    for (const item of items) {
-
-      await query(
-        `
-        insert into order_items (
-          order_id,
-          product_id,
-          product_name,
-          price,
-          quantity
-        )
-        values ($1,$2,$3,$4,$5)
-        `,
-        [
-          orderId,
-          item.product_id,
-          item.name,
-          Math.round(item.price),
-          item.quantity,
-        ]
-      );
-
-    }
-
-    await query("COMMIT");
-
-    return NextResponse.json({
-      success: true,
-      orderId,
-    });
+    return NextResponse.json(rows[0]);
 
   } catch (err) {
 
-    await query("ROLLBACK");
-
-    console.error("ORDER CREATE ERROR:", err);
+    console.error("orders POST error", err);
 
     return NextResponse.json(
-      { error: "SERVER_ERROR" },
+      { error: "ORDER_CREATE_FAILED" },
       { status: 500 }
     );
   }
