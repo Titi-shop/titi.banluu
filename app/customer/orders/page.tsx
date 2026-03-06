@@ -19,7 +19,7 @@ interface OrderItem {
   product_id: string;
   seller_message?: string | null;
   seller_cancel_reason?: string | null;
-  price: number;
+  unit_price: number;
   quantity: number;
   product?: Product;
 }
@@ -51,10 +51,11 @@ export default function CustomerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
-function formatPi(value: number | string) {
-  return Number(value).toFixed(6);
-}
-   
+
+  function formatPi(value: number | string) {
+    return Number(value).toFixed(6);
+  }
+
   /* =========================
      LOAD ORDERS (1 LẦN)
   ========================= */
@@ -63,99 +64,101 @@ function formatPi(value: number | string) {
   }, []);
 
   const loadOrders = async () => {
-  try {
-    const token = await getPiAccessToken();
-    if (!token) return;
+    try {
+      const token = await getPiAccessToken();
+      if (!token) return;
 
-    const res = await fetch("/api/orders", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
-    });
+      const res = await fetch("/api/orders", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
 
-    if (!res.ok) throw new Error("UNAUTHORIZED");
+      if (!res.ok) throw new Error("UNAUTHORIZED");
 
-    const rawOrders: Order[] = await res.json();
-    const safeOrders = Array.isArray(rawOrders) ? rawOrders : [];
+      const data = await res.json();
+      const rawOrders: Order[] = data.orders ?? [];
 
-    const productIds = Array.from(
-      new Set(
-        safeOrders.flatMap((o) =>
-          o.order_items?.map((i) => i.product_id) ?? []
+      const safeOrders = Array.isArray(rawOrders) ? rawOrders : [];
+
+      const productIds = Array.from(
+        new Set(
+          safeOrders.flatMap((o) =>
+            o.order_items?.map((i) => i.product_id) ?? []
+          )
         )
-      )
-    );
+      );
 
-    if (productIds.length === 0) {
-      setOrders(safeOrders);
-      return;
+      if (productIds.length === 0) {
+        setOrders(safeOrders);
+        return;
+      }
+
+      const productRes = await fetch(
+        `/api/products?ids=${productIds.join(",")}`,
+        { cache: "no-store" }
+      );
+
+      if (!productRes.ok)
+        throw new Error("FETCH_PRODUCTS_FAILED");
+
+      const products: Product[] = await productRes.json();
+
+      const productMap: Record<string, Product> = Object.fromEntries(
+        products.map((p) => [p.id, p])
+      );
+
+      const enrichedOrders = safeOrders.map((o) => ({
+        ...o,
+        order_items: (o.order_items ?? []).map((i) => ({
+          ...i,
+          product: productMap[i.product_id],
+        })),
+      }));
+
+      setOrders(enrichedOrders);
+    } catch (e) {
+      console.error("❌ Load orders error:", e);
+      setOrders([]);
+    } finally {
+      setLoading(false);
     }
-
-    const productRes = await fetch(
-      `/api/products?ids=${productIds.join(",")}`,
-      { cache: "no-store" }
-    );
-
-    if (!productRes.ok)
-      throw new Error("FETCH_PRODUCTS_FAILED");
-
-    const products: Product[] = await productRes.json();
-    const productMap = Object.fromEntries(
-      products.map((p) => [p.id, p])
-    );
-
-    const enrichedOrders = safeOrders.map((o) => ({
-      ...o,
-      order_items: (o.order_items ?? []).map((i) => ({
-        ...i,
-        product: productMap[i.product_id],
-      })),
-    }));
-
-    setOrders(enrichedOrders);
-  } catch (e) {
-    console.error("❌ Load orders error:", e);
-    setOrders([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   /* =========================
      FILTER THEO TAB
   ========================= */
   const filteredOrders = useMemo(() => {
-  if (activeTab === "all") return orders;
+    if (activeTab === "all") return orders;
 
-  switch (activeTab) {
-    case "pending":
-      return orders.filter((o) => o.status === "pending");
+    switch (activeTab) {
+      case "pending":
+        return orders.filter((o) => o.status === "pending");
 
-    case "pickup": // UI pickup = DB confirmed
-      return orders.filter((o) => o.status === "confirmed");
+      case "pickup": // UI pickup = DB confirmed
+        return orders.filter((o) => o.status === "confirmed");
 
-    case "shipping":
-      return orders.filter((o) => o.status === "shipping");
+      case "shipping":
+        return orders.filter((o) => o.status === "shipping");
 
-        
-    case "received": // UI received = DB completed
-        
-    case "completed":
-      return orders.filter((o) => o.status === "completed");
+      case "received": // UI received = DB completed
 
-        case "returned":
-  return orders.filter((o) => o.status === "returned");
-        
-    case "cancelled":
-      return orders.filter((o) => o.status === "cancelled");
+      case "completed":
+        return orders.filter((o) => o.status === "completed");
 
-    default:
-      return orders;
-  }
-}, [orders, activeTab]);
+      case "returned":
+        return orders.filter((o) => o.status === "returned");
 
-    /* =========================
+      case "cancelled":
+        return orders.filter((o) => o.status === "cancelled");
+
+      default:
+        return orders;
+    }
+  }, [orders, activeTab]);
+
+  /* =========================
      UI
   ========================= */
   return (
@@ -213,51 +216,52 @@ function formatPi(value: number | string) {
                   {t[`status_${o.status}`] ?? o.status}
                 </span>
               </div>
-            
+
               {/* PRODUCTS */}
-{o.order_items && o.order_items.length > 0 && (
-  <div className="mt-3 space-y-2">
-    {o.order_items.map((item, idx) => (
-      <div key={idx} className="flex gap-3 items-center p-4 border-t">
-        {/* IMAGE */}
-        <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-          {item.product?.images?.length > 0 && (
-            <img
-              src={item.product.images[0]}
-              alt={item.product.name}
-              className="w-full h-full object-cover"
-            />
-          )}
-        </div>
+              {o.order_items && o.order_items.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {o.order_items.map((item, idx) => (
+                    <div key={idx} className="flex gap-3 items-center p-4 border-t">
+                      {/* IMAGE */}
+                      <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                        {item.product?.images?.length > 0 && (
+                          <img
+                            src={item.product.images[0]}
+                            alt={item.product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
 
-        {/* INFO */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium line-clamp-1">
-            {item.product?.name ?? "—"}
-          </p>
+                      {/* INFO */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium line-clamp-1">
+                          {item.product?.name ?? "—"}
+                        </p>
 
-          <p className="text-xs text-gray-500">
-            x{item.quantity} · π{formatPi(item.price)}
-          </p>
-           {/* Seller message */}
-  {item.seller_message && (
-    <p className="text-xs text-blue-600 mt-1">
-      {t.seller_message ?? "Seller message"}: {item.seller_message}
-    </p>
-  )}
+                        <p className="text-xs text-gray-500">
+                          x{item.quantity} · π{formatPi(item.unit_price)}
+                        </p>
 
-  {/* Seller cancel reason */}
-  {item.seller_cancel_reason && (
-    <p className="text-xs text-red-500 mt-1">
-      {t.seller_cancel_reason ?? "Seller reason"}: {item.seller_cancel_reason}
-    </p>
-  )}
-</div>
+                        {/* Seller message */}
+                        {item.seller_message && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            {t.seller_message ?? "Seller message"}: {item.seller_message}
+                          </p>
+                        )}
 
-    </div>
-  ))}
-</div>
-)}
+                        {/* Seller cancel reason */}
+                        {item.seller_cancel_reason && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {t.seller_cancel_reason ?? "Seller reason"}: {item.seller_cancel_reason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* FOOTER */}
               <div className="flex justify-between items-center px-4 py-3 border-t text-sm">
                 <span>
