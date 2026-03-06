@@ -258,8 +258,8 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       total,
       shipping,
       user: {
-        pi_uid: user.uid
-      }
+  pi_uid: user.pi_uid
+}
     }),
   });
 
