@@ -223,23 +223,20 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
       alert("Approve thất bại");
 
-      callback();
-
       return;
     }
 
-    callback();
+    callback(); // ✅ chỉ gọi khi approve OK
 
   } catch (err) {
 
-    console.error(err);
+    console.error("APPROVE ERROR:", err);
 
     setProcessing(false);
 
-    callback();
   }
 
-},   // ✅ THIẾU DẤU NÀY
+},
 
           /* COMPLETE */
 
