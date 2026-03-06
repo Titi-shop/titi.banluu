@@ -1,103 +1,117 @@
-import { NextRequest, NextResponse } from "next/server";
-import { verifyPiToken } from "@/lib/piAuth";
-import { createOrder, getOrderByPiPaymentId } from "@/lib/db/orders";
+import { NextResponse } from "next/server";
+import { query } from "@/lib/db";
 
-export async function POST(req: NextRequest) {
+export const dynamic = "force-dynamic";
+
+export async function POST(req: Request) {
   try {
-    /* =========================
-       1️⃣ VERIFY TOKEN
-    ========================= */
-    const authHeader = req.headers.get("authorization");
 
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: "Missing Authorization header" },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-
-    const user = await verifyPiToken(token);
-
-    if (!user?.pi_uid) {
-      return NextResponse.json(
-        { error: "Invalid Pi token" },
-        { status: 401 }
-      );
-    }
-
-    /* =========================
-       2️⃣ READ BODY
-    ========================= */
     const body = await req.json();
 
-    const {
-      paymentId,
-      txid,
-      items,
-      total,
-      shipping
-    } = body;
+    const paymentId = body.paymentId;
+    const txid = body.txid;
+    const user = body.user;
+    const shipping = body.shipping;
+    const items = body.items ?? [];
 
-    if (!paymentId || !txid) {
+    if (!paymentId || !txid || !user?.pi_uid) {
       return NextResponse.json(
-        { error: "Missing payment data" },
+        { error: "INVALID_ORDER_DATA" },
         { status: 400 }
       );
     }
 
-    /* =========================
-       3️⃣ DUPLICATE ORDER CHECK
-    ========================= */
-    const existing = await getOrderByPiPaymentId(paymentId);
-
-    if (existing) {
-      return NextResponse.json({
-        success: true,
-        orderId: existing.id
-      });
-    }
+    const subtotal = Math.round(body.subtotal ?? 0);
+    const total = Math.round(body.total ?? 0);
 
     /* =========================
-       4️⃣ VALIDATE ITEMS
+       START TRANSACTION
     ========================= */
-    if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
-        { error: "Items invalid" },
-        { status: 400 }
+
+    await query("BEGIN");
+
+    const orderRes = await query(
+      `
+      insert into orders (
+        order_number,
+        buyer_id,
+        pi_payment_id,
+        pi_txid,
+        subtotal,
+        total,
+        shipping_name,
+        shipping_phone,
+        shipping_address,
+        shipping_country,
+        shipping_postal_code
+      )
+      values (
+        gen_random_uuid()::text,
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+      )
+      on conflict (pi_payment_id) do update
+      set pi_txid = excluded.pi_txid
+      returning id
+      `,
+      [
+        user.pi_uid,
+        paymentId,
+        txid,
+        subtotal,
+        total,
+        shipping?.name ?? "",
+        shipping?.phone ?? "",
+        shipping?.address_line ?? "",
+        shipping?.country ?? "",
+        shipping?.postal_code ?? "",
+      ]
+    );
+
+    const orderId = orderRes.rows[0]?.id;
+
+    /* =========================
+       INSERT ORDER ITEMS
+    ========================= */
+
+    for (const item of items) {
+
+      await query(
+        `
+        insert into order_items (
+          order_id,
+          product_id,
+          product_name,
+          price,
+          quantity
+        )
+        values ($1,$2,$3,$4,$5)
+        `,
+        [
+          orderId,
+          item.product_id,
+          item.name,
+          Math.round(item.price),
+          item.quantity,
+        ]
       );
+
     }
 
-    /* =========================
-       5️⃣ CREATE ORDER
-    ========================= */
-    const order = await createOrder({
-      buyerPiUid: user.pi_uid,
-      piPaymentId: paymentId,
-      piTxid: txid,
-      items,
-      total,
-      shipping
-    });
-
-    if (!order) {
-      return NextResponse.json(
-        { error: "Order creation failed" },
-        { status: 500 }
-      );
-    }
+    await query("COMMIT");
 
     return NextResponse.json({
       success: true,
-      orderId: order.id
+      orderId,
     });
 
   } catch (err) {
-    console.error("CREATE ORDER ERROR:", err);
+
+    await query("ROLLBACK");
+
+    console.error("ORDER CREATE ERROR:", err);
 
     return NextResponse.json(
-      { error: "Server error" },
+      { error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
