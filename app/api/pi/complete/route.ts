@@ -43,6 +43,25 @@ export async function POST(req: Request) {
       console.error("PI COMPLETE FAIL:", text);
     }
 
+
+     /* LOAD PRODUCT FROM DB */
+
+    const { rows } = await query(
+`
+select id,name,seller_id,images,price
+from products
+where id=$1
+`,
+[body.product_id]
+);
+
+    const product = rows[0];
+
+    if (!product) {
+      console.error("PRODUCT NOT FOUND");
+      return;
+    }
+
     /* =========================
        CREATE ORDER (SAFE)
     ========================= */
@@ -94,24 +113,7 @@ on conflict (pi_payment_id) do nothing
 ]
 );
 
-    /* LOAD PRODUCT FROM DB */
-
-    const { rows } = await query(
-`
-select id,name,seller_id,images,price
-from products
-where id=$1
-`,
-[body.product_id]
-);
-
-    const product = rows[0];
-
-    if (!product) {
-      console.error("PRODUCT NOT FOUND");
-      return;
-    }
-
+   
     /* CREATE ORDER ITEM */
 
     await query(
