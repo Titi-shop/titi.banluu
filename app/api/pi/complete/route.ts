@@ -48,58 +48,73 @@ export async function POST(req: Request) {
     ========================= */
 
     if (piRes.ok) {
-      try {
-        const shipping = body.shipping ?? {};
-        const user = body.user ?? {};
+  try {
 
-        const subtotal = Math.round(body.total ?? 0);
-        const total = Math.round(body.total ?? 0);
+    const shipping = body.shipping ?? {};
+    const user = body.user ?? {};
+    const quantity = body.quantity ?? 1;
 
-        await query(
-          `
-          insert into orders (
-            order_number,
-            buyer_id,
-            pi_payment_id,
-            pi_txid,
-            subtotal,
-            total,
-            shipping_name,
-            shipping_phone,
-            shipping_address,
-            shipping_country,
-            shipping_postal_code
-          )
-          values (
-            gen_random_uuid()::text,
-            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
-          )
-          on conflict (pi_payment_id) do nothing
-          `,
-          [
-            user.pi_uid ?? "",
-            paymentId,
-            txid,
-            subtotal,
-            total,
-            shipping.name ?? "",
-            shipping.phone ?? "",
-            shipping.address_line ?? "",
-            shipping.country ?? "",
-            shipping.postal_code ?? "",
-          ]
-        );
-      } catch (e) {
-        console.error("ORDER CREATE FAIL:", e);
-      }
+    const subtotal = Math.round(body.total ?? 0);
+    const total = Math.round(body.total ?? 0);
+
+    /* CREATE ORDER */
+
+    await query(
+`
+insert into orders (
+  order_number,
+  buyer_id,
+  pi_payment_id,
+  pi_txid,
+  subtotal,
+  total,
+  shipping_name,
+  shipping_phone,
+  shipping_address,
+  shipping_country,
+  shipping_postal_code
+)
+values (
+  gen_random_uuid()::text,
+  $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+)
+on conflict (pi_payment_id) do nothing
+`,
+[
+  user.pi_uid,
+  paymentId,
+  txid,
+  subtotal,
+  total,
+  shipping.name ?? "",
+  shipping.phone ?? "",
+  shipping.address_line ?? "",
+  shipping.country ?? "",
+  shipping.postal_code ?? ""
+]
+);
+
+    /* LOAD PRODUCT */
+
+    const { rows } = await query(
+`
+select id,name,seller_id,images,price
+from products
+where id=$1
+`,
+[body.product_id]
+);
+
+    const product = rows[0];
+
+    if (!product) {
+      console.error("PRODUCT NOT FOUND");
+      return;
     }
 
-    /* ========================= */
+    /* CREATE ORDER ITEM */
 
-    const product = body.product ?? {};
-const quantity = body.quantity ?? 1;
-
-await query(
+    await query(
 `
 insert into order_items (
   order_id,
@@ -114,39 +129,26 @@ insert into order_items (
 )
 values (
   (select id from orders where pi_payment_id=$1),
-  $2,
-  $3,
-  $4,
-  $5,
-  $6,
-  $7,
-  $8,
-  $9
+  $2,$3,$4,$5,$6,$7,$8,$9
 )
 `,
 [
   paymentId,
   product.id,
-  product.seller_id ?? "",
+  product.seller_id,
   product.name,
-  product.image,
-  [product.image],
+  product.images?.[0] ?? "",
+  product.images ?? [],
   product.price,
   quantity,
   product.price * quantity
 ]
 );
 
-    return new NextResponse(text || "{}", {
-      status: piRes.status,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-  } catch (err) {
-    console.error("PI COMPLETE ERROR:", err);
-
+  } catch (e) {
+    console.error("ORDER CREATE FAIL:", e);
+  }
+}
     return NextResponse.json(
       { error: "SERVER_ERROR" },
       { status: 500 }
