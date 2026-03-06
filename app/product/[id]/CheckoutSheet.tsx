@@ -202,25 +202,43 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         {
           onReadyForServerApproval: async (paymentId, callback) => {
 
-            const token = await getPiAccessToken();
+  try {
 
-            const res = await fetch("/api/pi/approve", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ paymentId }),
-            });
+    const token = await getPiAccessToken();
 
-            if (!res.ok) {
-              setProcessing(false);
-              alert("Approve thất bại");
-              return;
-            }
+    const res = await fetch("/api/pi/approve", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ paymentId }),
+    });
 
-            callback();
-          },
+    if (!res.ok) {
+
+      console.error("APPROVE FAIL", await res.text());
+
+      setProcessing(false);
+
+      alert("Approve thất bại");
+
+      callback(); // 🔴 BẮT BUỘC
+
+      return;
+    }
+
+    callback(); // ✅ success
+
+  } catch (err) {
+
+    console.error(err);
+
+    setProcessing(false);
+
+    callback(); // 🔴 BẮT BUỘC
+  }
+}
 
           /* COMPLETE */
 
