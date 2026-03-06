@@ -7,7 +7,8 @@ const PI_KEY = process.env.PI_API_KEY!;
 
 export async function POST(req: Request) {
   try {
-    const { paymentId } = await req.json();
+    const body = await req.json();
+    const paymentId = body.paymentId;
 
     if (!paymentId) {
       return NextResponse.json(
@@ -22,7 +23,9 @@ export async function POST(req: Request) {
         method: "POST",
         headers: {
           Authorization: `Key ${PI_KEY}`,
+          "Content-Type": "application/json",
         },
+        cache: "no-store",
       }
     );
 
@@ -33,7 +36,6 @@ export async function POST(req: Request) {
     });
 
   } catch (err) {
-
     console.error("PI APPROVE ERROR:", err);
 
     return NextResponse.json(
