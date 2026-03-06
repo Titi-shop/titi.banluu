@@ -16,14 +16,16 @@ export async function GET(req: Request) {
 
   const { rows } = await query(
     `
-    select count(*)::int as total
+    select
+      count(*) filter (where status = 'pending')::int   as pending,
+      count(*) filter (where status = 'pickup')::int    as pickup,
+      count(*) filter (where status = 'shipping')::int  as shipping,
+      count(*) filter (where status = 'completed')::int as completed
     from orders
     where buyer_id = $1
     `,
     [user.pi_uid]
   );
 
-  return NextResponse.json({
-    total: rows[0].total
-  });
+  return NextResponse.json(rows[0]);
 }
