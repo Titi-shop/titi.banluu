@@ -2,6 +2,41 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+export async function GET(req: Request) {
+  try {
+
+    const { searchParams } = new URL(req.url);
+    const buyer = searchParams.get("buyer");
+
+    if (!buyer) {
+      return NextResponse.json(
+        { error: "MISSING_BUYER" },
+        { status: 400 }
+      );
+    }
+
+    const { rows } = await query(
+      `
+      select *
+      from orders
+      where buyer_id = $1
+      order by created_at desc
+      `,
+      [buyer]
+    );
+
+    return NextResponse.json(rows);
+
+  } catch (err) {
+
+    console.error("GET ORDERS ERROR:", err);
+
+    return NextResponse.json(
+      { error: "SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(req: Request) {
   try {
