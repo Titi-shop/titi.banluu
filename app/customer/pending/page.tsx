@@ -8,42 +8,30 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 
 /* =========================
-ORDER STATUS
+TYPES (MATCH DB)
 ========================= */
-type OrderStatus =
-| "pending"
-| "confirmed"
-| "shipping"
-| "completed"
-| "cancelled";
-
-/* =========================
-TYPES
-========================= */
-interface Product {
-id: string;
-name: string;
-images: string[];
-}
 
 interface OrderItem {
-quantity: number;
-unit_price: number;
-product_id: string;
-product?: Product;
+  product_name: string;
+  thumbnail: string;
+  images?: string[];
+  quantity: number;
+  unit_price: number;
 }
 
 interface Order {
-id: string;
-total: number;
-created_at: string;
-status: string;
-order_items?: OrderItem[];
+  id: string;
+  order_number: string;
+  total: number;
+  created_at: string;
+  status: string;
+  order_items: OrderItem[];
 }
 
 /* =========================
 CANCEL REASONS
 ========================= */
+
 const CANCEL_REASON_KEYS = [
   "cancel_reason_change_mind",
   "cancel_reason_wrong_product",
@@ -57,372 +45,349 @@ const CANCEL_REASON_KEYS = [
 /* =========================
 PAGE
 ========================= */
+
 export default function PendingOrdersPage() {
 
-const { t } = useTranslation();
+  const { t } = useTranslation();
 
-const [orders, setOrders] = useState<Order[]>([]);
-const [loading, setLoading] = useState<boolean>(true);
-const [processingId, setProcessingId] = useState<string | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
-const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
-const [selectedReason, setSelectedReason] = useState<string>("");
-const [customReason, setCustomReason] = useState<string>("");
+  const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
+  const [selectedReason, setSelectedReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
 
-function formatPi(value: number | string): string {
-return Number(value).toFixed(6);
-}
+  function formatPi(value: number | string) {
+    return Number(value).toFixed(6);
+  }
 
-useEffect(() => {
-void loadOrders();
-}, []);
+  useEffect(() => {
+    void loadOrders();
+  }, []);
 
-/* =========================
-LOAD ORDERS
-========================== */
-async function loadOrders(): Promise<void> {
+  /* =========================
+  LOAD ORDERS
+  ========================= */
 
-try {
+  async function loadOrders() {
 
-const token = await getPiAccessToken();
+    try {
 
-const user = await window.Pi.getCurrentUser();
+      const token = await getPiAccessToken();
 
-const res = await fetch("/api/orders", {
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-  cache: "no-store",
-});
+      const res = await fetch("/api/orders", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
 
-if (!res.ok) throw new Error("UNAUTHORIZED");
+      if (!res.ok) throw new Error("LOAD_FAILED");
 
-const data = await res.json();
+      const data = await res.json();
 
-const rawOrders: Order[] = data.orders ?? [];
+      const rawOrders: Order[] = data.orders ?? [];
 
-const filtered = rawOrders.filter(
-(o) => o.status === "pending"
-);
+      const filtered = rawOrders.filter(
+        (o) => o.status === "pending"
+      );
 
-const productIds = Array.from(
-new Set(
-filtered.flatMap((o) =>
-o.order_items?.map((i) => i.product_id) ?? []
-)
-)
-);
+      setOrders(filtered);
 
-if (productIds.length === 0) {
-setOrders(filtered);
-return;
-}
+    } catch (err) {
 
-const productRes = await fetch(
-`/api/products?ids=${productIds.join(",")}`,
-{ cache: "no-store" }
-);
+      console.error("Load orders error:", err);
+      setOrders([]);
 
-if (!productRes.ok)
-throw new Error("FETCH_PRODUCTS_FAILED");
+    } finally {
 
-const products: Product[] = await productRes.json();
+      setLoading(false);
 
-const productMap: Record<string, Product> =
-Object.fromEntries(
-products.map((p) => [p.id, p])
-);
+    }
+  }
 
-const enriched = filtered.map((o) => ({
-...o,
-order_items: (o.order_items ?? []).map((i) => ({
-...i,
-product: productMap[i.product_id],
-})),
-}));
+  /* =========================
+  CANCEL ORDER
+  ========================= */
 
-setOrders(enriched);
+  async function handleCancel(orderId: string, reason: string) {
 
-} catch (err) {
+    try {
 
-console.error("❌ Load pending orders error:", err);
-setOrders([]);
+      setProcessingId(orderId);
 
-} finally {
+      const token = await getPiAccessToken();
 
-setLoading(false);
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: "refunded",
+          cancel_reason: reason,
+        }),
+      });
 
-}
+      if (!res.ok) {
+        throw new Error("CANCEL_FAILED");
+      }
 
-}
+      setSelectedReason("");
+      setCustomReason("");
+      setShowCancelFor(null);
 
-/* =========================
-CANCEL ORDER
-========================== */
-async function handleCancel(
-orderId: string,
-reason: string
-) {
+      await loadOrders();
 
-try {
+    } catch (err) {
 
-setProcessingId(orderId);
+      alert("Không thể huỷ đơn.");
 
-const token = await getPiAccessToken();
+    } finally {
 
-const res = await fetch(`/api/orders/${orderId}`, {
-method: "PATCH",
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${token}`,
-},
-body: JSON.stringify({
-status: "cancelled",
-cancel_reason: reason,
-}),
-});
+      setProcessingId(null);
 
-if (!res.ok) {
-throw new Error("CANCEL_FAILED");
-}
+    }
+  }
 
-setSelectedReason("");
-setCustomReason("");
-setShowCancelFor(null);
+  const totalPi = orders.reduce(
+    (sum, o) => sum + Number(o.total),
+    0
+  );
 
-await loadOrders();
+  return (
+    <main className="min-h-screen bg-gray-100 pb-24">
 
-} catch (err) {
+      {/* HEADER */}
+      <header className="bg-orange-500 text-white px-4 py-4">
 
-alert("Không thể huỷ đơn.");
+        <div className="bg-orange-400 rounded-lg p-4">
 
-} finally {
+          <p className="text-sm opacity-90">
+            {t.order_info}
+          </p>
 
-setProcessingId(null);
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders}: {orders.length} · π{formatPi(totalPi)}
+          </p>
 
-}
+        </div>
 
-}
+      </header>
 
-const totalPi = orders.reduce(
-(sum, o) => sum + Number(o.total),
-0
-);
+      {/* CONTENT */}
 
-return (
-<main className="min-h-screen bg-gray-100 pb-24">
+      <section className="mt-6 px-4">
 
-{/* HEADER */}
-<header className="bg-orange-500 text-white px-4 py-4">
-<div className="bg-orange-400 rounded-lg p-4">
-<p className="text-sm opacity-90">
-{t.order_info}
-</p>
-<p className="text-xs opacity-80 mt-1">
-{t.orders}: {orders.length} · π{formatPi(totalPi)}
-</p>
-</div>
-</header>
+        {loading ? (
 
-{/* CONTENT */}
-<section className="mt-6 px-4">
+          <p className="text-center text-gray-400">
+            {t.loading_orders || "Đang tải..."}
+          </p>
 
-{loading ? (
+        ) : orders.length === 0 ? (
 
-<p className="text-center text-gray-400">
-{t.loading_orders || "Đang tải..."}
-</p>
+          <div className="flex flex-col items-center justify-center mt-16 text-gray-400">
 
-) : orders.length === 0 ? (
+            <div className="w-24 h-24 bg-gray-200 rounded-full mb-4 opacity-40" />
 
-<div className="flex flex-col items-center justify-center mt-16 text-gray-400">
-<div className="w-24 h-24 bg-gray-200 rounded-full mb-4 opacity-40" />
-<p>
-{t.no_pending_orders ||
-"Không có đơn chờ xác nhận"}
-</p>
-</div>
+            <p>
+              {t.no_pending_orders || "Không có đơn chờ xác nhận"}
+            </p>
 
-) : (
+          </div>
 
-<div className="space-y-4">
+        ) : (
 
-{orders.map((o) => (
+          <div className="space-y-4">
 
-<div
-key={o.id}
-className="bg-white rounded-xl shadow-sm overflow-hidden"
->
+            {orders.map((o) => (
 
-{/* HEADER CARD */}
-<div className="flex justify-between items-center px-4 py-3 border-b">
-<span className="font-semibold text-sm">
-#{o.id}
-</span>
-<span className="text-orange-500 text-sm font-medium">
-{t.status_pending || "Chờ xác nhận"}
-</span>
-</div>
+              <div
+                key={o.id}
+                className="bg-white rounded-xl shadow-sm overflow-hidden"
+              >
 
-{/* PRODUCTS */}
-<div className="px-4 py-3 space-y-3">
+                {/* HEADER */}
 
-{o.order_items?.map((item, idx) => (
+                <div className="flex justify-between items-center px-4 py-3 border-b">
 
-<div
-key={idx}
-className="flex gap-3 items-center"
->
+                  <span className="font-semibold text-sm">
+                    #{o.order_number}
+                  </span>
 
-<div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
+                  <span className="text-orange-500 text-sm font-medium">
+                    {t.status_pending || "Chờ xác nhận"}
+                  </span>
 
-{item.product?.images?.[0] && (
-<img
-src={item.product.images[0]}
-alt={item.product.name}
-className="w-full h-full object-cover"
-/>
-)}
+                </div>
 
-</div>
+                {/* PRODUCTS */}
 
-<div className="flex-1 min-w-0">
+                <div className="px-4 py-3 space-y-3">
 
-<p className="text-sm font-medium line-clamp-1">
-{item.product?.name ?? "—"}
-</p>
+                  {o.order_items?.map((item, idx) => (
 
-<p className="text-xs text-gray-500">
-x{item.quantity} · π
-{formatPi(item.unit_price)}
-</p>
+                    <div
+                      key={idx}
+                      className="flex gap-3 items-center"
+                    >
 
-</div>
-</div>
+                      <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
 
-))}
+                        <img
+                          src={item.thumbnail}
+                          alt={item.product_name}
+                          className="w-full h-full object-cover"
+                        />
 
-</div>
+                      </div>
 
-{/* FOOTER */}
+                      <div className="flex-1 min-w-0">
 
-<div className="flex justify-between items-center px-4 py-3 border-t">
+                        <p className="text-sm font-medium line-clamp-1">
+                          {item.product_name}
+                        </p>
 
-<p className="text-sm font-semibold">
-{t.total || "Tổng cộng"}: π
-{formatPi(o.total)}
-</p>
+                        <p className="text-xs text-gray-500">
+                          x{item.quantity} · π{formatPi(item.unit_price)}
+                        </p>
 
-<button
-onClick={() => setShowCancelFor(o.id)}
-disabled={processingId === o.id}
-className="px-4 py-1.5 text-sm border border-red-500 text-red-500 rounded-md hover:bg-red-500 hover:text-white transition disabled:opacity-50"
->
+                      </div>
 
-{processingId === o.id
-? t.canceling
-: t.cancel_order}
+                    </div>
 
-</button>
+                  ))}
 
-</div>
+                </div>
 
-{/* CANCEL BOX */}
+                {/* FOOTER */}
 
-{showCancelFor === o.id && (
+                <div className="flex justify-between items-center px-4 py-3 border-t">
 
-<div className="px-4 pb-4 space-y-3">
+                  <p className="text-sm font-semibold">
+                    {t.total || "Tổng cộng"}: π{formatPi(o.total)}
+                  </p>
 
-<div className="space-y-2">
+                  <button
+                    onClick={() => setShowCancelFor(o.id)}
+                    disabled={processingId === o.id}
+                    className="px-4 py-1.5 text-sm border border-red-500 text-red-500 rounded-md hover:bg-red-500 hover:text-white transition disabled:opacity-50"
+                  >
 
-{CANCEL_REASON_KEYS.map((key) => (
+                    {processingId === o.id
+                      ? t.canceling
+                      : t.cancel_order}
 
-<label key={key} className="flex items-center gap-2 text-sm">
+                  </button>
 
-<input
-type="radio"
-name={`cancel-${o.id}`}
-value={key}
-checked={selectedReason === key}
-onChange={(e) => setSelectedReason(e.target.value)}
-/>
+                </div>
 
-{t[key]}
+                {/* CANCEL BOX */}
 
-</label>
+                {showCancelFor === o.id && (
 
-))}
+                  <div className="px-4 pb-4 space-y-3">
 
-</div>
+                    <div className="space-y-2">
 
-{selectedReason === "cancel_reason_other" && (
+                      {CANCEL_REASON_KEYS.map((key) => (
 
-<textarea
-value={customReason}
-onChange={(e) =>
-setCustomReason(e.target.value)
-}
-placeholder={t.enter_cancel_reason}
-className="w-full border rounded-md p-2 text-sm"
-rows={3}
-/>
+                        <label
+                          key={key}
+                          className="flex items-center gap-2 text-sm"
+                        >
 
-)}
+                          <input
+                            type="radio"
+                            name={`cancel-${o.id}`}
+                            value={key}
+                            checked={selectedReason === key}
+                            onChange={(e) =>
+                              setSelectedReason(e.target.value)
+                            }
+                          />
 
-<div className="flex gap-2">
+                          {t[key]}
 
-<button
-onClick={() => {
+                        </label>
 
-const finalReason =
-selectedReason === "cancel_reason_other"
-? customReason
-: selectedReason;
+                      ))}
 
-if (!finalReason.trim()) {
-alert(t.select_cancel_reason);
-return;
-}
+                    </div>
 
-handleCancel(o.id, finalReason);
+                    {selectedReason === "cancel_reason_other" && (
 
-}}
-className="px-4 py-1.5 text-sm bg-red-500 text-white rounded-md"
->
+                      <textarea
+                        value={customReason}
+                        onChange={(e) =>
+                          setCustomReason(e.target.value)
+                        }
+                        placeholder={t.enter_cancel_reason}
+                        className="w-full border rounded-md p-2 text-sm"
+                        rows={3}
+                      />
 
-{t.confirm_cancel}
+                    )}
 
-</button>
+                    <div className="flex gap-2">
 
-<button
-onClick={() => {
-setShowCancelFor(null);
-setSelectedReason("");
-setCustomReason("");
-}}
-className="px-4 py-1.5 text-sm border rounded-md"
->
+                      <button
+                        onClick={() => {
 
-{t.cancel}
+                          const finalReason =
+                            selectedReason === "cancel_reason_other"
+                              ? customReason
+                              : selectedReason;
 
-</button>
+                          if (!finalReason.trim()) {
+                            alert(t.select_cancel_reason);
+                            return;
+                          }
 
-</div>
+                          handleCancel(o.id, finalReason);
 
-</div>
+                        }}
+                        className="px-4 py-1.5 text-sm bg-red-500 text-white rounded-md"
+                      >
 
-)}
+                        {t.confirm_cancel}
 
-</div>
+                      </button>
 
-))}
+                      <button
+                        onClick={() => {
 
-</div>
+                          setShowCancelFor(null);
+                          setSelectedReason("");
+                          setCustomReason("");
 
-)}
+                        }}
+                        className="px-4 py-1.5 text-sm border rounded-md"
+                      >
 
-</section>
+                        {t.cancel}
 
-</main>
-);
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                )}
+
+              </div>
+
+            ))}
+
+          </div>
+
+        )}
+
+      </section>
+
+    </main>
+  );
 }
