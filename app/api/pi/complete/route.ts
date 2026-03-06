@@ -78,7 +78,7 @@ where id=$1
 
     /* CREATE ORDER */
 
-    await query(
+    const { rows: orderRows } = await query(
 `
 insert into orders (
   order_number,
@@ -98,6 +98,7 @@ values (
   $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
 )
 on conflict (pi_payment_id) do nothing
+returning id
 `,
 [
   user.pi_uid,
@@ -112,6 +113,7 @@ on conflict (pi_payment_id) do nothing
   shipping.postal_code ?? ""
 ]
 );
+    
 
    
     /* CREATE ORDER ITEM */
