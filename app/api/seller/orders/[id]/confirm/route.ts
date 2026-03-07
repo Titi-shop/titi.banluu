@@ -65,20 +65,18 @@ export async function PATCH(
 
     /* ================= UPDATE ORDER STATUS ================= */
 
-    await query(
-      `
-      update orders
-      set status = 'pickup'
-      where id = $1
-      and status = 'pending'
-      `,
-      [params.id]
-    );
+    const result = await query(
+`
+update orders
+set status = 'pickup'
+where id = $1
+`,
+[params.id]
+);
 
-    return NextResponse.json({ success: true });
-
-  } catch (err) {
-    console.error("❌ CONFIRM ORDER ERROR:", err);
+if (!result.rowCount) {
+  console.error("❌ ORDER STATUS NOT UPDATED");
+}
 
     return NextResponse.json(
       { error: "FAILED" },
