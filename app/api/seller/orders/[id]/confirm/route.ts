@@ -6,6 +6,10 @@ import { resolveRole } from "@/lib/auth/resolveRole";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type ConfirmBody = {
+  seller_message?: string;
+};
+
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
@@ -22,6 +26,8 @@ export async function PATCH(
       );
     }
 
+    /* ================= RBAC ================= */
+
     const role = await resolveRole(user);
 
     if (role !== "seller" && role !== "admin") {
@@ -33,16 +39,22 @@ export async function PATCH(
 
     /* ================= BODY ================= */
 
-    const body = await req.json();
+    let body: ConfirmBody = {};
+
+    try {
+      body = (await req.json()) as ConfirmBody;
+    } catch {
+      body = {};
+    }
 
     const sellerMessage: string | null =
-      typeof body?.seller_message === "string"
+      typeof body.seller_message === "string"
         ? body.seller_message.trim()
         : null;
 
-    /* ================= UPDATE ITEM ================= */
+    /* ================= UPDATE ORDER ITEMS ================= */
 
-    const { rowCount } = await query(
+    const itemResult = await query(
       `
       update order_items
       set
@@ -56,27 +68,33 @@ export async function PATCH(
       [params.id, user.pi_uid, sellerMessage]
     );
 
-    if (!rowCount) {
+    if (!itemResult.rowCount) {
       return NextResponse.json(
-        { error: "ORDER_NOT_FOUND" },
-        { status: 404 }
+        { error: "ORDER_ITEM_NOT_UPDATED" },
+        { status: 400 }
       );
     }
 
-    /* ================= UPDATE ORDER STATUS ================= */
+    /* ================= UPDATE ORDERS ================= */
 
-    const result = await query(
-`
-update orders
-set status = 'pickup'
-where id = $1
-`,
-[params.id]
-);
+    const orderResult = await query(
+      `
+      update orders
+      set status = 'pickup'
+      where id = $1
+      and status = 'pending'
+      `,
+      [params.id]
+    );
 
-if (!result.rowCount) {
-  console.error("❌ ORDER STATUS NOT UPDATED");
-}
+    if (!orderResult.rowCount) {
+      console.warn("⚠️ ORDER STATUS NOT CHANGED", params.id);
+    }
+
+    return NextResponse.json({ success: true });
+
+  } catch (err) {
+    console.error("❌ CONFIRM ORDER ERROR:", err);
 
     return NextResponse.json(
       { error: "FAILED" },
