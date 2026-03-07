@@ -68,6 +68,16 @@ export async function PATCH(
         { status: 400 }
       );
     }
+     /* UPDATE ORDER STATUS */
+
+await query(
+`
+update orders
+set status='cancelled'
+where id=$1
+`,
+[params.id]
+);
 
     return NextResponse.json({ success: true });
   } catch (err) {
