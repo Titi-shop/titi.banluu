@@ -10,24 +10,31 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* ================= TYPES ================= */
 
-interface Product {
-  id: string;
-  name: string;
-  images: string[];
-}
-
 interface OrderItem {
+  id: string;
   product_id: string;
+  product_name: string;
+  thumbnail?: string;
+  images?: string[];
   quantity: number;
-  price: number;
-  product?: Product;
+  unit_price: number;
+  total_price: number;
 }
 
 interface Order {
   id: string;
+  order_number?: string;
   status: string;
   total: number;
   created_at?: string;
+
+  shipping_name?: string;
+  shipping_phone?: string;
+  shipping_address?: string;
+  shipping_provider?: string;
+  shipping_country?: string;
+  shipping_postal_code?: string;
+
   order_items: OrderItem[];
 }
 
@@ -40,9 +47,7 @@ function formatPi(v: number): string {
 function formatDate(date?: string): string {
   if (!date) return "—";
   const d = new Date(date);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleDateString();
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
 }
 
 /* ================= PAGE ================= */
@@ -52,7 +57,7 @@ export default function SellerConfirmedOrdersPage() {
   const { t } = useTranslation();
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   /* ================= LOAD ================= */
@@ -61,17 +66,17 @@ export default function SellerConfirmedOrdersPage() {
     void loadOrders();
   }, []);
 
-  async function loadOrders(): Promise<void> {
+  async function loadOrders() {
     try {
       const res = await apiAuthFetch(
         "/api/seller/orders?status=confirmed",
         { cache: "no-store" }
       );
 
-      if (!res.ok) throw new Error("LOAD_FAILED");
+      if (!res.ok) throw new Error();
 
-      const data: unknown = await res.json();
-      setOrders(Array.isArray(data) ? (data as Order[]) : []);
+      const data = await res.json();
+      setOrders(Array.isArray(data) ? data : []);
     } catch {
       setOrders([]);
     } finally {
@@ -87,7 +92,7 @@ export default function SellerConfirmedOrdersPage() {
 
   /* ================= SHIPPING ================= */
 
-  async function startShipping(orderId: string): Promise<void> {
+  async function startShipping(orderId: string) {
     try {
       setProcessingId(orderId);
 
@@ -96,11 +101,10 @@ export default function SellerConfirmedOrdersPage() {
         { method: "PATCH" }
       );
 
-      if (!res.ok) throw new Error("SHIP_FAILED");
+      if (!res.ok) throw new Error();
 
       await loadOrders();
     } catch {
-      // silent for Pi Browser
     } finally {
       setProcessingId(null);
     }
@@ -120,21 +124,20 @@ export default function SellerConfirmedOrdersPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
-      {/* ===== HEADER ===== */}
+      {/* HEADER */}
       <header className="bg-gray-600/90 backdrop-blur-lg text-white px-4 py-5 shadow-md">
         <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-          <p className="text-sm font-medium opacity-90">
+          <p className="text-sm font-medium">
             {t.confirmed_orders ?? "Confirmed Orders"}
           </p>
 
           <p className="text-xs mt-1 text-white/80">
-            {t.orders ?? "Orders"}: {orders.length} · π
-            {formatPi(totalPi)}
+            {t.orders ?? "Orders"}: {orders.length} · π{formatPi(totalPi)}
           </p>
         </div>
       </header>
 
-      {/* ===== CONTENT ===== */}
+      {/* CONTENT */}
       <section className="px-4 mt-5 space-y-4">
         {orders.length === 0 ? (
           <p className="text-center text-gray-400">
@@ -147,14 +150,15 @@ export default function SellerConfirmedOrdersPage() {
               onDoubleClick={() =>
                 router.push(`/seller/orders/${order.id}`)
               }
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden active:scale-[0.99] transition"
+              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
             >
               {/* ORDER HEADER */}
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
                 <div>
                   <p className="font-semibold text-sm">
-                    #{order.id.slice(0, 8)}
+                    #{order.order_number ?? order.id.slice(0, 8)}
                   </p>
+
                   <p className="text-xs text-gray-500">
                     {formatDate(order.created_at)}
                   </p>
@@ -168,32 +172,39 @@ export default function SellerConfirmedOrdersPage() {
               {/* PRODUCTS */}
               <div className="divide-y">
                 {order.order_items.map((item) => (
-                  <div
-                    key={`${order.id}-${item.product_id}`}
-                    className="flex gap-3 p-4"
-                  >
+                  <div key={item.id} className="flex gap-3 p-4">
                     <img
                       src={
-                        item.product?.images?.[0] ??
+                        item.thumbnail ??
+                        item.images?.[0] ??
                         "/placeholder.png"
                       }
-                      alt={item.product?.name ?? (t.product ?? "Product")}
+                      alt={item.product_name}
                       className="w-14 h-14 rounded-lg object-cover bg-gray-100"
                     />
 
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium line-clamp-1">
-                        {item.product?.name ??
-                          (t.product ?? "Product")}
+                        {item.product_name}
                       </p>
 
                       <p className="text-xs text-gray-500 mt-1">
-                        x{item.quantity} · π
-                        {formatPi(item.price)}
+                        x{item.quantity} · π{formatPi(item.unit_price)}
                       </p>
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* SHIPPING INFO */}
+              <div className="px-4 py-3 text-xs text-gray-600 border-t">
+                <p>{order.shipping_name}</p>
+                <p>{order.shipping_phone}</p>
+                <p>{order.shipping_address}</p>
+                <p>
+                  {order.shipping_country} {order.shipping_postal_code}
+                </p>
+                <p>{order.shipping_provider}</p>
               </div>
 
               {/* FOOTER */}
@@ -202,8 +213,7 @@ export default function SellerConfirmedOrdersPage() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="text-sm font-semibold mb-3">
-                  {t.total ?? "Total"}: π
-                  {formatPi(order.total)}
+                  {t.total ?? "Total"}: π{formatPi(order.total)}
                 </div>
 
                 <div className="flex justify-end">
