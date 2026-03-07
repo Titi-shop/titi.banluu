@@ -1,297 +1,157 @@
-import { NextResponse } from "next/server";
-import { requireSeller } from "@/lib/auth/guard";
+import { NextRequest, NextResponse } from "next/server";
+import { query } from "@/lib/db";
+import { getPiUserFromToken } from "@/lib/piAuth";
 
-import {
-  getAllProducts,
-  getProductsByIds,
-  createProduct,
-  updateProductBySeller,
-  deleteProductBySeller,
-} from "@/lib/db/products";
-
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================================================
-   GET — PUBLIC PRODUCTS
-========================================================= */
+/* =========================
+ORDER
+========================= */
 
-export async function GET(req: Request) {
+type OrderRow = {
+  id: string;
+  order_number: string;
+  buyer_id: string;
+
+  status: string;
+  total: number;
+
+  created_at: string;
+};
+
+/* =========================
+ORDER ITEM
+========================= */
+
+type OrderItemRow = {
+  id: string;
+  order_id: string;
+
+  product_id: string | null;
+  seller_id: string;
+
+  product_name: string;
+  thumbnail: string;
+  images: string[] | null;
+
+  unit_price: number;
+  quantity: number;
+  total_price: number;
+
+  status: string;
+};
+
+/* =========================
+GET ORDERS
+========================= */
+
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const ids = searchParams.get("ids");
 
-    let products;
+    /* =========================
+       AUTH
+    ========================= */
 
-    if (ids) {
-      const idArray = ids
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean);
+    const user = await getPiUserFromToken(req);
 
-      if (!idArray.length) return NextResponse.json([]);
+    /* =========================
+       LOAD ORDERS
+    ========================= */
 
-      products = await getProductsByIds(idArray);
-    } else {
-      products = await getAllProducts();
+    const { rows: orders } = await query<OrderRow>(
+      `
+      select
+        id,
+        order_number,
+        buyer_id,
+        status,
+        total,
+        created_at
+      from orders
+      where buyer_id=$1
+      order by created_at desc
+      `,
+      [user.pi_uid]
+    );
+
+    if (orders.length === 0) {
+      return NextResponse.json({ orders: [] });
     }
 
-    const now = Date.now();
+    const orderIds = orders.map((o) => o.id);
 
-    const enriched = products.map((p: any) => {
-      const start =
-        typeof p.sale_start === "string"
-          ? new Date(p.sale_start).getTime()
-          : null;
+    /* =========================
+       LOAD ORDER ITEMS
+    ========================= */
 
-      const end =
-        typeof p.sale_end === "string"
-          ? new Date(p.sale_end).getTime()
-          : null;
+    const { rows: items } = await query<OrderItemRow>(
+      `
+      select
+        id,
+        order_id,
+        product_id,
+        seller_id,
+        product_name,
+        thumbnail,
+        images,
+        unit_price,
+        quantity,
+        total_price,
+        status
+      from order_items
+      where order_id = any($1)
+      order by created_at asc
+      `,
+      [orderIds]
+    );
 
-      const isSale =
-        typeof p.sale_price === "number" &&
-        start !== null &&
-        end !== null &&
-        now >= start &&
-        now <= end;
+    /* =========================
+       GROUP ITEMS
+    ========================= */
+
+    const map = new Map<string, OrderItemRow[]>();
+
+    for (const item of items) {
+
+      if (!map.has(item.order_id)) {
+        map.set(item.order_id, []);
+      }
+
+      map.get(item.order_id)!.push(item);
+    }
+
+    /* =========================
+       BUILD RESPONSE
+    ========================= */
+
+    const result = orders.map((order) => {
+
+      const orderItems = map.get(order.id) ?? [];
 
       return {
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        detail: p.detail ?? "",
+        id: order.id,
+        order_number: order.order_number,
 
-        images: p.images ?? [],
-        detailImages: p.detail_images ?? [],
+        status: order.status,
+        total: order.total,
 
-        categoryId: p.category_id,
+        created_at: order.created_at,
 
-        price: p.price,
-        salePrice: p.sale_price,
-
-        isSale,
-        finalPrice: isSale ? p.sale_price : p.price,
-
-        views: p.views ?? 0,
-        sold: p.sold ?? 0,
+        order_items: orderItems
       };
-    });
 
-    return NextResponse.json(enriched);
-  } catch (err) {
-    console.error("❌ GET PRODUCTS ERROR:", err);
-
-    return NextResponse.json(
-      { error: "FAILED_TO_FETCH_PRODUCTS" },
-      { status: 500 }
-    );
-  }
-}
-
-/* =========================================================
-   POST — CREATE PRODUCT (SELLER)
-========================================================= */
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
-
-export async function POST(req: Request) {
-  const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
-
-  try {
-    const body = await req.json();
-
-    const {
-      name,
-      price,
-      description,
-      detail,
-      images,
-      detailImages,
-      categoryId,
-      salePrice,
-      saleStart,
-      saleEnd,
-    } = body;
-
-    if (typeof name !== "string" || typeof price !== "number") {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
-        { status: 400 }
-      );
-    }
-
-    const baseSlug = slugify(name);
-    const uniqueSlug = `${baseSlug}-${Date.now()}`;
-
-    const product = await createProduct(auth.user.pi_uid, {
-      slug: uniqueSlug,
-      name: name.trim(),
-      price,
-
-      description: typeof description === "string" ? description : "",
-      detail: typeof detail === "string" ? detail : "",
-
-      images: Array.isArray(images)
-        ? images.filter((i) => typeof i === "string")
-        : [],
-
-      detail_images: Array.isArray(detailImages)
-        ? detailImages.filter((i) => typeof i === "string")
-        : [],
-
-      category_id: typeof categoryId === "number" ? categoryId : null,
-
-      sale_price: typeof salePrice === "number" ? salePrice : null,
-      sale_start: typeof saleStart === "string" ? saleStart : null,
-      sale_end: typeof saleEnd === "string" ? saleEnd : null,
-
-      views: 0,
-      sold: 0,
     });
 
     return NextResponse.json({
-      success: true,
-      product,
+      orders: result
     });
+
   } catch (err) {
-    console.error("❌ CREATE PRODUCT ERROR:", err);
+
+    console.error("ORDERS API ERROR:", err);
 
     return NextResponse.json(
-      { error: "FAILED_TO_CREATE_PRODUCT" },
-      { status: 500 }
-    );
-  }
-}
-
-/* =========================================================
-   PUT — UPDATE PRODUCT
-========================================================= */
-
-export async function PUT(req: Request) {
-  const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
-
-  try {
-    const body = await req.json();
-
-    const {
-      id,
-      name,
-      price,
-      description,
-      detail,
-      images,
-      detailImages,
-      categoryId,
-      salePrice,
-      saleStart,
-      saleEnd,
-    } = body;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "INVALID_PRODUCT_ID" },
-        { status: 400 }
-      );
-    }
-
-    const updated = await updateProductBySeller(
-      auth.user.pi_uid,
-      String(id),
-      {
-        name,
-        price,
-        description: description ?? "",
-        detail: detail ?? "",
-
-        images: Array.isArray(images)
-          ? images.filter((i: any) => typeof i === "string")
-          : [],
-
-        detail_images: Array.isArray(detailImages)
-          ? detailImages.filter((i: any) => typeof i === "string")
-          : [],
-
-        category_id:
-          typeof categoryId === "number" ? categoryId : null,
-
-        sale_price:
-          typeof salePrice === "number" ? salePrice : null,
-
-        sale_start:
-          typeof saleStart === "string" ? saleStart : null,
-
-        sale_end:
-          typeof saleEnd === "string" ? saleEnd : null,
-      }
-    );
-
-    if (!updated) {
-      return NextResponse.json(
-        { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("❌ UPDATE PRODUCT ERROR:", err);
-
-    return NextResponse.json(
-      { error: "FAILED_TO_UPDATE_PRODUCT" },
-      { status: 500 }
-    );
-  }
-}
-
-/* =========================================================
-   DELETE — DELETE PRODUCT
-========================================================= */
-
-export async function DELETE(req: Request) {
-  const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
-
-  try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "MISSING_PRODUCT_ID" },
-        { status: 400 }
-      );
-    }
-
-    const deleted = await deleteProductBySeller(
-      auth.user.pi_uid,
-      id
-    );
-
-    if (!deleted) {
-      return NextResponse.json(
-        { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("❌ DELETE PRODUCT ERROR:", err);
-
-    return NextResponse.json(
-      { error: "FAILED_TO_DELETE_PRODUCT" },
+      { error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
