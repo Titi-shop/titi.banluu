@@ -6,6 +6,8 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
 import CheckoutSheet from "./CheckoutSheet";
+import { formatPi } from "@/lib/pi";
+
 
 function formatDetail(text: string) {
   return text
@@ -23,11 +25,7 @@ function formatShortDescription(text?: string) {
     .map(line => line.trim())
     .filter(Boolean);
 }
-function formatPi(value: number | string) {
-  const n = Number(value);
-  if (Number.isNaN(n)) return "0.000000";
-  return n.toFixed(6);
-}
+
 function calcSalePercent(price: number, finalPrice: number) {
   if (finalPrice >= price) return 0;
   return Math.round(((price - finalPrice) / price) * 100);
