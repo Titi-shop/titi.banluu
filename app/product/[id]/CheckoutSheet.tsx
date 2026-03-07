@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
+import { formatPi } from "@/lib/pi";
 
 /* =========================
    PI TYPE
@@ -352,7 +353,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
             </div>
 
             <p className="font-semibold text-orange-600">
-              {total.toFixed(6)} π
+              {formatPi(total)} π
             </p>
           </div>
 
