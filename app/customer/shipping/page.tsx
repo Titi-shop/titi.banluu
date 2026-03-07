@@ -13,7 +13,7 @@ import { getPiAccessToken } from "@/lib/piAuth";
 ========================= */
 type OrderStatus =
   | "pending"
-  | "confirmed"
+  | "pickup"
   | "shipping"
   | "completed"
   | "cancelled";
