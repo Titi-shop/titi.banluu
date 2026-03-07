@@ -1,13 +1,19 @@
 const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 if (!SUPABASE_URL) {
   throw new Error("SUPABASE_URL is missing");
+}
+
+if (!SERVICE_KEY) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
 }
 
 /* =========================================================
    TYPES
 ========================================================= */
 
+/** Row đúng theo DB (price lưu minor unit) */
 type ProductRow = {
   id: string;
 
@@ -24,8 +30,8 @@ type ProductRow = {
 
   video_url: string | null;
 
-  price: number;
-  sale_price: number | null;
+  price: number; // minor unit (int)
+  sale_price: number | null; // minor unit (int)
   currency: string;
 
   stock: number;
@@ -58,19 +64,20 @@ type ProductRow = {
   updated_at: string | null;
 };
 
+/** Type dùng trong app (price dạng decimal) */
 export type ProductRecord = Omit<ProductRow, "price" | "sale_price"> & {
   price: number;
   sale_price: number | null;
 };
 
 /* =========================================================
-   INTERNAL
+   INTERNAL HELPERS
 ========================================================= */
 
-function supabaseHeaders(accessToken: string) {
+function supabaseHeaders() {
   return {
-    apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    Authorization: `Bearer ${accessToken}`,
+    apikey: SERVICE_KEY,
+    Authorization: `Bearer ${SERVICE_KEY}`,
     "Content-Type": "application/json",
   };
 }
@@ -78,39 +85,33 @@ function supabaseHeaders(accessToken: string) {
 function toAppProduct(row: ProductRow): ProductRecord {
   return {
     ...row,
-    price: Number((row.price / 100000).toFixed(5)),
+    price: Number((row.price / 100).toFixed(2)),
     sale_price:
       row.sale_price !== null
-        ? Number((row.sale_price / 100000).toFixed(5))
+        ? Number((row.sale_price / 100).toFixed(2))
         : null,
   };
 }
 
 function toDbPrice(value: number): number {
-  return Math.round(value * 100000);
+  return Math.round(value * 100);
 }
 
 /* =========================================================
-   GET — PUBLIC PRODUCTS
+   GET — ALL ACTIVE PRODUCTS (PUBLIC)
 ========================================================= */
 
-export async function getAllProducts(
-  accessToken: string
-): Promise<ProductRecord[]> {
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?status=eq.active` +
-    `&deleted_at=is.null` +
-    `&select=*`;
+export async function getAllProducts(): Promise<ProductRecord[]> {
+  const url = `${SUPABASE_URL}/rest/v1/products?status=eq.active&deleted_at=is.null&select=*`;
 
   const res = await fetch(url, {
-    headers: supabaseHeaders(accessToken),
+    headers: supabaseHeaders(),
     cache: "no-store",
   });
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("SUPABASE PRODUCTS ERROR:", text);
+    console.error("❌ SUPABASE GET PRODUCTS ERROR:", text);
     throw new Error("FAILED_TO_FETCH_PRODUCTS");
   }
 
@@ -119,42 +120,42 @@ export async function getAllProducts(
 }
 
 /* =========================================================
-   GET — SELLER PRODUCTS
+   GET — PRODUCTS BY SELLER
 ========================================================= */
 
+
 export async function getSellerProducts(
-  accessToken: string,
   sellerPiUid: string
 ): Promise<ProductRecord[]> {
   const url =
     `${SUPABASE_URL}/rest/v1/products` +
     `?seller_id=eq.${encodeURIComponent(sellerPiUid)}` +
-    `&deleted_at=is.null` +
-    `&select=*`;
+    `&deleted_at=is.null&select=*`;
 
   const res = await fetch(url, {
-    headers: supabaseHeaders(accessToken),
+    headers: supabaseHeaders(),
     cache: "no-store",
   });
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("SUPABASE SELLER PRODUCTS ERROR:", text);
+    console.error("❌ SUPABASE SELLER PRODUCTS ERROR:", text);
     throw new Error("FAILED_TO_FETCH_SELLER_PRODUCTS");
   }
 
   const rows: ProductRow[] = await res.json();
   return rows.map(toAppProduct);
 }
-
 /* =========================================================
-   CREATE PRODUCT
+   POST — CREATE PRODUCT
 ========================================================= */
 
 export async function createProduct(
-  accessToken: string,
   sellerPiUid: string,
-  product: Omit<ProductRecord, "id" | "seller_id" | "created_at" | "updated_at">
+  product: Omit<
+    ProductRecord,
+    "id" | "seller_id" | "created_at" | "updated_at"
+  >
 ): Promise<ProductRecord> {
   if (Number.isNaN(product.price)) {
     throw new Error("INVALID_PRICE");
@@ -180,7 +181,7 @@ export async function createProduct(
   const res = await fetch(`${SUPABASE_URL}/rest/v1/products`, {
     method: "POST",
     headers: {
-      ...supabaseHeaders(accessToken),
+      ...supabaseHeaders(),
       Prefer: "return=representation",
     },
     body: JSON.stringify(payload),
@@ -188,7 +189,7 @@ export async function createProduct(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("CREATE PRODUCT ERROR:", text);
+    console.error("❌ SUPABASE CREATE PRODUCT ERROR:", text);
     throw new Error("FAILED_TO_CREATE_PRODUCT");
   }
 
@@ -197,11 +198,10 @@ export async function createProduct(
 }
 
 /* =========================================================
-   UPDATE PRODUCT
+   PATCH — UPDATE PRODUCT BY SELLER
 ========================================================= */
 
 export async function updateProductBySeller(
-  accessToken: string,
   sellerPiUid: string,
   productId: string,
   data: Partial<
@@ -223,10 +223,19 @@ export async function updateProductBySeller(
   const payload: Partial<ProductRow> = { ...data };
 
   if (data.price !== undefined) {
+    if (Number.isNaN(data.price)) {
+      throw new Error("INVALID_PRICE");
+    }
     payload.price = toDbPrice(data.price);
   }
 
   if (data.sale_price !== undefined) {
+    if (
+      data.sale_price !== null &&
+      Number.isNaN(data.sale_price)
+    ) {
+      throw new Error("INVALID_SALE_PRICE");
+    }
     payload.sale_price =
       data.sale_price !== null
         ? toDbPrice(data.sale_price)
@@ -241,7 +250,7 @@ export async function updateProductBySeller(
   const res = await fetch(url, {
     method: "PATCH",
     headers: {
-      ...supabaseHeaders(accessToken),
+      ...supabaseHeaders(),
       Prefer: "return=minimal",
     },
     body: JSON.stringify(payload),
@@ -249,7 +258,7 @@ export async function updateProductBySeller(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("UPDATE PRODUCT ERROR:", text);
+    console.error("❌ SUPABASE UPDATE PRODUCT ERROR:", text);
     throw new Error("FAILED_TO_UPDATE_PRODUCT");
   }
 
@@ -257,11 +266,10 @@ export async function updateProductBySeller(
 }
 
 /* =========================================================
-   DELETE PRODUCT (SOFT DELETE)
+   PATCH — SOFT DELETE
 ========================================================= */
 
 export async function deleteProductBySeller(
-  accessToken: string,
   sellerPiUid: string,
   productId: string
 ): Promise<boolean> {
@@ -273,7 +281,7 @@ export async function deleteProductBySeller(
   const res = await fetch(url, {
     method: "PATCH",
     headers: {
-      ...supabaseHeaders(accessToken),
+      ...supabaseHeaders(),
       Prefer: "return=representation",
     },
     body: JSON.stringify({
@@ -283,7 +291,7 @@ export async function deleteProductBySeller(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("DELETE PRODUCT ERROR:", text);
+    console.error("❌ DELETE PRODUCT ERROR:", text);
     throw new Error("FAILED_TO_DELETE_PRODUCT");
   }
 
