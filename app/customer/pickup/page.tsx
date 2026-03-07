@@ -12,11 +12,11 @@ import { getPiAccessToken } from "@/lib/piAuth";
 ========================= */
 type OrderStatus =
   | "pending"
-  | "confirmed"
   | "pickup"
   | "shipping"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "refunded";
 
 /* =========================
    TYPES
@@ -79,7 +79,7 @@ export default function CustomerPickupPage() {
 
       // ✅ chỉ lấy đơn pickup (seller đã xác nhận)
       const filtered = rawOrders.filter(
-        (o) => o.status === "confirmed"
+        (o) => o.status === "pickup" || o.status === "shipping"
       );
 
       const productIds = Array.from(
@@ -182,7 +182,7 @@ className="bg-white rounded-xl shadow-sm overflow-hidden"
 </span>
 
 <span className="text-orange-500 text-sm font-medium">
-{t.order_status_confirmed}
+{t.order_status_pickup}
 </span>
 </div>
 
