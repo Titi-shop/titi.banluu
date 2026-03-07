@@ -9,6 +9,8 @@ import BannerCarousel from "./components/BannerCarousel";
 import PiPriceWidget from "./components/PiPriceWidget";
 import { useCart } from "@/app/context/CartContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { formatPi } from "@/lib/pi";
+
 
 /* ================= TYPES ================= */
 
@@ -31,13 +33,6 @@ interface Category {
   name: string;
   icon?: string;
 }
-
-/* ================= FORMAT ================= */
-
-function formatPi(value: number | string) {
-  return Number(value || 0).toFixed(6);
-}
-
 /* ================= PRODUCT CARD ================= */
 
 function ProductCard({
