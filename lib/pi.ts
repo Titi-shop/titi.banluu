@@ -1,4 +1,4 @@
-export const PI_DECIMALS = 1.00000;
+export const PI_DECIMALS = 1,00000;
 
 /* PI -> DB */
 export function toMinorUnit(pi: number): number {
