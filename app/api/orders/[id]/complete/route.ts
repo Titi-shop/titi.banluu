@@ -1,33 +1,34 @@
-import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { NextRequest, NextResponse } from "next/server";
+import { query } from "@/lib/db";
+import { getPiUserFromToken } from "@/lib/piAuth";
 import { resolveRole } from "@/lib/auth/resolveRole";
-import { getOrderByIdForSeller } from "@/lib/db/orders";
 
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-function headers() {
-  return {
-    apikey: SERVICE_KEY,
-    Authorization: `Bearer ${SERVICE_KEY}`,
-    "Content-Type": "application/json",
-  };
-}
+/* =========================
+PATCH /api/orders/[id]/complete
+Seller complete delivery
+shipping → completed
+========================= */
 
 export async function PATCH(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // 1️⃣ Auth: NETWORK-FIRST (Bearer only)
-    const user = await getUserFromBearer();
-    if (!user) {
+
+    /* =========================
+       AUTH
+    ========================= */
+
+    const user = await getPiUserFromToken(req);
+
+    const role = await resolveRole(user);
+
+    if (role !== "seller") {
       return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
+        { error: "FORBIDDEN" },
+        { status: 403 }
       );
     }
 
@@ -40,18 +41,27 @@ export async function PATCH(
       );
     }
 
-    // 2️⃣ RBAC: role check
-    const role = await resolveRole(user);
+    /* =========================
+       CHECK SELLER OWNERSHIP
+    ========================= */
 
-    if (role !== "seller") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
+    const { rows } = await query(
+      `
+      select
+        o.id,
+        o.status
+      from orders o
+      join order_items oi
+        on oi.order_id = o.id
+      where
+        o.id=$1
+        and oi.seller_id=$2
+      limit 1
+      `,
+      [orderId, user.pi_uid]
+    );
 
-    // 3️⃣ Ownership check
-    const order = await getOrderByIdForSeller(user.pi_uid, orderId);
+    const order = rows[0];
 
     if (!order) {
       return NextResponse.json(
@@ -60,7 +70,10 @@ export async function PATCH(
       );
     }
 
-    // 4️⃣ Status transition guard
+    /* =========================
+       STATUS GUARD
+    ========================= */
+
     if (order.status !== "shipping") {
       return NextResponse.json(
         { error: "INVALID_STATUS_TRANSITION" },
@@ -68,33 +81,30 @@ export async function PATCH(
       );
     }
 
-    // 5️⃣ Update via SERVICE ROLE (RLS bypassed intentionally)
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`,
-      {
-        method: "PATCH",
-        headers: headers(),
-        body: JSON.stringify({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-        }),
-      }
+    /* =========================
+       UPDATE ORDER
+    ========================= */
+
+    await query(
+      `
+      update orders
+      set
+        status='completed'
+      where id=$1
+      `,
+      [orderId]
     );
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("❌ SUPABASE COMPLETE ERROR:", err);
-      return NextResponse.json(
-        { error: "FAILED_TO_UPDATE_ORDER" },
-        { status: 500 }
-      );
-    }
+    return NextResponse.json({
+      success: true
+    });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("❌ COMPLETE ORDER ERROR:", error);
+  } catch (err) {
+
+    console.error("ORDER COMPLETE ERROR:", err);
+
     return NextResponse.json(
-      { error: "INTERNAL_SERVER_ERROR" },
+      { error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
