@@ -137,7 +137,7 @@ export default function CustomerOrdersPage() {
         return orders.filter((o) => o.status === "pending");
 
       case "pickup": // UI pickup = DB confirmed
-        return orders.filter((o) => o.status === "confirmed");
+        return orders.filter((o) => o.status === "pickup");
 
       case "shipping":
         return orders.filter((o) => o.status === "shipping");
