@@ -1,45 +1,69 @@
+/* =========================================================
+   SELLER START SHIPPING
+   PATCH /api/seller/orders/[id]/shipping
+========================================================= */
+
 import { NextResponse } from "next/server";
+import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { resolveRole } from "@/lib/auth/resolveRole";
-import { updateOrderStatusBySeller } from "@/lib/db/orders";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json(
-      { error: "UNAUTHENTICATED" },
-      { status: 401 }
-    );
-  }
-
-  const role = await resolveRole(user);
-  if (role !== "seller" && role !== "admin") {
-    return NextResponse.json(
-      { error: "FORBIDDEN" },
-      { status: 403 }
-    );
-  }
-
   try {
-    const ok = await updateOrderStatusBySeller(
-  params.id,     // orderId
-  user.pi_uid,   // sellerPiUid
-  "shipping"
-);
+    /* ================= AUTH ================= */
 
-    if (!ok) {
+    const user = await getUserFromBearer();
+
+    if (!user) {
       return NextResponse.json(
-        { error: "UPDATE_FAILED" },
-        { status: 500 }
+        { error: "UNAUTHENTICATED" },
+        { status: 401 }
+      );
+    }
+
+    /* ================= RBAC ================= */
+
+    const role = await resolveRole(user);
+
+    if (role !== "seller" && role !== "admin") {
+      return NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    /* ================= UPDATE ================= */
+
+    const { rowCount } = await query(
+      `
+      update order_items
+      set
+        status = 'shipping',
+        shipped_at = now()
+      where order_id = $1
+      and seller_id = $2
+      and status = 'confirmed'
+      `,
+      [params.id, user.pi_uid]
+    );
+
+    if (!rowCount) {
+      return NextResponse.json(
+        { error: "NOTHING_UPDATED" },
+        { status: 400 }
       );
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("❌ SHIPPING ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED" },
       { status: 500 }
