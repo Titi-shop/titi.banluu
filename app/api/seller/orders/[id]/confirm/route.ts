@@ -6,40 +6,32 @@ import { resolveRole } from "@/lib/auth/resolveRole";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type OrderItemStatus =
-  | "pending"
-  | "confirmed"
-  | "shipping"
-  | "completed"
-  | "cancelled"
-  | "returned";
-
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const user = await getUserFromBearer();
-
-  if (!user) {
-    return NextResponse.json(
-      { error: "UNAUTHENTICATED" },
-      { status: 401 }
-    );
-  }
-
-  const role = await resolveRole(user);
-
-  if (role !== "seller" && role !== "admin") {
-    return NextResponse.json(
-      { error: "FORBIDDEN" },
-      { status: 403 }
-    );
-  }
-
   try {
-    /* =========================
-       BODY
-    ========================= */
+    /* ================= AUTH ================= */
+
+    const user = await getUserFromBearer();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "UNAUTHENTICATED" },
+        { status: 401 }
+      );
+    }
+
+    const role = await resolveRole(user);
+
+    if (role !== "seller" && role !== "admin") {
+      return NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    /* ================= BODY ================= */
 
     const body = await req.json();
 
@@ -48,10 +40,7 @@ export async function PATCH(
         ? body.seller_message.trim()
         : null;
 
-    /* =========================
-       UPDATE ORDER ITEMS
-       seller confirm only their items
-    ========================= */
+    /* ================= UPDATE ITEM ================= */
 
     const { rowCount } = await query(
       `
@@ -69,32 +58,25 @@ export async function PATCH(
 
     if (!rowCount) {
       return NextResponse.json(
-        { error: "UPDATE_FAILED" },
-        { status: 400 }
+        { error: "ORDER_NOT_FOUND" },
+        { status: 404 }
       );
     }
 
-    /* =========================
-       UPDATE ORDER STATUS
-       only if all items confirmed
-    ========================= */
+    /* ================= UPDATE ORDER STATUS ================= */
 
     await query(
       `
       update orders
-      set status = 'confirmed'
+      set status = 'pickup'
       where id = $1
-      and not exists (
-        select 1
-        from order_items
-        where order_id = $1
-        and status = 'pending'
-      )
+      and status = 'pending'
       `,
       [params.id]
     );
 
     return NextResponse.json({ success: true });
+
   } catch (err) {
     console.error("❌ CONFIRM ORDER ERROR:", err);
 
