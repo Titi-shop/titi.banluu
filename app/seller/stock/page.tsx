@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+import { formatPi } from "@/lib/pi";
+
 
 /* =========================
    TYPES
@@ -33,16 +35,6 @@ interface RawProduct {
 interface Message {
   text: string;
   type: "success" | "error" | "";
-}
-
-/* =========================
-   SAFE PI FORMATTER
-========================= */
-function formatPi(value: number | null | undefined): string {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return "0.000000";
-  }
-  return value.toFixed(6);
 }
 
 /* =========================
