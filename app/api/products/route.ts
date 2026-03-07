@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
+
 import {
   getAllProducts,
+  getProductsByIds,
   createProduct,
   updateProductBySeller,
+  deleteProductBySeller,
 } from "@/lib/db/products";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
-   GET — PUBLIC PRODUCTS (NO AUTH)
+   GET — PUBLIC PRODUCTS
 ========================================================= */
 
 export async function GET(req: Request) {
@@ -20,109 +23,65 @@ export async function GET(req: Request) {
 
     let products;
 
-    /* ===============================
-       CASE 1 — /api/products?ids=...
-    =============================== */
     if (ids) {
       const idArray = ids
         .split(",")
         .map((id) => id.trim())
         .filter(Boolean);
 
-      if (idArray.length === 0) {
-        return NextResponse.json([]);
-      }
+      if (!idArray.length) return NextResponse.json([]);
 
-      const inFilter = idArray.map((id) => `"${id}"`).join(",");
-
-      const res = await fetch(
-        `${process.env.SUPABASE_URL}/rest/v1/products?id=in.(${inFilter})&select=id,name,images,price,sale_price,sale_start,sale_end`,
-        {
-          headers: {
-            apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          },
-          cache: "no-store",
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.text();
-        console.error("❌ FETCH PRODUCTS BY IDS ERROR:", err);
-        return NextResponse.json([]);
-      }
-
-      products = await res.json();
+      products = await getProductsByIds(idArray);
+    } else {
+      products = await getAllProducts();
     }
 
-    /* ===============================
-       CASE 2 — /api/products (ALL)
-    =============================== */
-    else {
-  const res = await fetch(
-    `${process.env.SUPABASE_URL}/rest/v1/products?select=*`,
-    {
-      headers: {
-        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-      },
-      cache: "no-store",
-    }
-  );
+    const now = Date.now();
 
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("❌ FETCH ALL PRODUCTS ERROR:", err);
-    return NextResponse.json([]);
-  }
+    const enriched = products.map((p: any) => {
+      const start =
+        typeof p.sale_start === "string"
+          ? new Date(p.sale_start).getTime()
+          : null;
 
-  products = await res.json();
-}
-/* ===============================
-   ENRICH (FIX TIMEZONE SAFE)
-=============================== */
-const now = Date.now(); // ✅ UTC timestamp
+      const end =
+        typeof p.sale_end === "string"
+          ? new Date(p.sale_end).getTime()
+          : null;
 
-const enriched = products.map((p: any) => {
-  const start =
-    typeof p.sale_start === "string"
-      ? new Date(p.sale_start).getTime()
-      : null;
+      const isSale =
+        typeof p.sale_price === "number" &&
+        start !== null &&
+        end !== null &&
+        now >= start &&
+        now <= end;
 
-  const end =
-    typeof p.sale_end === "string"
-      ? new Date(p.sale_end).getTime()
-      : null;
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        detail: p.detail ?? "",
 
-  const isSale =
-    typeof p.sale_price === "number" &&
-    start !== null &&
-    end !== null &&
-    now >= start &&
-    now <= end;
+        images: p.images ?? [],
+        detailImages: p.detail_images ?? [],
 
-  return {
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    detail: p.detail ?? "",
-    images: p.images ?? [],
-    detailImages: p.detail_images ?? [],
+        categoryId: p.category_id,
 
-    categoryId: p.category_id,
-    price: p.price,
-    salePrice: p.sale_price,
-    isSale,
-    finalPrice: isSale ? p.sale_price : p.price,
+        price: p.price,
+        salePrice: p.sale_price,
 
-    views: p.views ?? 0,
-    sold: p.sold ?? 0,
-  };
-});
+        isSale,
+        finalPrice: isSale ? p.sale_price : p.price,
+
+        views: p.views ?? 0,
+        sold: p.sold ?? 0,
+      };
+    });
 
     return NextResponse.json(enriched);
   } catch (err) {
     console.error("❌ GET PRODUCTS ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCTS" },
       { status: 500 }
@@ -131,7 +90,7 @@ const enriched = products.map((p: any) => {
 }
 
 /* =========================================================
-   POST — CREATE PRODUCT (SELLER ONLY)
+   POST — CREATE PRODUCT (SELLER)
 ========================================================= */
 
 function slugify(text: string): string {
@@ -144,18 +103,13 @@ function slugify(text: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
 }
+
 export async function POST(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
   try {
-    const body: unknown = await req.json();
-    if (typeof body !== "object" || body === null) {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
-        { status: 400 }
-      );
-    }
+    const body = await req.json();
 
     const {
       name,
@@ -168,41 +122,51 @@ export async function POST(req: Request) {
       salePrice,
       saleStart,
       saleEnd,
-    } = body as Record<string, unknown>;
+    } = body;
 
     if (typeof name !== "string" || typeof price !== "number") {
-  return NextResponse.json(
-    { error: "INVALID_PAYLOAD" },
-    { status: 400 }
-  );
-}
+      return NextResponse.json(
+        { error: "INVALID_PAYLOAD" },
+        { status: 400 }
+      );
+    }
 
-const baseSlug = slugify(name);
-const uniqueSlug = `${baseSlug}-${Date.now()}`;
+    const baseSlug = slugify(name);
+    const uniqueSlug = `${baseSlug}-${Date.now()}`;
 
-const product = await createProduct(auth.user.pi_uid, {
-  slug: uniqueSlug,
-  name: name.trim(),
-  price,
-  description: typeof description === "string" ? description : "",
-  detail: typeof detail === "string" ? detail : "",
-  images: Array.isArray(images)
-    ? images.filter((i) => typeof i === "string")
-    : [],
-  detail_images: Array.isArray(detailImages)
-    ? detailImages.filter((i) => typeof i === "string")
-    : [],
-  category_id: typeof categoryId === "number" ? categoryId : null,
-  sale_price: typeof salePrice === "number" ? salePrice : null,
-  sale_start: typeof saleStart === "string" ? saleStart : null,
-  sale_end: typeof saleEnd === "string" ? saleEnd : null,
-  views: 0,
-  sold: 0,
-});
+    const product = await createProduct(auth.user.pi_uid, {
+      slug: uniqueSlug,
+      name: name.trim(),
+      price,
 
-    return NextResponse.json({ success: true, product });
+      description: typeof description === "string" ? description : "",
+      detail: typeof detail === "string" ? detail : "",
+
+      images: Array.isArray(images)
+        ? images.filter((i) => typeof i === "string")
+        : [],
+
+      detail_images: Array.isArray(detailImages)
+        ? detailImages.filter((i) => typeof i === "string")
+        : [],
+
+      category_id: typeof categoryId === "number" ? categoryId : null,
+
+      sale_price: typeof salePrice === "number" ? salePrice : null,
+      sale_start: typeof saleStart === "string" ? saleStart : null,
+      sale_end: typeof saleEnd === "string" ? saleEnd : null,
+
+      views: 0,
+      sold: 0,
+    });
+
+    return NextResponse.json({
+      success: true,
+      product,
+    });
   } catch (err) {
     console.error("❌ CREATE PRODUCT ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_CREATE_PRODUCT" },
       { status: 500 }
@@ -211,20 +175,15 @@ const product = await createProduct(auth.user.pi_uid, {
 }
 
 /* =========================================================
-   PUT — UPDATE PRODUCT (SELLER ONLY)
+   PUT — UPDATE PRODUCT
 ========================================================= */
+
 export async function PUT(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
   try {
-    const body: unknown = await req.json();
-    if (typeof body !== "object" || body === null) {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
-        { status: 400 }
-      );
-    }
+    const body = await req.json();
 
     const {
       id,
@@ -238,21 +197,11 @@ export async function PUT(req: Request) {
       salePrice,
       saleStart,
       saleEnd,
-    } = body as Record<string, unknown>;
+    } = body;
 
-    if (
-      typeof id !== "string" &&
-      typeof id !== "number"
-    ) {
+    if (!id) {
       return NextResponse.json(
         { error: "INVALID_PRODUCT_ID" },
-        { status: 400 }
-      );
-    }
-
-    if (typeof name !== "string" || typeof price !== "number") {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
         { status: 400 }
       );
     }
@@ -261,24 +210,30 @@ export async function PUT(req: Request) {
       auth.user.pi_uid,
       String(id),
       {
-        name: name.trim(),
+        name,
         price,
-        description: typeof description === "string" ? description : "",
-        detail: typeof detail === "string" ? detail : "",
+        description: description ?? "",
+        detail: detail ?? "",
 
         images: Array.isArray(images)
-          ? images.filter((i) => typeof i === "string")
+          ? images.filter((i: any) => typeof i === "string")
           : [],
 
         detail_images: Array.isArray(detailImages)
-          ? detailImages.filter((i) => typeof i === "string")
+          ? detailImages.filter((i: any) => typeof i === "string")
           : [],
 
-        category_id: typeof categoryId === "number" ? categoryId : null,
+        category_id:
+          typeof categoryId === "number" ? categoryId : null,
 
-        sale_price: typeof salePrice === "number" ? salePrice : null,
-        sale_start: typeof saleStart === "string" ? saleStart : null,
-        sale_end: typeof saleEnd === "string" ? saleEnd : null,
+        sale_price:
+          typeof salePrice === "number" ? salePrice : null,
+
+        sale_start:
+          typeof saleStart === "string" ? saleStart : null,
+
+        sale_end:
+          typeof saleEnd === "string" ? saleEnd : null,
       }
     );
 
@@ -292,6 +247,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("❌ UPDATE PRODUCT ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
       { status: 500 }
@@ -300,8 +256,9 @@ export async function PUT(req: Request) {
 }
 
 /* =========================================================
-   DELETE — DELETE PRODUCT (SELLER ONLY)
+   DELETE — DELETE PRODUCT
 ========================================================= */
+
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
@@ -317,30 +274,12 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const res = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/products?id=eq.${id}&seller_id=eq.${auth.user.pi_uid}`,
-      {
-        method: "DELETE",
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          Prefer: "return=representation",
-        },
-      }
+    const deleted = await deleteProductBySeller(
+      auth.user.pi_uid,
+      id
     );
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("❌ DELETE ERROR:", text);
-      return NextResponse.json(
-        { error: "FAILED_TO_DELETE_PRODUCT" },
-        { status: 500 }
-      );
-    }
-
-    const deleted = await res.json();
-
-    if (!deleted.length) {
+    if (!deleted) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
         { status: 404 }
@@ -350,6 +289,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("❌ DELETE PRODUCT ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_DELETE_PRODUCT" },
       { status: 500 }
