@@ -1,3 +1,5 @@
+Viết luôn file này đầy đủ chuẩn app/seller/post/page.tsx
+
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
@@ -6,12 +8,10 @@ import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-import { formatPi } from "@/lib/pi";
 
 /* =========================
    TYPES
 ========================= */
-
 interface Category {
   id: number;
   key: string;
@@ -24,36 +24,22 @@ interface MessageState {
 }
 
 /* =========================
-   FORMAT NUMBER
-========================= */
-
-function formatInputPi(value: string) {
-  const num = Number(value.replace(/,/g, ""));
-  if (Number.isNaN(num)) return "";
-
-  const parts = num.toFixed(5).split(".");
-  parts[0] = Number(parts[0]).toLocaleString("en-US");
-
-  return parts.join(".");
-}
-
-/* =========================
    PAGE
 ========================= */
-
 export default function SellerPostPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading } = useAuth();
 
+  /* =========================
+     STATE
+  ========================= */
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [detailImages, setDetailImages] = useState<string[]>([]);
   const [detail, setDetail] = useState("");
 
-  const [price, setPrice] = useState("");
-  const [salePrice, setSalePrice] = useState("");
-
+  const [salePrice, setSalePrice] = useState<number | "">("");
   const [saleStart, setSaleStart] = useState("");
   const [saleEnd, setSaleEnd] = useState("");
 
@@ -68,7 +54,6 @@ export default function SellerPostPage() {
   /* =========================
      SELLER GUARD
   ========================= */
-
   useEffect(() => {
     if (!loading && (!user || user.role !== "seller")) {
       router.replace("/account");
@@ -78,7 +63,6 @@ export default function SellerPostPage() {
   /* =========================
      LOAD CATEGORIES
   ========================= */
-
   useEffect(() => {
     fetch("/api/categories", { cache: "no-store" })
       .then((r) => r.json())
@@ -91,12 +75,19 @@ export default function SellerPostPage() {
   /* =========================
      IMAGE UPLOAD
   ========================= */
-
   async function uploadImages(
     files: File[],
     setter: React.Dispatch<React.SetStateAction<string[]>>
   ) {
     if (!files.length) return;
+
+    if (images.length + files.length > 6) {
+      setMessage({
+        text: t.max_6_images || "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm",
+        type: "error",
+      });
+      return;
+    }
 
     setUploadingImage(true);
 
@@ -111,14 +102,13 @@ export default function SellerPostPage() {
         });
 
         const data = (await res.json()) as { url?: string };
-
         if (!res.ok || !data.url) throw new Error();
 
         setter((prev) => [...prev, data.url]);
       }
     } catch {
       setMessage({
-        text: "❌ Upload ảnh thất bại",
+        text: t.upload_failed || "❌ Upload ảnh thất bại",
         type: "error",
       });
     } finally {
@@ -130,76 +120,80 @@ export default function SellerPostPage() {
     setImages((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function localToUTC(local: string): string {
-    const date = new Date(local);
-    return new Date(
-      date.getTime() - date.getTimezoneOffset() * 60000
-    ).toISOString();
-  }
+
+   function localToUTC(local: string): string {
+  const date = new Date(local);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
+}
 
   /* =========================
      SUBMIT
   ========================= */
-
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!user || user.role !== "seller") return;
 
     if (!images.length) {
       setMessage({
-        text: "⚠️ Cần ít nhất 1 ảnh sản phẩm",
+        text: t.need_image || "⚠️ Cần ít nhất 1 ảnh sản phẩm",
         type: "error",
       });
       return;
     }
 
-    const numericPrice = Number(price.replace(/,/g, ""));
-    const numericSale = salePrice
-      ? Number(salePrice.replace(/,/g, ""))
-      : null;
+    if (salePrice) {
+      if (!saleStart || !saleEnd) {
+        setMessage({
+          text: t.need_sale_date || "⚠️ Sale cần ngày bắt đầu và kết thúc",
+          type: "error",
+        });
+        return;
+      }
 
-    if (numericPrice < 0.00001) {
-      setMessage({
-        text: "⚠️ Giá tối thiểu 0.00001 PI",
-        type: "error",
-      });
-      return;
-    }
-
-    if (numericSale && numericSale >= numericPrice) {
-      setMessage({
-        text: "⚠️ Giá sale phải nhỏ hơn giá gốc",
-        type: "error",
-      });
-      return;
+      if (new Date(saleEnd) <= new Date(saleStart)) {
+        setMessage({
+          text:
+            t.invalid_sale_range ||
+            "⚠️ Ngày kết thúc phải sau ngày bắt đầu",
+          type: "error",
+        });
+        return;
+      }
     }
 
     const form = e.currentTarget;
 
     const payload = {
       name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
-
-      price: numericPrice,
-
-      salePrice: numericSale,
-
-      saleStart: numericSale && saleStart ? localToUTC(saleStart) : null,
-      saleEnd: numericSale && saleEnd ? localToUTC(saleEnd) : null,
-
+      price: Number(
+        (form.elements.namedItem("price") as HTMLInputElement).value
+      ),
+      salePrice: salePrice || null,
+      saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
+saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
       description: (
         form.elements.namedItem("description") as HTMLTextAreaElement
       ).value,
-
       detail,
-
       images,
       detailImages,
-
       categoryId: Number(
         (form.elements.namedItem("categoryId") as HTMLSelectElement).value
       ),
     };
 
+    if (!payload.name || payload.price <= 0 || !payload.categoryId) {
+      setMessage({
+        text:
+          t.enter_valid_name_price ||
+          "⚠️ Nhập đầy đủ danh mục, tên và giá",
+        type: "error",
+      });
+      return;
+    }
+
     setSaving(true);
+    setMessage({ text: "", type: "" });
 
     try {
       const res = await apiAuthFetch("/api/products", {
@@ -210,14 +204,14 @@ export default function SellerPostPage() {
       if (!res.ok) throw new Error();
 
       setMessage({
-        text: "🎉 Đăng sản phẩm thành công",
+        text: t.post_success || "🎉 Đăng sản phẩm thành công",
         type: "success",
       });
 
       setTimeout(() => router.push("/seller/stock"), 800);
     } catch {
       setMessage({
-        text: "❌ Đăng thất bại",
+        text: t.post_failed || "❌ Đăng thất bại",
         type: "error",
       });
     } finally {
@@ -232,7 +226,6 @@ export default function SellerPostPage() {
   /* =========================
      UI
   ========================= */
-
   return (
     <main className="max-w-2xl mx-auto p-4 pb-28">
       <h1 className="text-xl font-bold text-center mb-4 text-[#ff6600]">
@@ -240,21 +233,22 @@ export default function SellerPostPage() {
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-
         {/* CATEGORY */}
+        <select
+  name="categoryId"
+  className="w-full border p-2 rounded"
+  required
+>
+  <option value="">{t.select_category}</option>
 
-        <select name="categoryId" className="w-full border p-2 rounded" required>
-          <option value="">{t.select_category}</option>
-
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {t[c.key] ?? c.key}
-            </option>
-          ))}
-        </select>
+  {categories.map((c) => (
+  <option key={c.id} value={c.id}>
+  {t[c.key] ?? c.key}
+</option>
+))}
+</select>
 
         {/* NAME */}
-
         <input
           name="name"
           placeholder={t.product_name}
@@ -263,7 +257,6 @@ export default function SellerPostPage() {
         />
 
         {/* IMAGES */}
-
         <div className="grid grid-cols-3 gap-3">
           {images.map((url, i) => (
             <div key={url} className="relative h-28">
@@ -277,7 +270,6 @@ export default function SellerPostPage() {
               </button>
             </div>
           ))}
-
           {images.length < 6 && (
             <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
               ＋
@@ -287,7 +279,10 @@ export default function SellerPostPage() {
                 multiple
                 hidden
                 onChange={(e) =>
-                  uploadImages(Array.from(e.target.files || []), setImages)
+                  uploadImages(
+                    Array.from(e.target.files || []),
+                    setImages
+                  )
                 }
               />
             </label>
@@ -295,26 +290,61 @@ export default function SellerPostPage() {
         </div>
 
         {/* PRICE */}
-
         <input
-          value={price}
-          onChange={(e) => setPrice(formatInputPi(e.target.value))}
-          placeholder="Price (PI)"
+          name="price"
+          type="number"
+          step="any"
+          placeholder={t.price_pi}
           className="w-full border p-2 rounded"
           required
         />
 
-        {/* SALE PRICE */}
-
+        {/* SALE */}
         <input
+          type="number"
+          step="any"
+          placeholder={t.sale_price_optional}
           value={salePrice}
-          onChange={(e) => setSalePrice(formatInputPi(e.target.value))}
-          placeholder="Sale price"
+          onChange={(e) =>
+            setSalePrice(e.target.value ? Number(e.target.value) : "")
+          }
           className="w-full border p-2 rounded"
         />
+         {salePrice && (
+  <div className="space-y-2">
+    <p className="text-sm text-gray-600 font-medium">
+      📅 {t.sale_time || "Thời gian khuyến mãi"}
+    </p>
+
+    <div className="grid grid-cols-2 gap-3">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-gray-500">
+          {t.start_date || "Bắt đầu"}
+        </label>
+        <input
+          type="datetime-local"
+          value={saleStart}
+          onChange={(e) => setSaleStart(e.target.value)}
+          className="border p-2 rounded"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-gray-500">
+          {t.end_date || "Kết thúc"}
+        </label>
+        <input
+          type="datetime-local"
+          value={saleEnd}
+          onChange={(e) => setSaleEnd(e.target.value)}
+          className="border p-2 rounded"
+        />
+      </div>
+    </div>
+  </div>
+)}
 
         {/* DESCRIPTION */}
-
         <textarea
           name="description"
           placeholder={t.description}
@@ -323,7 +353,6 @@ export default function SellerPostPage() {
         />
 
         {/* DETAIL */}
-
         <textarea
           placeholder={t.product_detail}
           value={detail}
@@ -331,13 +360,36 @@ export default function SellerPostPage() {
           className="w-full border p-2 rounded min-h-[120px]"
         />
 
-        {/* SUBMIT */}
+        {/* DETAIL IMAGES */}
+        <div className="grid grid-cols-3 gap-3">
+          {detailImages.map((url) => (
+            <div key={url} className="relative h-28">
+              <Image src={url} alt="" fill className="object-cover rounded" />
+            </div>
+          ))}
+          <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
+            ＋
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) =>
+                uploadImages(
+                  Array.from(e.target.files || []),
+                  setDetailImages
+                )
+              }
+            />
+          </label>
+        </div>
 
+        {/* SUBMIT */}
         <button
           disabled={saving}
           className="w-full bg-[#ff6600] text-white py-3 rounded-lg font-semibold"
         >
-          {saving ? "Posting..." : t.post_product}
+          {saving ? t.posting : "" + t.post_product}
         </button>
       </form>
     </main>
