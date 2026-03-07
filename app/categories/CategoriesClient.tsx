@@ -6,7 +6,7 @@ import Image from "next/image";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/app/context/CartContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
+import { formatPi } from "@/lib/pi";
 /* ================= TYPES ================= */
 
 type Category = {
@@ -28,12 +28,6 @@ type Product = {
   categoryId: number | string;
   sold: number;
 };
-
-/* ================= FORMAT PI ================= */
-
-function formatPi(value: number | string) {
-  return Number(value).toFixed(6);
-}
 
 /* ================= CLIENT PAGE ================= */
 
