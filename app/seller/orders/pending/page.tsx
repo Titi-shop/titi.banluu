@@ -311,14 +311,14 @@ export default function SellerPendingOrdersPage() {
               </div>
 
               {/* FOOTER */}
+               {/* FOOTER */}
               <div
                 className="px-4 py-3 border-t bg-gray-50 text-sm"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">
-                    {t.total ?? "Tổng"}: π
-                    {formatPi(o.total)}
+                    {t.total ?? "Tổng"}: π{formatPi(o.total)}
                   </span>
 
                   <div className="flex gap-2">
@@ -327,7 +327,7 @@ export default function SellerPendingOrdersPage() {
                       onClick={() => {
                         setSellerMessage(
                           t.confirm_default_message ??
-                            "Thank you for your order."
+                            "Thank you for your order. "
                         );
                         setShowConfirmFor(o.id);
                         setShowCancelFor(null);
@@ -349,6 +349,89 @@ export default function SellerPendingOrdersPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* CONFIRM FORM */}
+                {showConfirmFor === o.id && (
+                  <div className="mt-3 space-y-3 bg-gray-50 p-3 rounded-lg">
+                    <textarea
+                      value={sellerMessage}
+                      onChange={(e) => setSellerMessage(e.target.value)}
+                      className="w-full border rounded-md p-2 text-sm"
+                      rows={3}
+                    />
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleConfirm(o.id)}
+                        disabled={processingId === o.id}
+                        className="px-4 py-1 text-sm bg-green-600 text-white rounded disabled:opacity-50"
+                      >
+                        {t.confirm_order ?? "Confirm order"}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowConfirmFor(null);
+                          setSellerMessage("");
+                        }}
+                        className="px-4 py-1 text-sm border rounded"
+                      >
+                        {t.close ?? "Close"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* CANCEL FORM */}
+                {showCancelFor === o.id && (
+                  <div className="mt-3 space-y-3 bg-gray-50 p-3 rounded-lg">
+                    {SELLER_CANCEL_REASONS.map((reason) => (
+                      <label
+                        key={reason}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <input
+                          type="radio"
+                          value={reason}
+                          checked={selectedReason === reason}
+                          onChange={(e) => setSelectedReason(e.target.value)}
+                        />
+                        {reason}
+                      </label>
+                    ))}
+
+                    {selectedReason ===
+                      (t.cancel_reason_other ?? "Other") && (
+                      <textarea
+                        value={customReason}
+                        onChange={(e) => setCustomReason(e.target.value)}
+                        className="w-full border rounded-md p-2 text-sm"
+                        rows={3}
+                      />
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleCancel(o.id)}
+                        disabled={processingId === o.id}
+                        className="px-4 py-1 text-sm bg-red-500 text-white rounded disabled:opacity-50"
+                      >
+                        {t.confirm_cancel ?? "Confirm cancel"}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowCancelFor(null);
+                          setSelectedReason("");
+                          setCustomReason("");
+                        }}
+                        className="px-4 py-1 text-sm border rounded"
+                      >
+                        {t.close ?? "Close"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))
