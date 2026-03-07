@@ -72,14 +72,17 @@ where id=$1
     const shipping = body.shipping ?? {};
     const user = body.user ?? {};
     const quantity = body.quantity ?? 1;
+    const PI_DECIMALS = 100000;
 
     if (!user.pi_uid) {
   console.error("INVALID USER");
   return;
 }
     
-    const subtotal = product.price * quantity;
-    const total = subtotal;
+    const PI_DECIMALS = 100000;
+
+const subtotal = Math.round(product.price * quantity * PI_DECIMALS);
+const total = subtotal;
 
     /* CREATE ORDER */
 
@@ -153,9 +156,9 @@ values (
   product.name,
   product.images?.[0] ?? "",
   product.images ?? [],
-  product.price,
-  quantity,
-  product.price * quantity
+  product.price * PI_DECIMALS,
+quantity,
+Math.round(product.price * quantity * PI_DECIMALS)
 ]
 );
 
