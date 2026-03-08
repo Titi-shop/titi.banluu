@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+import { formatPi } from "@/lib/pi";
 
 /* =========================
    TYPES
