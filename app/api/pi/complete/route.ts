@@ -73,6 +73,7 @@ where id=$1
     const shipping = body.shipping ?? {};
     const user = body.user ?? {};
     const quantity = body.quantity ?? 1;
+    const clientTotal = Number(body.total);
 
     if (!user.pi_uid) {
   console.error("INVALID USER");
@@ -80,8 +81,17 @@ where id=$1
 }
     
 
-const subtotal = product.price * quantity;
-const total = subtotal;
+const expectedTotal = product.price * quantity;
+    if (Math.abs(clientTotal - expectedTotal) > 0.00001) {
+  console.error("PRICE MISMATCH");
+
+  return NextResponse.json(
+    { error: "INVALID_PRICE" },
+    { status: 400 }
+  );
+}
+    const subtotal = expectedTotal;
+const total = expectedTotal;
 
     /* CREATE ORDER */
 
