@@ -300,7 +300,7 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
         <input
           name="price"
           type="number"
-          step="any"
+          step="0.00001"
           placeholder={t.price_pi}
           className="w-full border p-2 rounded"
           required
@@ -309,7 +309,7 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
         {/* SALE */}
         <input
           type="number"
-          step="any"
+          step="0.00001"
           placeholder={t.sale_price_optional}
           value={salePrice}
           onChange={(e) =>
