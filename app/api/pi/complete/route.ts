@@ -58,44 +58,32 @@ where id=$1
 
     const product = rows[0];
 
-    return NextResponse.json(
-  { error: "PRODUCT_NOT_FOUND" },
-  { status: 404 }
-);
+if (!product) {
+  return NextResponse.json(
+    { error: "PRODUCT_NOT_FOUND" },
+    { status: 404 }
+  );
+}
 
-    /* =========================
-       CREATE ORDER (SAFE)
-    ========================= */
+const shipping = body.shipping ?? {};
+const user = body.user ?? {};
+const quantity = body.quantity ?? 1;
 
-    if (piRes.ok) {
-  try {
-
-    const shipping = body.shipping ?? {};
-    const user = body.user ?? {};
-    const quantity = body.quantity ?? 1;
-    if (quantity <= 0) {
+if (quantity <= 0) {
   return NextResponse.json(
     { error: "INVALID_QUANTITY" },
     { status: 400 }
   );
 }
-    const clientTotal = Number(body.total);
 
-    return NextResponse.json(
-  { error: "INVALID_USER" },
-  { status: 400 }
-);
-    
-
-const expectedTotal = product.price * quantity;
-    if (Math.abs(clientTotal - expectedTotal) > 0.00001) {
-  console.error("PRICE MISMATCH");
-
+if (!user.pi_uid) {
   return NextResponse.json(
-    { error: "INVALID_PRICE" },
+    { error: "INVALID_USER" },
     { status: 400 }
   );
 }
+
+const clientTotal = Number(body.total);
     const subtotal = expectedTotal;
 const total = expectedTotal;
 
