@@ -13,7 +13,7 @@ if (!SERVICE_KEY) {
    TYPES
 ========================================================= */
 
-/** Row đúng theo DB (price lưu minor unit) */
+/** Row đúng theo DB (price lưu decimal PI) */
 type ProductRow = {
   id: string;
 
@@ -30,8 +30,8 @@ type ProductRow = {
 
   video_url: string | null;
 
-  price: number; // minor unit (int)
-  sale_price: number | null; // minor unit (int)
+  price: number; // decimal PI
+sale_price: number | null; // decimal PI
   currency: string;
 
   stock: number;
@@ -85,16 +85,16 @@ function supabaseHeaders() {
 function toAppProduct(row: ProductRow): ProductRecord {
   return {
     ...row,
-    price: Number((row.price / 100).toFixed(2)),
+    price: Number(row.price),
     sale_price:
       row.sale_price !== null
-        ? Number((row.sale_price / 100).toFixed(2))
+        ? Number(row.sale_price)
         : null,
   };
 }
 
 function toDbPrice(value: number): number {
-  return Math.round(value * 100);
+  return Number(value);
 }
 
 /* =========================================================
