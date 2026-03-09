@@ -262,6 +262,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       product_id: product.id,
       quantity,
       total,
+      unit_price: unitPrice,
       shipping,
       user: {
   pi_uid: user.pi_uid
