@@ -283,7 +283,7 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
         <input
           name="price"
           type="number"
-          step="any"
+          step="0.00001"
           defaultValue={product.price}
           placeholder={t.price_pi || "Price (Pi)"}
           className="w-full border p-2 rounded"
@@ -293,7 +293,7 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
         {/* SALE PRICE */}
         <input
           type="number"
-          step="any"
+          step="0.00001"
           placeholder={
             t.sale_price_optional || "Sale price (optional)"
           }
