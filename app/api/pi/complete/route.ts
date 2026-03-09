@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { toMinorUnit } from "@/lib/pi";
+
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +80,7 @@ where id=$1
 }
     
 
-const subtotal = toMinorUnit(product.price * quantity);
+const subtotal = product.price * quantity;
 const total = subtotal;
 
     /* CREATE ORDER */
@@ -155,7 +155,7 @@ values (
   product.name,
   product.images?.[0] ?? "",
   product.images ?? [],
-  toMinorUnit(product.price),
+  product.price,
 quantity,
 toMinorUnit(product.price * quantity)
 ]
