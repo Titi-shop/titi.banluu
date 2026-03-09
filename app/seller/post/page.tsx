@@ -96,14 +96,22 @@ export default function SellerPostPage() {
         form.append("file", file);
 
         const res = await apiAuthFetch("/api/upload", {
-          method: "POST",
-          body: form,
-        });
+  method: "POST",
+  body: form,
+});
 
-        const data = (await res.json()) as { url?: string };
-        if (!res.ok || !data.url) throw new Error();
+if (!res.ok) {
+  console.error("UPLOAD ERROR:", await res.text());
+  throw new Error("UPLOAD_FAILED");
+}
 
-        setter((prev) => [...prev, data.url]);
+const data = (await res.json()) as { url?: string };
+
+if (!data.url) {
+  throw new Error("NO_URL_RETURNED");
+}
+
+setter((prev) => [...prev, data.url]);
       }
     } catch {
       setMessage({
