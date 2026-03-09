@@ -58,10 +58,10 @@ where id=$1
 
     const product = rows[0];
 
-    if (!product) {
-      console.error("PRODUCT NOT FOUND");
-      return;
-    }
+    return NextResponse.json(
+  { error: "PRODUCT_NOT_FOUND" },
+  { status: 404 }
+);
 
     /* =========================
        CREATE ORDER (SAFE)
@@ -73,12 +73,18 @@ where id=$1
     const shipping = body.shipping ?? {};
     const user = body.user ?? {};
     const quantity = body.quantity ?? 1;
+    if (quantity <= 0) {
+  return NextResponse.json(
+    { error: "INVALID_QUANTITY" },
+    { status: 400 }
+  );
+}
     const clientTotal = Number(body.total);
 
-    if (!user.pi_uid) {
-  console.error("INVALID USER");
-  return;
-}
+    return NextResponse.json(
+  { error: "INVALID_USER" },
+  { status: 400 }
+);
     
 
 const expectedTotal = product.price * quantity;
@@ -135,7 +141,11 @@ const orderId = orderRows[0]?.id;
 
 if (!orderId) {
   console.error("ORDER NOT CREATED");
-  return;
+
+  return NextResponse.json(
+    { error: "ORDER_NOT_CREATED" },
+    { status: 500 }
+  );
 }
     
    
