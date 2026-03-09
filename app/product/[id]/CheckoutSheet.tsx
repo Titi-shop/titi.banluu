@@ -104,7 +104,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   const quantity = useMemo(() => {
     const n = Number(qtyDraft);
-    return Number.isInteger(n) && n >= 1 ? n : 1;
+    return Number.isInteger(n) && n >= 1 && n <= 99 ? n : 1;
   }, [qtyDraft]);
 
   const item = useMemo(() => {
