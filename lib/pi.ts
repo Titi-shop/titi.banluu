@@ -1,20 +1,15 @@
-export const PI_DECIMALS = 1.00000;
+/* =========================================================
+   PI FORMAT UTIL
+   dùng khi hiển thị giá Pi
+========================================================= */
 
-/* PI -> DB */
-export function toMinorUnit(pi: number): number {
-  return Math.round(pi * PI_DECIMALS);
-}
-
-/* DB -> PI */
-export function fromMinorUnit(value: number): number {
-  return value / PI_DECIMALS;
-}
-
-/* format hiển thị */
+/* format hiển thị 5 số thập phân */
 export function formatPi(value: number): string {
-  const pi = value / PI_DECIMALS;
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "0.00000";
+  }
 
-  const parts = pi.toFixed(5).split(".");
+  const parts = value.toFixed(5).split(".");
   const integer = Number(parts[0]).toLocaleString("en-US");
   const decimal = parts[1];
 
