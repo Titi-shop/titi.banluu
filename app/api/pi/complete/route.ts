@@ -157,7 +157,7 @@ values (
   product.images ?? [],
   product.price,
 quantity,
-toMinorUnit(product.price * quantity)
+product.price * quantity
 ]
 );
 
