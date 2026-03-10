@@ -8,10 +8,10 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 
-
 /* =========================
-   ORDER STATUS
+ORDER STATUS
 ========================= */
+
 type OrderStatus =
   | "pending"
   | "pickup"
@@ -21,47 +21,54 @@ type OrderStatus =
   | "refunded";
 
 /* =========================
-   TYPES
+TYPES (MATCH API)
 ========================= */
-interface Product {
-  id: string;
-  name: string;
-  images: string[];
-}
 
 interface OrderItem {
+  product_name: string;
+  thumbnail: string;
+  images?: string[];
+
   quantity: number;
   unit_price: number;
-  product_id: string;
+  total_price: number;
+
   seller_cancel_reason?: string | null;
   seller_message?: string | null;
-  product?: Product;
 }
 
 interface Order {
   id: string;
+  order_number: string;
   total: number;
   status: OrderStatus;
-  order_items?: OrderItem[];
+  created_at: string;
+  order_items: OrderItem[];
 }
 
 /* =========================
-   PAGE
+PAGE
 ========================= */
+
 export default function CustomerPickupPage() {
+
   const { t } = useTranslation();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  
-
   useEffect(() => {
     void loadOrders();
   }, []);
 
+  /* =========================
+  LOAD ORDERS
+  ========================= */
+
   async function loadOrders(): Promise<void> {
+
     try {
+
       const token = await getPiAccessToken();
 
       const res = await fetch("/api/orders", {
@@ -73,57 +80,25 @@ export default function CustomerPickupPage() {
 
       if (!res.ok) throw new Error("UNAUTHORIZED");
 
-      const data = await res.json();
+      const data = (await res.json()) as { orders: Order[] };
 
-      const rawOrders: Order[] = data.orders ?? [];
+      const rawOrders = data.orders ?? [];
 
-      // ✅ chỉ lấy đơn pickup (seller đã xác nhận)
       const filtered = rawOrders.filter(
         (o) => o.status === "pickup" || o.status === "shipping"
       );
 
-      const productIds = Array.from(
-        new Set(
-          filtered.flatMap((o) =>
-            o.order_items?.map((i) => i.product_id) ?? []
-          )
-        )
-      );
+      setOrders(filtered);
 
-      if (productIds.length === 0) {
-        setOrders(filtered);
-        return;
-      }
-
-      const productRes = await fetch(
-        `/api/products?ids=${productIds.join(",")}`,
-        { cache: "no-store" }
-      );
-
-      if (!productRes.ok)
-        throw new Error("FETCH_PRODUCTS_FAILED");
-
-      const products: Product[] = await productRes.json();
-
-      const productMap: Record<string, Product> =
-        Object.fromEntries(
-          products.map((p) => [p.id, p])
-        );
-
-      const enriched = filtered.map((o) => ({
-        ...o,
-        order_items: (o.order_items ?? []).map((i) => ({
-          ...i,
-          product: productMap[i.product_id],
-        })),
-      }));
-
-      setOrders(enriched);
     } catch (err) {
-      console.error("❌ Load pickup orders error:", err);
+
+      console.error("Load pickup orders error:", err);
       setOrders([]);
+
     } finally {
+
       setLoading(false);
+
     }
   }
 
@@ -133,133 +108,156 @@ export default function CustomerPickupPage() {
   );
 
   /* =========================
-     UI
+  UI
   ========================= */
+
   return (
-  <main className="min-h-screen bg-gray-100 pb-24">
+    <main className="min-h-screen bg-gray-100 pb-24">
 
-<header className="bg-orange-500 text-white px-4 py-4">
-  <div className="bg-orange-400 rounded-lg p-4">
-    <p className="text-sm opacity-90">
-      {t.order_info}
-    </p>
-    <p className="text-xs opacity-80 mt-1">
-      {t.orders}: {orders.length} · π{formatPi(totalPi)}
-    </p>
-  </div>
-</header>
+      <header className="bg-orange-500 text-white px-4 py-4">
 
-<section className="mt-6 px-4">
-{loading ? (
+        <div className="bg-orange-400 rounded-lg p-4">
 
-<p className="text-center text-gray-400">
-{t.loading_orders}
-</p>
+          <p className="text-sm opacity-90">
+            {t.order_info}
+          </p>
 
-) : orders.length === 0 ? (
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders}: {orders.length} · π{formatPi(totalPi)}
+          </p>
 
-<div className="flex flex-col items-center justify-center mt-20 text-gray-400">
-<div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
-<p>
-{t.no_pickup_orders}
-</p>
-</div>
+        </div>
 
-) : (
+      </header>
 
-<div className="space-y-4">
+      <section className="mt-6 px-4">
 
-{orders.map((o) => (
+        {loading ? (
 
-<div
-key={o.id}
-className="bg-white rounded-xl shadow-sm overflow-hidden"
->
+          <p className="text-center text-gray-400">
+            {t.loading_orders}
+          </p>
 
-<div className="flex justify-between items-center px-4 py-3 border-b">
-<span className="font-medium text-sm break-all">
-#{o.id}
-</span>
+        ) : orders.length === 0 ? (
 
-<span className="text-orange-500 text-sm font-medium">
-{t.order_status_pickup}
-</span>
-</div>
+          <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
 
-<div className="px-4 py-3 space-y-3">
+            <div className="w-32 h-32 bg-gray-200 rounded-full mb-4 opacity-40" />
 
-{o.order_items?.map((item, idx) => (
+            <p>
+              {t.no_pickup_orders}
+            </p>
 
-<div
-key={idx}
-className="flex gap-3 items-center"
->
+          </div>
 
-<div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
+        ) : (
 
-{item.product?.images?.[0] && (
-<img
-src={item.product.images[0]}
-alt={item.product.name}
-className="w-full h-full object-cover"
-/>
-)}
+          <div className="space-y-4">
 
-</div>
+            {orders.map((o) => (
 
-<div className="flex-1 min-w-0">
+              <div
+                key={o.id}
+                className="bg-white rounded-xl shadow-sm overflow-hidden"
+              >
 
-<p className="text-sm font-medium line-clamp-1">
-{item.product?.name ?? "—"}
-</p>
+                {/* HEADER */}
 
-<p className="text-xs text-gray-500">
-x{item.quantity} · π
-{formatPi(item.unit_price)}
-</p>
+                <div className="flex justify-between items-center px-4 py-3 border-b">
 
-{item.seller_message && (
-<p className="text-xs text-blue-600 mt-1">
-{t.seller_message ?? "Seller message"}: {item.seller_message}
-</p>
-)}
+                  <span className="font-medium text-sm">
+                    #{o.order_number}
+                  </span>
 
-{item.seller_cancel_reason && (
-<p className="text-xs text-red-500 mt-1">
-{t.seller_cancel_reason ?? "Seller reason"}: {item.seller_cancel_reason}
-</p>
-)}
+                  <span className="text-orange-500 text-sm font-medium">
+                    {t.order_status_pickup}
+                  </span>
 
-</div>
+                </div>
 
-</div>
+                {/* PRODUCTS */}
 
-))}
+                <div className="px-4 py-3 space-y-3">
 
-</div>
+                  {o.order_items?.map((item, idx) => (
 
-<div className="flex justify-between items-center px-4 py-3 border-t">
+                    <div
+                      key={idx}
+                      className="flex gap-3 items-center"
+                    >
 
-<p className="text-sm font-semibold">
-{t.total}: π{formatPi(o.total)}
-</p>
+                      <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
 
-<button className="px-4 py-1.5 text-sm border border-orange-400 text-orange-500 rounded hover:bg-orange-500 hover:text-white transition">
-{t.buy_now}
-</button>
+                        <img
+                          src={item.thumbnail || "/placeholder.png"}
+                          alt={item.product_name}
+                          className="w-full h-full object-cover"
+                        />
 
-</div>
+                      </div>
 
-</div>
+                      <div className="flex-1 min-w-0">
 
-))}
+                        <p className="text-sm font-medium line-clamp-1">
+                          {item.product_name}
+                        </p>
 
-</div>
+                        <p className="text-xs text-gray-500">
+                          x{item.quantity} · π
+                          {formatPi(
+                            Number(item.total_price) /
+                            Number(item.quantity || 1)
+                          )}
+                        </p>
 
-)}
+                        {item.seller_message && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            {t.seller_message ?? "Seller message"}:
+                            {" "}
+                            {item.seller_message}
+                          </p>
+                        )}
 
-</section>
+                        {item.seller_cancel_reason && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {t.seller_cancel_reason ?? "Seller reason"}:
+                            {" "}
+                            {item.seller_cancel_reason}
+                          </p>
+                        )}
 
-</main>
-);
+                      </div>
+
+                    </div>
+
+                  ))}
+
+                </div>
+
+                {/* FOOTER */}
+
+                <div className="flex justify-between items-center px-4 py-3 border-t">
+
+                  <p className="text-sm font-semibold">
+                    {t.total}: π{formatPi(o.total)}
+                  </p>
+
+                  <button className="px-4 py-1.5 text-sm border border-orange-400 text-orange-500 rounded hover:bg-orange-500 hover:text-white transition">
+                    {t.buy_now}
+                  </button>
+
+                </div>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        )}
+
+      </section>
+
+    </main>
+  );
 }
