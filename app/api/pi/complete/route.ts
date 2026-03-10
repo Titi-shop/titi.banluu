@@ -6,6 +6,27 @@ export const dynamic = "force-dynamic";
 const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
 
+/* =========================
+   UTILS
+========================= */
+
+function safeNumber(v: unknown) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function safeQuantity(v: unknown) {
+  const n = Number(v);
+  if (!Number.isInteger(n)) return 1;
+  if (n < 1) return 1;
+  if (n > 99) return 99;
+  return n;
+}
+
+/* =========================
+   API
+========================= */
+
 export async function POST(req: Request) {
   try {
 
@@ -20,36 +41,6 @@ export async function POST(req: Request) {
         { error: "MISSING_PAYMENT_DATA" },
         { status: 400 }
       );
-    }
-
-    /* =========================
-       COMPLETE PI PAYMENT
-    ========================= */
-
-    const piRes = await fetch(
-      `${PI_API}/payments/${paymentId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Key ${PI_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ txid }),
-        cache: "no-store",
-      }
-    );
-
-    const text = await piRes.text();
-
-    if (!piRes.ok) {
-      console.error("PI COMPLETE FAIL:", text);
-
-      return new NextResponse(text || "{}", {
-        status: piRes.status,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
     }
 
     /* =========================
@@ -75,13 +66,14 @@ export async function POST(req: Request) {
     }
 
     /* =========================
-       VALIDATE DATA
+       VALIDATE INPUT
     ========================= */
 
     const shipping = body.shipping ?? {};
     const user = body.user ?? {};
-    const quantity = Number(body.quantity ?? 1);
-    const clientTotal = Number(body.total);
+
+    const quantity = safeQuantity(body.quantity);
+    const clientTotal = safeNumber(body.total);
 
     if (!user.pi_uid) {
       return NextResponse.json(
@@ -90,33 +82,25 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      return NextResponse.json(
-        { error: "INVALID_QUANTITY" },
-        { status: 400 }
-      );
-    }
-
-    if (!Number.isFinite(clientTotal)) {
-      return NextResponse.json(
-        { error: "INVALID_TOTAL" },
-        { status: 400 }
-      );
-    }
-
     /* =========================
-       PRICE CHECK (ANTI HACK)
+       CALCULATE PRICE
     ========================= */
 
     const unitPrice =
-  product.sale_price ?? product.price;
+      product.sale_price ?? product.price;
 
-const expectedTotal = unitPrice * quantity;
+    const expectedTotal =
+      Number((unitPrice * quantity).toFixed(6));
+
+    /* =========================
+       CLIENT PRICE CHECK
+    ========================= */
 
     if (Math.abs(clientTotal - expectedTotal) > 0.00001) {
-      console.error("PRICE MISMATCH", {
+
+      console.error("CLIENT PRICE MISMATCH", {
         clientTotal,
-        expectedTotal,
+        expectedTotal
       });
 
       return NextResponse.json(
@@ -125,8 +109,60 @@ const expectedTotal = unitPrice * quantity;
       );
     }
 
-    const subtotal = expectedTotal;
-    const total = expectedTotal;
+    /* =========================
+       COMPLETE PI PAYMENT
+    ========================= */
+
+    const piRes = await fetch(
+      `${PI_API}/payments/${paymentId}/complete`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Key ${PI_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ txid }),
+        cache: "no-store",
+      }
+    );
+
+    const payment = await piRes.json();
+
+    if (!piRes.ok) {
+
+      console.error("PI COMPLETE FAIL:", payment);
+
+      return NextResponse.json(
+        { error: "PI_PAYMENT_FAILED" },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       VERIFY PI PAYMENT
+    ========================= */
+
+    const piAmount = safeNumber(payment.amount);
+
+    if (Math.abs(piAmount - expectedTotal) > 0.00001) {
+
+      console.error("PI AMOUNT MISMATCH", {
+        piAmount,
+        expectedTotal
+      });
+
+      return NextResponse.json(
+        { error: "INVALID_PI_AMOUNT" },
+        { status: 400 }
+      );
+    }
+
+    if (payment.status !== "completed") {
+      return NextResponse.json(
+        { error: "PAYMENT_NOT_COMPLETED" },
+        { status: 400 }
+      );
+    }
 
     /* =========================
        CREATE ORDER
@@ -158,8 +194,8 @@ const expectedTotal = unitPrice * quantity;
         user.pi_uid,
         paymentId,
         txid,
-        subtotal,
-        total,
+        expectedTotal,
+        expectedTotal,
         shipping.name ?? "",
         shipping.phone ?? "",
         shipping.address_line ?? "",
@@ -194,9 +230,7 @@ const expectedTotal = unitPrice * quantity;
         quantity,
         total_price
       )
-      values (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9
-      )
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
       `,
       [
         orderId,
@@ -207,7 +241,7 @@ const expectedTotal = unitPrice * quantity;
         product.images ?? [],
         unitPrice,
         quantity,
-        unitPrice * quantity
+        expectedTotal
       ]
     );
 
@@ -217,7 +251,7 @@ const expectedTotal = unitPrice * quantity;
 
     return NextResponse.json({
       success: true,
-      order_id: orderId,
+      order_id: orderId
     });
 
   } catch (err) {
