@@ -103,8 +103,9 @@ const isSale =
   now >= start &&
   now <= end
 
-const unitPrice =
+const unitPrice = Number(
   isSale ? product.sale_price : product.price
+);
 
 const expectedTotal =
   Number((unitPrice * quantity).toFixed(6))
