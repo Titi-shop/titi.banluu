@@ -18,6 +18,8 @@ interface OrderItem {
   images?: string[];
   quantity: number;
   unit_price: number;
+  total_price: number;
+  status: string;
 }
 
 interface Order {
@@ -82,9 +84,9 @@ export default function PendingOrdersPage() {
 
       if (!res.ok) throw new Error("LOAD_FAILED");
 
-      const data = await res.json();
-
-      const rawOrders: Order[] = data.orders ?? [];
+      const data = (await res.json()) as { orders: Order[] };
+       
+      const rawOrders = data.orders ?? [];
 
       const filtered = rawOrders.filter(
         (o) => o.status === "pending"
@@ -235,7 +237,7 @@ export default function PendingOrdersPage() {
                       <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
 
                         <img
-                          src={item.thumbnail}
+                         src={item.thumbnail || "/placeholder.png"}
                           alt={item.product_name}
                           className="w-full h-full object-cover"
                         />
