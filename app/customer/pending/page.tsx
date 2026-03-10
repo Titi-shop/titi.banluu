@@ -7,8 +7,9 @@ import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
+
 /* =========================
-TYPES (MATCH DB)
+TYPES
 ========================= */
 
 interface OrderItem {
@@ -52,6 +53,7 @@ export default function PendingOrdersPage() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
@@ -85,11 +87,9 @@ export default function PendingOrdersPage() {
 
       const rawOrders: Order[] = data.orders ?? [];
 
-      const filtered = rawOrders.filter(
-        (o) => o.status === "pending"
+      setOrders(
+        rawOrders.filter((o) => o.status === "pending")
       );
-
-      setOrders(filtered);
 
     } catch (err) {
 
@@ -127,9 +127,7 @@ export default function PendingOrdersPage() {
         }),
       });
 
-      if (!res.ok) {
-        throw new Error("CANCEL_FAILED");
-      }
+      if (!res.ok) throw new Error("CANCEL_FAILED");
 
       setSelectedReason("");
       setCustomReason("");
@@ -137,7 +135,7 @@ export default function PendingOrdersPage() {
 
       await loadOrders();
 
-    } catch (err) {
+    } catch {
 
       alert("Không thể huỷ đơn.");
 
@@ -148,6 +146,10 @@ export default function PendingOrdersPage() {
     }
   }
 
+  /* =========================
+  TOTAL PI
+  ========================= */
+
   const totalPi = orders.reduce(
     (sum, o) => sum + Number(o.total),
     0
@@ -157,6 +159,7 @@ export default function PendingOrdersPage() {
     <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
+
       <header className="bg-orange-500 text-white px-4 py-4">
 
         <div className="bg-orange-400 rounded-lg p-4">
@@ -206,7 +209,7 @@ export default function PendingOrdersPage() {
                 className="bg-white rounded-xl shadow-sm overflow-hidden"
               >
 
-                {/* HEADER */}
+                {/* ORDER HEADER */}
 
                 <div className="flex justify-between items-center px-4 py-3 border-b">
 
@@ -224,38 +227,49 @@ export default function PendingOrdersPage() {
 
                 <div className="px-4 py-3 space-y-3">
 
-                  {o.order_items?.map((item, idx) => (
+                  {o.order_items?.map((item, idx) => {
 
-                    <div
-                      key={idx}
-                      className="flex gap-3 items-center"
-                    >
+                    const subtotal =
+                      item.unit_price * item.quantity;
 
-                      <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
+                    return (
 
-                        <img
-                          src={item.thumbnail}
-                          alt={item.product_name}
-                          className="w-full h-full object-cover"
-                        />
+                      <div
+                        key={idx}
+                        className="flex gap-3 items-center"
+                      >
+
+                        <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
+
+                          <img
+                            src={item.thumbnail}
+                            alt={item.product_name}
+                            className="w-full h-full object-cover"
+                          />
+
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+
+                          <p className="text-sm font-medium line-clamp-1">
+                            {item.product_name}
+                          </p>
+
+                          <p className="text-xs text-gray-500">
+                            x{item.quantity} · {formatPi(item.unit_price)} π
+                          </p>
+
+                          <p className="text-xs text-gray-400">
+                            = {formatPi(subtotal)} π
+                          </p>
+
+                        </div>
 
                       </div>
 
-                      <div className="flex-1 min-w-0">
+                    );
 
-                        <p className="text-sm font-medium line-clamp-1">
-                          {item.product_name}
-                        </p>
-
-                        <p className="text-xs text-gray-500">
-                          x{item.quantity} · {formatPi(item.unit_price)} π
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                  ))}
+                  })}
 
                 </div>
 
@@ -348,9 +362,7 @@ export default function PendingOrdersPage() {
                         }}
                         className="px-4 py-1.5 text-sm bg-red-500 text-white rounded-md"
                       >
-
                         {t.confirm_cancel}
-
                       </button>
 
                       <button
@@ -363,9 +375,7 @@ export default function PendingOrdersPage() {
                         }}
                         className="px-4 py-1.5 text-sm border rounded-md"
                       >
-
                         {t.cancel}
-
                       </button>
 
                     </div>
