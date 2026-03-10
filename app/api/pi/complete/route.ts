@@ -157,12 +157,15 @@ export async function POST(req: Request) {
       );
     }
 
-    if (payment.status !== "completed") {
-      return NextResponse.json(
-        { error: "PAYMENT_NOT_COMPLETED" },
-        { status: 400 }
-      );
-    }
+    if (!payment.status?.developer_completed) {
+
+  console.error("PAYMENT NOT COMPLETED", payment);
+
+  return NextResponse.json(
+    { error: "PAYMENT_NOT_COMPLETED" },
+    { status: 400 }
+  );
+}
 
     /* =========================
        CREATE ORDER
