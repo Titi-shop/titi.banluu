@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
+import { formatPi } from "@/lib/pi";
 
 /* =========================
    TYPES
@@ -52,9 +53,7 @@ export default function CustomerOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
 
-  function formatPi(value: number | string) {
-    return Number(value).toFixed(6);
-  }
+  
 
   /* =========================
      LOAD ORDERS (1 LẦN)
