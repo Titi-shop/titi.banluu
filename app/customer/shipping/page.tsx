@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
+import { formatPi } from "@/lib/pi";
+
 
 /* =========================
    ORDER STATUS
@@ -54,9 +56,7 @@ export default function ShippingOrdersPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  function formatPi(value: number | string): string {
-    return Number(value).toFixed(6);
-  }
+
 
   useEffect(() => {
     void loadOrders();
