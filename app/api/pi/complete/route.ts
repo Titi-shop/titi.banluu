@@ -43,6 +43,21 @@ export async function POST(req: Request) {
       );
     }
 
+     /* =========================
+   CHECK ORDER EXISTS
+========================= */
+
+const { rows: existingOrder } = await query(
+  `select id from orders where pi_payment_id=$1`,
+  [paymentId]
+);
+
+if (existingOrder.length > 0) {
+  return NextResponse.json({
+    success: true,
+    order_id: existingOrder[0].id
+  });
+}
     /* =========================
        LOAD PRODUCT
     ========================= */
