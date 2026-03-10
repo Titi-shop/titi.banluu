@@ -393,27 +393,28 @@ UI
 
       {/* FOOTER */}
 
-        <div className="fixed bottom-7 left-0 right-0 bg-white border-t p-5 pb-8">
+          <div className="fixed bottom-7 left-0 right-0 bg-white border-t p-5 pb-8">
 
-            <div className="flex justify-between mb-2">
-              <span className="text-sm">{t.total}</span>
+        <div className="flex justify-between mb-3">
 
-              <span className="font-bold text-orange-600">
-                {formatPi(total)} π
-              </span>
-            </div>
+          <span>{t.total}</span>
 
-            <button
-              onClick={handlePay}
-              disabled={processing || selectedItems.length === 0}
-              className="w-full py-3 rounded-lg bg-orange-600 text-white font-semibold disabled:bg-gray-400"
-            >
-              {processing ? t.processing : t.pay_now}
-            </button>
+          <span className="font-bold text-orange-600">
+            {formatPi(total)} π
+          </span>
 
-          </div>
-        </>
-      )}
+        </div>
+
+        <button
+          onClick={handlePay}
+          disabled={processing || selectedItems.length === 0}
+          className="w-full py-3 bg-orange-600 text-white rounded-lg"
+        >
+          {processing ? t.processing : t.pay_now}
+        </button>
+
+      </div>
+
     </main>
   );
 }
