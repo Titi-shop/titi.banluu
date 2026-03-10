@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { formatPi } from "@/lib/pi";
 
 /* ================= TYPES ================= */
 
@@ -39,10 +40,6 @@ interface Order {
 }
 
 /* ================= HELPERS ================= */
-
-function formatPi(v: number): string {
-  return Number.isFinite(v) ? v.toFixed(6) : "0.000000";
-}
 
 function formatDate(date?: string): string {
   if (!date) return "—";
