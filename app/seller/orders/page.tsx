@@ -4,6 +4,9 @@ export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { formatPi } from "@/lib/pi";
+
+
 /* ================= TYPES ================= */
 
 interface Product {
@@ -52,11 +55,6 @@ export default function SellerOrdersPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
 const { t } = useTranslation();
-  /* ================= FORMAT ================= */
-
-  function formatPi(value: number) {
-    return value.toFixed(6);
-  }
 
   /* ================= LOAD ================= */
 
