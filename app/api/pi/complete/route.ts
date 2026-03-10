@@ -86,12 +86,28 @@ where id=$1
        CALCULATE PRICE
     ========================= */
 
-    const unitPrice =
-      product.sale_price ?? product.price;
+    const now = Date.now()
 
-    const expectedTotal =
-      Number((unitPrice * quantity).toFixed(6));
+const start = product.sale_start
+  ? new Date(product.sale_start).getTime()
+  : null
 
+const end = product.sale_end
+  ? new Date(product.sale_end).getTime()
+  : null
+
+const isSale =
+  product.sale_price !== null &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end
+
+const unitPrice =
+  isSale ? product.sale_price : product.price
+
+const expectedTotal =
+  Number((unitPrice * quantity).toFixed(6))
     /* =========================
        CLIENT PRICE CHECK
     ========================= */
