@@ -199,12 +199,9 @@ export default function CustomerOrdersPage() {
                 <span className="font-semibold">
                   #{o.order_number}
                 </span>
-
-                <span className="text-orange-500">
-
-                  {t[`order_${o.status}`] ?? o.status}
-
-                </span>
+                <span className="text-orange-500 text-right max-w-[120px] leading-tight line-clamp-2">
+  {t[`order_${o.status}`] ?? o.status}
+</span>
 
               </div>
 
@@ -229,13 +226,17 @@ export default function CustomerOrdersPage() {
 
                   <div className="flex-1 min-w-0">
 
-                    <p className="text-sm font-medium line-clamp-1">
+                    <p className="text-sm font-medium line-clamp-2 min-h-[40px]">
                       {item.product_name}
                     </p>
 
-                    <p className="text-xs text-gray-500">
-                      x{item.quantity} · π{formatPi(item.unit_price)}
-                    </p>
+                     <p className="text-xs text-gray-500">
+                          x{item.quantity} · π
+                          {formatPi(
+                            Number(item.total_price) /
+                            Number(item.quantity || 1)
+                          )}
+                        </p>
 
                     {item.seller_message && (
                       <p className="text-xs text-blue-600 mt-1">
