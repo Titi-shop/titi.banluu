@@ -49,9 +49,9 @@ export async function POST(req: Request) {
 
     const { rows } = await query(
       `
-      select id,name,seller_id,images,price,sale_price
-      from products
-      where id=$1
+      select id,name,seller_id,images,price,sale_price,sale_start,sale_end
+from products
+where id=$1
       `,
       [productId]
     );
