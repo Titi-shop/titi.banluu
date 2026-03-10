@@ -173,7 +173,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       : item.price;
   }, [item]);
 
-  const total = useMemo(() => unitPrice * quantity, [unitPrice, quantity]);
+  const total = useMemo(
+  () => Number((unitPrice * quantity).toFixed(6)),
+  [unitPrice, quantity]
+);
 
   /* =========================
      PAY WITH PI
@@ -262,7 +265,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       product_id: product.id,
       quantity,
       total,
-      unit_price: unitPrice,
       shipping,
       user: {
   pi_uid: user.pi_uid
