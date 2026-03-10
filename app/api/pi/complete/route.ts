@@ -58,7 +58,7 @@ export async function POST(req: Request) {
 
     const { rows } = await query(
       `
-      select id,name,seller_id,images,price
+      select id,name,seller_id,images,price,sale_price
       from products
       where id=$1
       `,
@@ -108,7 +108,10 @@ export async function POST(req: Request) {
        PRICE CHECK (ANTI HACK)
     ========================= */
 
-    const expectedTotal = product.price * quantity;
+    const unitPrice =
+  product.sale_price ?? product.price;
+
+const expectedTotal = unitPrice * quantity;
 
     if (Math.abs(clientTotal - expectedTotal) > 0.00001) {
       console.error("PRICE MISMATCH", {
@@ -203,8 +206,9 @@ export async function POST(req: Request) {
         product.images?.[0] ?? "",
         product.images ?? [],
         product.price,
+        unitPrice,
         quantity,
-        product.price * quantity,
+        unitPrice * quantity
       ]
     );
 
