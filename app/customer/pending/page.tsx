@@ -251,8 +251,8 @@ export default function PendingOrdersPage() {
                         </p>
 
                         <p className="text-xs text-gray-500">
-                    x{item.quantity} · π{formatPi(Number(item.unit_price))}
-                    </p>
+  x{item.quantity} · π{formatPi(Number(item.total_price) / Number(item.quantity))}
+</p>
 
                       </div>
 
