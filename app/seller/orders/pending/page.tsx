@@ -1,4 +1,4 @@
-"use client";
+Sửa lại file "use client";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -14,16 +14,13 @@ import { formatPi } from "@/lib/pi";
 interface OrderItem {
   id: string;
   product_id: string | null;
-
   product_name: string;
-
   thumbnail: string;
   images: string[] | null;
 
   quantity: number;
-
-  unit_price: number | string;
-  total_price: number | string;
+  unit_price: number;
+  total_price: number;
 
   status: string;
 }
@@ -32,13 +29,11 @@ type OrderStatus = "pending" | "confirmed" | "cancelled";
 
 interface Order {
   id: string;
-
   order_number: string;
 
   status: OrderStatus;
 
-  total: number | string;
-
+  total: number;
   created_at: string;
 
   shipping_name: string;
@@ -54,9 +49,10 @@ interface Order {
 
 /* ================= HELPERS ================= */
 
+
+
 function formatDate(date: string): string {
   const d = new Date(date);
-
   return Number.isNaN(d.getTime())
     ? "—"
     : d.toLocaleDateString("vi-VN");
@@ -66,7 +62,6 @@ function formatDate(date: string): string {
 
 export default function SellerPendingOrdersPage() {
   const router = useRouter();
-
   const { t } = useTranslation();
 
   const SELLER_CANCEL_REASONS: string[] = [
@@ -77,29 +72,17 @@ export default function SellerPendingOrdersPage() {
   ];
 
   const [orders, setOrders] = useState<Order[]>([]);
-
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const [processingId, setProcessingId] =
-    useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const [expandedId, setExpandedId] =
-    useState<string | null>(null);
+  const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
+  const [sellerMessage, setSellerMessage] = useState<string>("");
 
-  const [showConfirmFor, setShowConfirmFor] =
-    useState<string | null>(null);
-
-  const [sellerMessage, setSellerMessage] =
-    useState<string>("");
-
-  const [showCancelFor, setShowCancelFor] =
-    useState<string | null>(null);
-
-  const [selectedReason, setSelectedReason] =
-    useState<string>("");
-
-  const [customReason, setCustomReason] =
-    useState<string>("");
+  const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
+  const [selectedReason, setSelectedReason] = useState<string>("");
+  const [customReason, setCustomReason] = useState<string>("");
 
   /* ================= LOAD ================= */
 
@@ -133,18 +116,14 @@ export default function SellerPendingOrdersPage() {
     void loadOrders();
   }, [loadOrders]);
 
-  /* ================= TOTAL ================= */
-
-  const totalPi = useMemo(() => {
-    return orders.reduce(
-      (sum, o) => sum + Number(o.total ?? 0),
-      0
-    );
-  }, [orders]);
+  const totalPi = useMemo(
+    () => orders.reduce((sum, o) => sum + o.total, 0),
+    [orders]
+  );
 
   /* ================= CONFIRM ================= */
 
-  async function handleConfirm(orderId: string) {
+  async function handleConfirm(orderId: string): Promise<void> {
     if (!sellerMessage.trim()) return;
 
     try {
@@ -154,11 +133,7 @@ export default function SellerPendingOrdersPage() {
         `/api/seller/orders/${orderId}/confirm`,
         {
           method: "PATCH",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             seller_message: sellerMessage,
           }),
@@ -168,10 +143,9 @@ export default function SellerPendingOrdersPage() {
       if (!res.ok) return;
 
       setShowConfirmFor(null);
-
       setSellerMessage("");
-
       await loadOrders();
+    } catch {
     } finally {
       setProcessingId(null);
     }
@@ -179,10 +153,9 @@ export default function SellerPendingOrdersPage() {
 
   /* ================= CANCEL ================= */
 
-  async function handleCancel(orderId: string) {
+  async function handleCancel(orderId: string): Promise<void> {
     const finalReason =
-      selectedReason ===
-      (t.cancel_reason_other ?? "Other")
+      selectedReason === (t.cancel_reason_other ?? "Other")
         ? customReason
         : selectedReason;
 
@@ -195,11 +168,7 @@ export default function SellerPendingOrdersPage() {
         `/api/seller/orders/${orderId}/cancel`,
         {
           method: "PATCH",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             cancel_reason: finalReason,
           }),
@@ -209,12 +178,10 @@ export default function SellerPendingOrdersPage() {
       if (!res.ok) return;
 
       setShowCancelFor(null);
-
       setSelectedReason("");
-
       setCustomReason("");
-
       await loadOrders();
+    } catch {
     } finally {
       setProcessingId(null);
     }
@@ -225,7 +192,7 @@ export default function SellerPendingOrdersPage() {
   if (loading) {
     return (
       <p className="text-center mt-10 text-gray-400">
-        {t.loading ?? "Loading..."}
+        {t.loading ?? "Đang tải..."}
       </p>
     );
   }
@@ -235,15 +202,13 @@ export default function SellerPendingOrdersPage() {
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
       {/* HEADER */}
-
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
           <p className="text-sm opacity-90">
-            {t.pending_orders ?? "Pending orders"}
+            {t.pending_orders ?? "Đơn chờ xác nhận"}
           </p>
-
           <p className="text-xs opacity-80 mt-1">
-            {t.orders ?? "Orders"}: {orders.length} · π
+            {t.orders ?? "Đơn hàng"}: {orders.length} · π
             {formatPi(totalPi)}
           </p>
         </div>
@@ -252,8 +217,7 @@ export default function SellerPendingOrdersPage() {
       <section className="mt-6 px-4 space-y-4">
         {orders.length === 0 ? (
           <p className="text-center text-gray-400">
-            {t.no_pending_orders ??
-              "No pending orders"}
+            {t.no_pending_orders ?? "Không có đơn chờ"}
           </p>
         ) : (
           orders.map((o) => (
@@ -261,49 +225,41 @@ export default function SellerPendingOrdersPage() {
               key={o.id}
               onClick={() => {
                 if (expandedId === o.id) {
-                  router.push(
-                    `/seller/orders/${o.id}`
-                  );
+                  router.push(`/seller/orders/${o.id}`);
                 } else {
                   setExpandedId(o.id);
                 }
               }}
               className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
-              {/* HEADER */}
-
+              {/* ORDER HEADER */}
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
                 <div>
                   <p className="font-semibold text-sm">
                     #{o.order_number}
                   </p>
-
                   <p className="text-xs text-gray-500">
                     {formatDate(o.created_at)}
                   </p>
                 </div>
 
                 <span className="text-yellow-600 text-sm font-medium">
-                  {t.status_pending ??
-                    "Pending"}
+                  {t.status_pending ?? "Chờ xác nhận"}
                 </span>
               </div>
 
-              {/* SHIPPING */}
-
+              {/* SHIPPING INFO */}
               <div className="px-4 py-3 text-sm space-y-1 border-b">
                 <p>
                   <span className="text-gray-500">
-                    {t.customer ??
-                      "Customer"}
-                    :
+                    {t.customer ?? "Khách hàng"}:
                   </span>{" "}
                   {o.shipping_name}
                 </p>
 
                 <p>
                   <span className="text-gray-500">
-                    {t.phone ?? "Phone"}:
+                    {t.phone ?? "SĐT"}:
                   </span>{" "}
                   {o.shipping_phone}
                 </p>
@@ -311,10 +267,16 @@ export default function SellerPendingOrdersPage() {
                 <p className="text-gray-600 text-xs">
                   {o.shipping_address}
                 </p>
+
+                {o.shipping_provider && (
+                  <p className="text-xs text-gray-500">
+                    {o.shipping_provider} · {o.shipping_country} ·{" "}
+                    {o.shipping_postal_code}
+                  </p>
+                )}
               </div>
 
-              {/* ITEMS */}
-
+              {/* PRODUCTS */}
               <div className="divide-y">
                 {o.order_items.map((item) => (
                   <div
@@ -325,9 +287,7 @@ export default function SellerPendingOrdersPage() {
                       {item.thumbnail ? (
                         <img
                           src={item.thumbnail}
-                          alt={
-                            item.product_name
-                          }
+                          alt={item.product_name}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -342,11 +302,7 @@ export default function SellerPendingOrdersPage() {
 
                       <p className="text-xs text-gray-500 mt-1">
                         x{item.quantity} · π
-                        {formatPi(
-                          Number(
-                            item.unit_price
-                          )
-                        )}
+                        {formatPi(item.unit_price)}
                       </p>
                     </div>
                   </div>
@@ -354,65 +310,127 @@ export default function SellerPendingOrdersPage() {
               </div>
 
               {/* FOOTER */}
-
+               {/* FOOTER */}
               <div
                 className="px-4 py-3 border-t bg-gray-50 text-sm"
-                onClick={(e) =>
-                  e.stopPropagation()
-                }
+                onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">
-                    {t.total ?? "Total"}: π
-                    {formatPi(
-                      Number(o.total)
-                    )}
+                    {t.total ?? "Tổng"}: π{formatPi(o.total)}
                   </span>
 
                   <div className="flex gap-2">
                     <button
-                      disabled={
-                        processingId === o.id
-                      }
+                      disabled={processingId === o.id}
                       onClick={() => {
                         setSellerMessage(
                           t.confirm_default_message ??
-                            "Thank you for your order."
+                            "Thank you for your order. "
                         );
-
-                        setShowConfirmFor(
-                          o.id
-                        );
-
-                        setShowCancelFor(
-                          null
-                        );
+                        setShowConfirmFor(o.id);
+                        setShowCancelFor(null);
                       }}
                       className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
                     >
-                      {t.confirm ??
-                        "Confirm"}
+                      {t.confirm ?? "Xác nhận"}
                     </button>
 
                     <button
-                      disabled={
-                        processingId === o.id
-                      }
+                      disabled={processingId === o.id}
                       onClick={() => {
-                        setShowCancelFor(
-                          o.id
-                        );
-
-                        setShowConfirmFor(
-                          null
-                        );
+                        setShowCancelFor(o.id);
+                        setShowConfirmFor(null);
                       }}
                       className="px-3 py-1.5 text-xs border border-gray-400 rounded-lg"
                     >
-                      {t.cancel ?? "Cancel"}
+                      {t.cancel ?? "Huỷ"}
                     </button>
                   </div>
                 </div>
+
+                {/* CONFIRM FORM */}
+                {showConfirmFor === o.id && (
+                  <div className="mt-3 space-y-3 bg-gray-50 p-3 rounded-lg">
+                    <textarea
+                      value={sellerMessage}
+                      onChange={(e) => setSellerMessage(e.target.value)}
+                      className="w-full border rounded-md p-2 text-sm"
+                      rows={3}
+                    />
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleConfirm(o.id)}
+                        disabled={processingId === o.id}
+                        className="px-4 py-1 text-sm bg-green-600 text-white rounded disabled:opacity-50"
+                      >
+                        {t.confirm_order ?? "Confirm order"}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowConfirmFor(null);
+                          setSellerMessage("");
+                        }}
+                        className="px-4 py-1 text-sm border rounded"
+                      >
+                        {t.close ?? "Close"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* CANCEL FORM */}
+                {showCancelFor === o.id && (
+                  <div className="mt-3 space-y-3 bg-gray-50 p-3 rounded-lg">
+                    {SELLER_CANCEL_REASONS.map((reason) => (
+                      <label
+                        key={reason}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <input
+                          type="radio"
+                          value={reason}
+                          checked={selectedReason === reason}
+                          onChange={(e) => setSelectedReason(e.target.value)}
+                        />
+                        {reason}
+                      </label>
+                    ))}
+
+                    {selectedReason ===
+                      (t.cancel_reason_other ?? "Other") && (
+                      <textarea
+                        value={customReason}
+                        onChange={(e) => setCustomReason(e.target.value)}
+                        className="w-full border rounded-md p-2 text-sm"
+                        rows={3}
+                      />
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleCancel(o.id)}
+                        disabled={processingId === o.id}
+                        className="px-4 py-1 text-sm bg-red-500 text-white rounded disabled:opacity-50"
+                      >
+                        {t.confirm_cancel ?? "Confirm cancel"}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowCancelFor(null);
+                          setSelectedReason("");
+                          setCustomReason("");
+                        }}
+                        className="px-4 py-1 text-sm border rounded"
+                      >
+                        {t.close ?? "Close"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))
