@@ -28,7 +28,7 @@ interface OrderItem {
 
   quantity: number;
 
-  unit_price: number;
+  unit_price: number | string;
   total_price: number;
 
   status: OrderStatus;
@@ -48,7 +48,7 @@ interface Order {
   shipping_country?: string;
   shipping_postal_code?: string;
 
-  total: number;
+  total: number | string;
 
   order_items?: OrderItem[];
 }
@@ -299,8 +299,7 @@ export default function SellerOrdersPage() {
                     </p>
 
                     <p className="text-xs text-gray-500">
-                      x{item.quantity} · π
-                      {formatPi(item.unit_price)}
+                      x{item.quantity} · π{formatPi(Number(item.unit_price))}
                     </p>
 
                     <p className="text-xs text-gray-400 capitalize">
@@ -321,7 +320,7 @@ export default function SellerOrdersPage() {
                 <span>
                   {t.total ?? "Total"}:
                   <b className="ml-1">
-                    {t.total}: π{formatPi(o.total)}
+                    {t.total}: π{formatPi(Number(o.total))}
                 
                   </b>
                 </span>
