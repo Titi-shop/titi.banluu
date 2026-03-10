@@ -133,7 +133,7 @@ export default function SellerPendingOrdersPage() {
     void loadOrders();
   }, [loadOrders]);
 
-  /* ================= TOTAL PI ================= */
+  /* ================= TOTAL ================= */
 
   const totalPi = useMemo(() => {
     return orders.reduce(
@@ -172,7 +172,6 @@ export default function SellerPendingOrdersPage() {
       setSellerMessage("");
 
       await loadOrders();
-    } catch {
     } finally {
       setProcessingId(null);
     }
@@ -216,7 +215,6 @@ export default function SellerPendingOrdersPage() {
       setCustomReason("");
 
       await loadOrders();
-    } catch {
     } finally {
       setProcessingId(null);
     }
@@ -227,7 +225,7 @@ export default function SellerPendingOrdersPage() {
   if (loading) {
     return (
       <p className="text-center mt-10 text-gray-400">
-        {t.loading ?? "Đang tải..."}
+        {t.loading ?? "Loading..."}
       </p>
     );
   }
@@ -241,11 +239,11 @@ export default function SellerPendingOrdersPage() {
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
           <p className="text-sm opacity-90">
-            {t.pending_orders ?? "Đơn chờ xác nhận"}
+            {t.pending_orders ?? "Pending orders"}
           </p>
 
           <p className="text-xs opacity-80 mt-1">
-            {t.orders ?? "Đơn hàng"}: {orders.length} · π
+            {t.orders ?? "Orders"}: {orders.length} · π
             {formatPi(totalPi)}
           </p>
         </div>
@@ -255,7 +253,7 @@ export default function SellerPendingOrdersPage() {
         {orders.length === 0 ? (
           <p className="text-center text-gray-400">
             {t.no_pending_orders ??
-              "Không có đơn chờ"}
+              "No pending orders"}
           </p>
         ) : (
           orders.map((o) => (
@@ -287,7 +285,7 @@ export default function SellerPendingOrdersPage() {
 
                 <span className="text-yellow-600 text-sm font-medium">
                   {t.status_pending ??
-                    "Chờ xác nhận"}
+                    "Pending"}
                 </span>
               </div>
 
@@ -297,7 +295,7 @@ export default function SellerPendingOrdersPage() {
                 <p>
                   <span className="text-gray-500">
                     {t.customer ??
-                      "Khách hàng"}
+                      "Customer"}
                     :
                   </span>{" "}
                   {o.shipping_name}
@@ -305,7 +303,7 @@ export default function SellerPendingOrdersPage() {
 
                 <p>
                   <span className="text-gray-500">
-                    {t.phone ?? "SĐT"}:
+                    {t.phone ?? "Phone"}:
                   </span>{" "}
                   {o.shipping_phone}
                 </p>
@@ -365,7 +363,7 @@ export default function SellerPendingOrdersPage() {
               >
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">
-                    {t.total ?? "Tổng"}: π
+                    {t.total ?? "Total"}: π
                     {formatPi(
                       Number(o.total)
                     )}
@@ -393,7 +391,7 @@ export default function SellerPendingOrdersPage() {
                       className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
                     >
                       {t.confirm ??
-                        "Xác nhận"}
+                        "Confirm"}
                     </button>
 
                     <button
@@ -411,7 +409,7 @@ export default function SellerPendingOrdersPage() {
                       }}
                       className="px-3 py-1.5 text-xs border border-gray-400 rounded-lg"
                     >
-                      {t.cancel ?? "Huỷ"}
+                      {t.cancel ?? "Cancel"}
                     </button>
                   </div>
                 </div>
