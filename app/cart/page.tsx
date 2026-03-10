@@ -154,7 +154,7 @@ if (!shipping) {
   setProcessing(true);
 
   try {
-    if (total < 0.0000001) {
+    if (total < 0.00001) {
       alert("Số Pi quá nhỏ để thanh toán");
       setProcessing(false);
       return;
@@ -162,7 +162,7 @@ if (!shipping) {
 
     await window.Pi.createPayment(
       {
-        amount: Number(total),
+        amount: Number(total.toFixed(6)),
         memo: `${t.paying_order} (${selectedItems.length})`,
         metadata: {
           items: selectedItems.map((i) => ({
@@ -179,19 +179,22 @@ if (!shipping) {
         /* =========================
            APPROVE
         ========================= */
-        onReadyForServerApproval: async (paymentId: string) => {
-          const approveRes = await fetch("/api/pi/approve", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ paymentId }),
-          });
+        onReadyForServerApproval: async (paymentId, callback) => {
 
-          if (!approveRes.ok) {
-            throw new Error("APPROVE_FAILED");
-          }
-        },
+  const approveRes = await fetch("/api/pi/approve", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ paymentId }),
+  });
+
+  if (!approveRes.ok) {
+    throw new Error("APPROVE_FAILED");
+  }
+
+  callback();
+},
 
         /* =========================
            COMPLETE
@@ -201,40 +204,30 @@ if (!shipping) {
           txid: string
         ) => {
           const completeRes = await fetch("/api/pi/complete", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ paymentId, txid }),
-          });
-
-          if (!completeRes.ok) {
-            throw new Error("COMPLETE_FAILED");
-          }
-
-          const orderRes = await apiAuthFetch("/api/orders", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
+    paymentId,
+    txid,
     items: selectedItems.map((i) => ({
       product_id: i.id,
       quantity: i.quantity,
-      price:
-        typeof i.sale_price === "number"
-          ? i.sale_price
-          : i.price,
     })),
     total,
     shipping,
+    user: {
+      pi_uid: user.pi_uid
+    }
   }),
 });
 
-          if (!orderRes.ok) {
-            throw new Error("ORDER_CREATE_FAILED");
+          if (!completeRes.ok) {
+            throw new Error("COMPLETE_FAILED");
           }
 
+          
           clearCart();
           setSelectedIds([]);
           setProcessing(false);
