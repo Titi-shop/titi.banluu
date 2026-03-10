@@ -321,7 +321,8 @@ export default function SellerOrdersPage() {
                 <span>
                   {t.total ?? "Total"}:
                   <b className="ml-1">
-                    π{formatPi(o.total)}
+                    {t.total}: π{formatPi(o.total)}
+                
                   </b>
                 </span>
 
