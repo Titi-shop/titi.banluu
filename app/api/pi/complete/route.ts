@@ -205,7 +205,6 @@ const expectedTotal = unitPrice * quantity;
         product.name,
         product.images?.[0] ?? "",
         product.images ?? [],
-        product.price,
         unitPrice,
         quantity,
         unitPrice * quantity
