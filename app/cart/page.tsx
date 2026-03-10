@@ -190,8 +190,10 @@ if (!shipping) {
   });
 
   if (!approveRes.ok) {
-    throw new Error("APPROVE_FAILED");
-  }
+  setProcessing(false);
+  alert("Approve thất bại");
+  return;
+}
 
   callback();
 },
@@ -215,7 +217,7 @@ if (!shipping) {
       product_id: i.id,
       quantity: i.quantity,
     })),
-    total,
+    total: Number(total.toFixed(6)),
     shipping,
     user: {
       pi_uid: user.pi_uid
@@ -224,8 +226,10 @@ if (!shipping) {
 });
 
           if (!completeRes.ok) {
-            throw new Error("COMPLETE_FAILED");
-          }
+  const err = await completeRes.text();
+  console.error("COMPLETE FAIL:", err);
+  throw new Error("COMPLETE_FAILED");
+}
 
           
           clearCart();
