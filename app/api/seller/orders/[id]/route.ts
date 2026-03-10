@@ -1,62 +1,84 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrderByIdForSeller } from "@/lib/db/orders";
-
-const PI_API_BASE = "https://api.minepi.com/v2";
-
-interface PiUser {
-  uid: string;
-  username: string;
-}
+import { query } from "@/lib/db";
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+
   try {
-    const authHeader = req.headers.get("authorization");
 
-    if (!authHeader?.startsWith("Bearer ")) {
+    const user = await getUserFromBearer();
+
+    if (!user) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "UNAUTHENTICATED" },
         { status: 401 }
       );
     }
 
-    const token = authHeader.replace("Bearer ", "");
+    const { rows } = await query(
+      `
+      select
+        o.id,
+        o.order_number,
+        o.created_at,
 
-    const piRes = await fetch(`${PI_API_BASE}/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
-    });
+        o.shipping_name,
+        o.shipping_phone,
+        o.shipping_address,
+        o.shipping_provider,
+        o.shipping_country,
+        o.shipping_postal_code,
 
-    if (!piRes.ok) {
-      return NextResponse.json(
-        { error: "Invalid token" },
-        { status: 401 }
-      );
-    }
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+            'product_id', oi.product_id,
+            'product_name', oi.product_name,
+            'thumbnail', oi.thumbnail,
+            'images', oi.images,
+            'quantity', oi.quantity,
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+            'status', oi.status,
+            'tracking_code', oi.tracking_code,
+            'seller_message', oi.seller_message
+          )
+        ) as order_items,
 
-    const piUser = (await piRes.json()) as PiUser;
+        sum(oi.total_price) as total
 
-    const order = await getOrderByIdForSeller(
-      params.id,
-      piUser.uid
+      from orders o
+
+      join order_items oi
+      on oi.order_id = o.id
+
+      where o.id = $1
+      and oi.seller_id = $2
+
+      group by o.id
+      `,
+      [params.id, user.pi_uid]
     );
 
-    if (!order) {
+    if (!rows.length) {
       return NextResponse.json(
         { error: "Not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(order);
+    return NextResponse.json(rows[0]);
+
   } catch {
+
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
     );
+
   }
+
 }
