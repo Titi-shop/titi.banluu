@@ -6,7 +6,7 @@ export const fetchCache = "force-no-store";
 import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
-
+import { formatPi } from "@/lib/pi";
 /* =========================
 TYPES (MATCH DB)
 ========================= */
@@ -57,10 +57,6 @@ export default function PendingOrdersPage() {
   const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
-
-  function formatPi(value: number | string) {
-    return Number(value).toFixed(6);
-  }
 
   useEffect(() => {
     void loadOrders();
@@ -170,7 +166,7 @@ export default function PendingOrdersPage() {
           </p>
 
           <p className="text-xs opacity-80 mt-1">
-            {t.orders}: {orders.length} · π{formatPi(totalPi)}
+            {t.orders}: {orders.length} · {formatPi(totalPi)} π
           </p>
 
         </div>
@@ -252,7 +248,7 @@ export default function PendingOrdersPage() {
                         </p>
 
                         <p className="text-xs text-gray-500">
-                          x{item.quantity} · π{formatPi(item.unit_price)}
+                          x{item.quantity} · {formatPi(item.unit_price)} π
                         </p>
 
                       </div>
@@ -268,7 +264,7 @@ export default function PendingOrdersPage() {
                 <div className="flex justify-between items-center px-4 py-3 border-t">
 
                   <p className="text-sm font-semibold">
-                    {t.total || "Tổng cộng"}: π{formatPi(o.total)}
+                    {t.total || "Tổng cộng"}: {formatPi(o.total)} π
                   </p>
 
                   <button
