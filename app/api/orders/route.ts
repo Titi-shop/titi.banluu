@@ -126,21 +126,24 @@ export async function GET(req: NextRequest) {
 
     const result = orders.map((order) => {
 
-      const orderItems = map.get(order.id) ?? [];
+  const orderItems = map.get(order.id) ?? [];
 
-      return {
-        id: order.id,
-        order_number: order.order_number,
+  const total = orderItems.reduce(
+    (sum: number, item: OrderItemRow) =>
+      sum + Number(item.total_price),
+    0
+  );
 
-        status: order.status,
-        total: order.total,
+  return {
+    id: order.id,
+    order_number: order.order_number,
+    status: order.status,
+    total,
+    created_at: order.created_at,
+    order_items: orderItems
+  };
 
-        created_at: order.created_at,
-
-        order_items: orderItems
-      };
-
-    });
+});
 
     return NextResponse.json({
       orders: result
