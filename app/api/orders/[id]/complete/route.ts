@@ -31,12 +31,12 @@ async function completeOrder(
 
     const role = await resolveRole(user);
 
-    if (role !== "buyer" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
+    if (role === "guest") {
+  return NextResponse.json(
+    { error: "UNAUTHENTICATED" },
+    { status: 401 }
+  );
+}
 
     const orderId = params.id;
 
