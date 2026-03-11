@@ -6,7 +6,7 @@ import { resolveRole } from "@/lib/auth/resolveRole";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type ConfirmBody = {
+type Body = {
   seller_message?: string;
 };
 
@@ -15,9 +15,8 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    /* ================= AUTH ================= */
 
-   const user = await getUserFromBearer(req);
+    const user = await getUserFromBearer(req);
 
     if (!user) {
       return NextResponse.json(
@@ -25,8 +24,6 @@ export async function PATCH(
         { status: 401 }
       );
     }
-
-    /* ================= RBAC ================= */
 
     const role = await resolveRole(user);
 
@@ -37,81 +34,69 @@ export async function PATCH(
       );
     }
 
-    /* ================= BODY ================= */
-
-    let body: ConfirmBody = {};
+    let body: Body = {};
 
     try {
-      body = (await req.json()) as ConfirmBody;
-    } catch {
-      body = {};
-    }
+      body = (await req.json()) as Body;
+    } catch {}
 
-    const sellerMessage: string | null =
+    const sellerMessage =
       typeof body.seller_message === "string"
         ? body.seller_message.trim()
         : null;
 
-    /* ================= UPDATE ORDER ITEMS ================= */
+    /* UPDATE ITEMS */
 
-const itemResult = await query(
-`
-update order_items
-set
-  status = 'confirmed',
-  seller_message = $3
-where
-  order_id = $1
-and seller_id = $2
-and status = 'pending'
-`,
-[params.id, user.pi_uid, sellerMessage]
-);
+    const itemResult = await query(
+      `
+      update order_items
+      set
+        status='confirmed',
+        seller_message=$3
+      where
+        order_id=$1
+      and seller_id=$2
+      and status='pending'
+      `,
+      [params.id, user.pi_uid, sellerMessage]
+    );
 
-if (!itemResult.rowCount) {
-  return NextResponse.json(
-    { error: "ORDER_ITEM_NOT_UPDATED" },
-    { status: 400 }
-  );
-}
+    if (!itemResult.rowCount) {
+      return NextResponse.json(
+        { error: "NOTHING_TO_CONFIRM" },
+        { status: 400 }
+      );
+    }
 
-/* ================= CHECK PENDING ITEMS ================= */
+    /* CHECK PENDING ITEMS */
 
-const { rows } = await query(
-`
-select count(*)::int as pending
-from order_items
-where order_id = $1
-and status = 'pending'
-`,
-[params.id]
-);
+    const { rows } = await query(
+      `
+      select count(*)::int as pending
+      from order_items
+      where order_id=$1
+      and status='pending'
+      `,
+      [params.id]
+    );
 
-const pendingItems = rows[0].pending;
-
-/* ================= UPDATE ORDER STATUS ================= */
-
-if (pendingItems === 0) {
-
-  await query(
-  `
-  update orders
-  set status = 'pickup'
-  where id = $1
-  and status = 'pending'
-  `,
-  [params.id]
-  );
-
-
-    if (!orderResult.rowCount) {
-      console.warn("⚠️ ORDER STATUS NOT CHANGED", params.id);
+    if (rows[0].pending === 0) {
+      await query(
+        `
+        update orders
+        set status='pickup'
+        where id=$1
+        and status='pending'
+        `,
+        [params.id]
+      );
     }
 
     return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error("❌ CONFIRM ORDER ERROR:", err);
+
+    console.error("CONFIRM ORDER ERROR", err);
 
     return NextResponse.json(
       { error: "FAILED" },
