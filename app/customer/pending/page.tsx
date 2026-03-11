@@ -118,15 +118,14 @@ export default function PendingOrdersPage() {
 
       const token = await getPiAccessToken();
 
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await fetch(`/api/orders/${orderId}/cancel`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          status: "refunded",
-          cancel_reason: reason,
+  cancel_reason: reason
         }),
       });
 
