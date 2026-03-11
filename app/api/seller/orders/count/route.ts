@@ -1,8 +1,3 @@
-/* =========================================================
-   app/api/seller/orders/count/route.ts
-   COUNT ORDERS BY STATUS
-========================================================= */
-
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
@@ -12,14 +7,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
-   GET /api/seller/orders/count
+GET /api/seller/orders/count
 ========================================================= */
 
 export async function GET() {
   try {
-    /* =========================
-       AUTH
-    ========================= */
+
+    /* ================= AUTH ================= */
 
     const user = await getUserFromBearer();
 
@@ -46,15 +40,13 @@ export async function GET() {
       );
     }
 
-    /* =========================
-       DATABASE
-    ========================= */
+    /* ================= DATABASE ================= */
 
     const { rows } = await query(
       `
       select
         status,
-        count(*)::int as total
+        count(distinct order_id)::int as total
       from order_items
       where seller_id = $1
       group by status
@@ -79,7 +71,9 @@ export async function GET() {
     }
 
     return NextResponse.json(counts);
+
   } catch (err) {
+
     console.error("SELLER ORDER COUNT ERROR:", err);
 
     return NextResponse.json(
