@@ -120,7 +120,7 @@ export default function ShippingOrdersPage() {
 
       const token = await getPiAccessToken();
 
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await fetch(`/api/orders/${orderId}/complete`, {
 
         method: "PATCH",
 
