@@ -60,33 +60,12 @@ export async function PATCH(
       );
     }
 
-    /* ================= CHECK ORDER STATUS ================= */
+    /* ================= DONE ================= */
 
-    const { rows } = await query(
-      `
-      select count(*) filter (where status != 'shipping') as remaining
-      from order_items
-      where order_id = $1
-      `,
-      [params.id]
-    );
-
-    const remaining = Number(rows[0]?.remaining ?? 0);
-
-    /* ================= UPDATE ORDER ================= */
-
-    if (remaining === 0) {
-      await query(
-        `
-        update orders
-        set status = 'shipping'
-        where id = $1
-        `,
-        [params.id]
-      );
-    }
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      message: "ORDER_ITEMS_SHIPPING"
+    });
 
   } catch (err) {
     console.error("❌ SHIPPING ERROR:", err);
