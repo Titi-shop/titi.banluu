@@ -17,7 +17,7 @@ export async function PATCH(
   try {
     /* ================= AUTH ================= */
 
-    const user = await getUserFromBearer();
+   const user = await getUserFromBearer(req);
 
     if (!user) {
       return NextResponse.json(
@@ -51,8 +51,6 @@ export async function PATCH(
       typeof body.seller_message === "string"
         ? body.seller_message.trim()
         : null;
-
-    /* ================= UPDATE ORDER ITEMS ================= */
 
     /* ================= UPDATE ORDER ITEMS ================= */
 
