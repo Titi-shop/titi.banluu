@@ -114,47 +114,40 @@ export default function ShippingOrdersPage() {
 
   async function handleConfirmReceived(orderId: string) {
 
-    try {
+  try {
 
-      setProcessingId(orderId);
+    setProcessingId(orderId);
 
-      const token = await getPiAccessToken();
+    const token = await getPiAccessToken();
 
-      const res = await fetch(`/api/orders/${orderId}/complete`, {
+    const res = await fetch(`/api/orders/${orderId}/complete`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-        method: "PATCH",
-
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-
-        body: JSON.stringify({
-          status: "completed",
-        }),
-
-      });
-
-      if (!res.ok) throw new Error("UPDATE_FAILED");
-
-      setOrders((prev) =>
-        prev.filter((o) => o.id !== orderId)
-      );
-
-      router.push("/customer/completed");
-
-    } catch (err) {
-
-      console.error("Confirm received error:", err);
-      alert(t.confirm_failed);
-
-    } finally {
-
-      setProcessingId(null);
-
+    if (!res.ok) {
+      throw new Error("UPDATE_FAILED");
     }
 
+    setOrders((prev) =>
+      prev.filter((o) => o.id !== orderId)
+    );
+
+    router.push("/customer/completed");
+
+  } catch (err) {
+
+    console.error("Confirm received error:", err);
+    alert(t.confirm_failed);
+
+  } finally {
+
+    setProcessingId(null);
+
   }
+}
 
   const totalPi = orders.reduce(
     (sum, o) => sum + Number(o.total),
