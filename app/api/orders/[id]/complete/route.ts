@@ -4,28 +4,34 @@ import { getPiUserFromToken } from "@/lib/piAuth";
 import { resolveRole } from "@/lib/auth/resolveRole";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-/* =========================
+/* =====================================================
 PATCH /api/orders/[id]/complete
-Seller complete delivery
+Customer confirm received
 shipping → completed
-========================= */
+===================================================== */
 
-export async function PATCH(
+async function completeOrder(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  params: { id: string }
 ) {
   try {
 
-    /* =========================
-       AUTH
-    ========================= */
+    /* ================= AUTH ================= */
 
     const user = await getPiUserFromToken(req);
 
+    if (!user) {
+      return NextResponse.json(
+        { error: "UNAUTHENTICATED" },
+        { status: 401 }
+      );
+    }
+
     const role = await resolveRole(user);
 
-    if (role !== "seller") {
+    if (role !== "customer") {
       return NextResponse.json(
         { error: "FORBIDDEN" },
         { status: 403 }
@@ -41,22 +47,14 @@ export async function PATCH(
       );
     }
 
-    /* =========================
-       CHECK SELLER OWNERSHIP
-    ========================= */
+    /* ================= CHECK ORDER ================= */
 
     const { rows } = await query(
       `
-      select
-        o.id,
-        o.status
-      from orders o
-      join order_items oi
-        on oi.order_id = o.id
-      where
-        o.id=$1
-        and oi.seller_id=$2
-      limit 1
+      select id,status
+      from orders
+      where id=$1
+      and buyer_id=$2
       `,
       [orderId, user.pi_uid]
     );
@@ -70,10 +68,6 @@ export async function PATCH(
       );
     }
 
-    /* =========================
-       STATUS GUARD
-    ========================= */
-
     if (order.status !== "shipping") {
       return NextResponse.json(
         { error: "INVALID_STATUS_TRANSITION" },
@@ -81,9 +75,21 @@ export async function PATCH(
       );
     }
 
-    /* =========================
-       UPDATE ORDER
-    ========================= */
+    /* ================= UPDATE ITEMS ================= */
+
+    await query(
+      `
+      update order_items
+      set
+        status='completed',
+        delivered_at=now()
+      where order_id=$1
+      and status='shipping'
+      `,
+      [orderId]
+    );
+
+    /* ================= UPDATE ORDER ================= */
 
     await query(
       `
@@ -108,4 +114,20 @@ export async function PATCH(
       { status: 500 }
     );
   }
+}
+
+/* ================= METHODS ================= */
+
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: { id: string } }
+) {
+  return completeOrder(req, ctx.params);
+}
+
+export async function POST(
+  req: NextRequest,
+  ctx: { params: { id: string } }
+) {
+  return completeOrder(req, ctx.params);
 }
