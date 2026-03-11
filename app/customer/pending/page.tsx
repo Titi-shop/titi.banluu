@@ -112,43 +112,43 @@ export default function PendingOrdersPage() {
 
   async function handleCancel(orderId: string, reason: string) {
 
-    try {
+  try {
 
-      setProcessingId(orderId);
+    setProcessingId(orderId);
 
-      const token = await getPiAccessToken();
+    const token = await getPiAccessToken();
 
-      const res = await fetch(`/api/orders/${orderId}/cancel`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-  cancel_reason: reason
-        }),
-      });
+    const res = await fetch(`/api/orders/${orderId}/cancel`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        cancel_reason: reason
+      }),
+    });
 
-      if (!res.ok) {
-        throw new Error("CANCEL_FAILED");
-      }
-
-      setSelectedReason("");
-      setCustomReason("");
-      setShowCancelFor(null);
-
-      await loadOrders();
-
-    } catch (err) {
-
-      alert("Không thể huỷ đơn.");
-
-    } finally {
-
-      setProcessingId(null);
-
+    if (!res.ok) {
+      throw new Error("CANCEL_FAILED");
     }
+
+    setSelectedReason("");
+    setCustomReason("");
+    setShowCancelFor(null);
+
+    await loadOrders();
+
+  } catch (err) {
+
+    alert("Không thể huỷ đơn.");
+
+  } finally {
+
+    setProcessingId(null);
+
   }
+}
 
   const totalPi = orders.reduce(
     (sum, o) => sum + Number(o.total),
