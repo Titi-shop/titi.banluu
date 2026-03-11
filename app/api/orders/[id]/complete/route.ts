@@ -77,7 +77,7 @@ async function completeOrder(
 
     /* ================= UPDATE ITEMS ================= */
 
-    await query(
+    const { rowCount } = await query(
       `
       update order_items
       set
@@ -89,20 +89,18 @@ async function completeOrder(
       [orderId]
     );
 
-    /* ================= UPDATE ORDER ================= */
+    if (!rowCount) {
+      return NextResponse.json(
+        { error: "NO_ITEMS_UPDATED" },
+        { status: 400 }
+      );
+    }
 
-    await query(
-      `
-      update orders
-      set
-        status='completed'
-      where id=$1
-      `,
-      [orderId]
-    );
+    /* ================= DONE ================= */
 
     return NextResponse.json({
-      success: true
+      success: true,
+      message: "ORDER_COMPLETED"
     });
 
   } catch (err) {
