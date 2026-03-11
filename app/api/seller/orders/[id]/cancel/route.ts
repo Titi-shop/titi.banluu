@@ -1,8 +1,3 @@
-/* =========================================================
-   SELLER CANCEL ORDER ITEMS
-   PATCH /api/seller/orders/[id]/cancel
-========================================================= */
-
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
@@ -16,6 +11,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+
     /* ================= AUTH ================= */
 
     const user = await getUserFromBearer();
@@ -40,14 +36,14 @@ export async function PATCH(
 
     /* ================= BODY ================= */
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     const cancelReason: string | null =
       typeof body?.cancel_reason === "string"
         ? body.cancel_reason.trim()
         : null;
 
-    /* ================= UPDATE ================= */
+    /* ================= UPDATE ITEMS ================= */
 
     const { rowCount } = await query(
       `
@@ -68,19 +64,15 @@ export async function PATCH(
         { status: 400 }
       );
     }
-     /* UPDATE ORDER STATUS */
 
-await query(
-`
-update orders
-set status='cancelled'
-where id=$1
-`,
-[params.id]
-);
+    /* ================= DONE ================= */
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true
+    });
+
   } catch (err) {
+
     console.error("❌ SELLER CANCEL ERROR:", err);
 
     return NextResponse.json(
