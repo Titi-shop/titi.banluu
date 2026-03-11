@@ -31,7 +31,7 @@ async function completeOrder(
 
     const role = await resolveRole(user);
 
-    if (role !== "customer") {
+    if (role !== "buyer" && role !== "admin") {
       return NextResponse.json(
         { error: "FORBIDDEN" },
         { status: 403 }
