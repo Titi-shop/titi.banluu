@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { getPiUserFromToken } from "@/lib/piAuth";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 /* =========================
 PATCH /api/orders/[id]/cancel
@@ -16,11 +17,16 @@ export async function PATCH(
 ) {
   try {
 
-    /* =========================
-       AUTH
-    ========================= */
+    /* ================= AUTH ================= */
 
     const user = await getPiUserFromToken(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "UNAUTHENTICATED" },
+        { status: 401 }
+      );
+    }
 
     const orderId = params.id;
 
@@ -31,18 +37,14 @@ export async function PATCH(
       );
     }
 
-    /* =========================
-       BODY
-    ========================= */
+    /* ================= BODY ================= */
 
     const body = await req.json().catch(() => ({}));
 
     const cancelReason =
       body.cancel_reason ?? "buyer_cancelled";
 
-    /* =========================
-       LOAD ORDER
-    ========================= */
+    /* ================= LOAD ORDER ================= */
 
     const { rows } = await query(
       `
@@ -62,9 +64,7 @@ export async function PATCH(
       );
     }
 
-    /* =========================
-       OWNER CHECK
-    ========================= */
+    /* ================= OWNER CHECK ================= */
 
     if (order.buyer_id !== user.pi_uid) {
       return NextResponse.json(
@@ -73,9 +73,7 @@ export async function PATCH(
       );
     }
 
-    /* =========================
-       STATUS GUARD
-    ========================= */
+    /* ================= STATUS GUARD ================= */
 
     if (order.status !== "pending") {
       return NextResponse.json(
@@ -84,9 +82,21 @@ export async function PATCH(
       );
     }
 
-    /* =========================
-       UPDATE ORDER
-    ========================= */
+    /* ================= UPDATE ITEMS ================= */
+
+    await query(
+      `
+      update order_items
+      set
+        status='cancelled',
+        seller_cancel_reason=$2
+      where order_id=$1
+      and status='pending'
+      `,
+      [orderId, cancelReason]
+    );
+
+    /* ================= UPDATE ORDER ================= */
 
     await query(
       `
