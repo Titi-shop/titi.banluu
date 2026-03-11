@@ -33,6 +33,8 @@ interface OrderItem {
   unit_price: number;
   total_price: number;
 
+  status: string;
+
   seller_cancel_reason?: string | null;
   seller_message?: string | null;
 }
@@ -179,60 +181,47 @@ export default function CustomerPickupPage() {
 
                 <div className="px-4 py-3 space-y-3">
 
-                  {o.order_items?.map((item, idx) => (
+{o.order_items
+  ?.filter(
+    (item) =>
+      item.status === "pickup" ||
+      item.status === "shipping"
+  )
+  .map((item, idx) => (
 
-                    <div
-                      key={idx}
-                      className="flex gap-3 items-center"
-                    >
+    <div
+      key={idx}
+      className="flex gap-3 items-center"
+    >
 
-                      <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
+      <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
+        <img
+          src={item.thumbnail || "/placeholder.png"}
+          alt={item.product_name}
+          className="w-full h-full object-cover"
+        />
+      </div>
 
-                        <img
-                          src={item.thumbnail || "/placeholder.png"}
-                          alt={item.product_name}
-                          className="w-full h-full object-cover"
-                        />
+      <div className="flex-1 min-w-0">
 
-                      </div>
+        <p className="text-sm font-medium line-clamp-1">
+          {item.product_name}
+        </p>
 
-                      <div className="flex-1 min-w-0">
+        <p className="text-xs text-gray-500">
+          x{item.quantity} · π
+          {formatPi(
+            Number(item.total_price) /
+            Number(item.quantity || 1)
+          )}
+        </p>
 
-                        <p className="text-sm font-medium line-clamp-1">
-                          {item.product_name}
-                        </p>
+      </div>
 
-                        <p className="text-xs text-gray-500">
-                          x{item.quantity} · π
-                          {formatPi(
-                            Number(item.total_price) /
-                            Number(item.quantity || 1)
-                          )}
-                        </p>
+    </div>
 
-                        {item.seller_message && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            {t.seller_message ?? "Seller message"}:
-                            {" "}
-                            {item.seller_message}
-                          </p>
-                        )}
-
-                        {item.seller_cancel_reason && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {t.seller_cancel_reason ?? "Seller reason"}:
-                            {" "}
-                            {item.seller_cancel_reason}
-                          </p>
-                        )}
-
-                      </div>
-
-                    </div>
-
-                  ))}
-
-                </div>
+))}
+</div>
 
                 {/* FOOTER */}
 
