@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getPiAccessToken } from "@/lib/piAuth";
+import { formatPi } from "@/lib/pi";
+
 
 type OrderStatus =
   | "pending"
@@ -40,10 +42,6 @@ export default function OrderDetailPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-
-  function formatPi(value: number | string) {
-    return Number(value).toFixed(6);
-  }
 
   useEffect(() => {
     void loadOrder();
