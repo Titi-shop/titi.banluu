@@ -54,6 +54,13 @@ export async function GET(req: NextRequest) {
 
     const user = await getPiUserFromToken(req);
 
+if (!user) {
+  return NextResponse.json(
+    { error: "UNAUTHENTICATED" },
+    { status: 401 }
+  );
+}
+
     /* =========================
        LOAD ORDERS
     ========================= */
@@ -99,7 +106,7 @@ export async function GET(req: NextRequest) {
         total_price,
         status
       from order_items
-      where order_id = any($1)
+      where order_id = any($1::uuid[])
       order by created_at asc
       `,
       [orderIds]
@@ -138,7 +145,7 @@ export async function GET(req: NextRequest) {
     id: order.id,
     order_number: order.order_number,
     status: order.status,
-    total,
+    total: Number(order.total),
     created_at: order.created_at,
     order_items: orderItems
   };
