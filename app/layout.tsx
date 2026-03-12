@@ -17,7 +17,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body>
+        <AlertProvider />
         <AuthProvider>
+          
           <PiRootClient>{children}</PiRootClient>
         </AuthProvider>
       </body>
