@@ -1,71 +1,167 @@
-import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { getPiUserFromToken } from "@/lib/piAuth";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export const dynamic = "force-dynamic";
+
+/* =========================
+ORDER
+========================= */
+
+type OrderRow = {
+  id: string;
+  order_number: string;
+  buyer_id: string;
+
+  status: string;
+  total: number;
+
+  created_at: string;
+};
+
+/* =========================
+ORDER ITEM
+========================= */
+
+type OrderItemRow = {
+  id: string;
+  order_id: string;
+  created_at: string;
+  product_id: string | null;
+  seller_id: string;
+
+  product_name: string;
+  thumbnail: string;
+  images: string[] | null;
+
+  unit_price: number;
+  quantity: number;
+  total_price: number;
+
+  status: string;
+
+  seller_message: string | null;
+  seller_cancel_reason: string | null;
+};
+
+/* =========================
+GET ORDERS
+========================= */
+
+export async function GET(req: NextRequest) {
   try {
-    const user = await getUserFromBearer();
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
+    /* =========================
+       AUTH
+    ========================= */
 
-    const { rows } = await query(
+    const user = await getPiUserFromToken(req);
+
+if (!user) {
+  return NextResponse.json(
+    { error: "UNAUTHENTICATED" },
+    { status: 401 }
+  );
+}
+
+    /* =========================
+       LOAD ORDERS
+    ========================= */
+
+    const { rows: orders } = await query<OrderRow>(
       `
       select
-        o.id,
-        o.total,
-        o.status,
-        o.created_at,
-
-        json_agg(
-          json_build_object(
-            'product_id', oi.product_id,
-            'quantity', oi.quantity,
-            'price', oi.unit_price,
-            'product', json_build_object(
-              'id', p.id,
-              'name', p.name,
-              'images', p.images
-            )
-          )
-        ) as order_items
-
-      from orders o
-      join order_items oi on oi.order_id = o.id
-      left join products p on p.id = oi.product_id
-
-      where o.id = $1
-      and o.buyer_id = $2
-
-      group by o.id
+        id,
+        order_number,
+        buyer_id,
+        status,
+        total,
+        created_at
+      from orders
+      where buyer_id=$1
+      order by created_at desc
       `,
-      [params.id, user.pi_uid]
+      [user.pi_uid]
     );
 
-    const order = rows[0];
-
-    if (!order) {
-      return NextResponse.json(
-        { error: "ORDER_NOT_FOUND" },
-        { status: 404 }
-      );
+    if (orders.length === 0) {
+      return NextResponse.json({ orders: [] });
     }
 
-    return NextResponse.json(order);
+    const orderIds = orders.map((o) => o.id);
 
-  } catch (error) {
+    /* =========================
+       LOAD ORDER ITEMS
+    ========================= */
 
-    console.error("GET ORDER ERROR:", error);
+    const { rows: items } = await query<OrderItemRow>(
+      `
+      select
+  id,
+  order_id,
+  product_id,
+  seller_id,
+  product_name,
+  thumbnail,
+  images,
+  unit_price,
+  quantity,
+  total_price,
+  status,
+  seller_message,
+  seller_cancel_reason
+from order_items
+where order_id = any($1::uuid[])
+order by created_at asc
+      `,
+      [orderIds]
+    );
+
+    /* =========================
+       GROUP ITEMS
+    ========================= */
+
+    const map = new Map<string, OrderItemRow[]>();
+
+    for (const item of items) {
+
+      if (!map.has(item.order_id)) {
+        map.set(item.order_id, []);
+      }
+
+      map.get(item.order_id)!.push(item);
+    }
+
+    /* =========================
+       BUILD RESPONSE
+    ========================= */
+
+    const result = orders.map((order) => {
+
+  const orderItems = map.get(order.id) ?? [];
+
+
+  return {
+    id: order.id,
+    order_number: order.order_number,
+    status: order.status,
+    total: Number(order.total),
+    created_at: order.created_at,
+    order_items: orderItems
+  };
+
+});
+
+    return NextResponse.json({
+      orders: result
+    });
+
+  } catch (err) {
+
+    console.error("ORDERS API ERROR:", err);
 
     return NextResponse.json(
-      { error: "INTERNAL_SERVER_ERROR" },
+      { error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
