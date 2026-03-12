@@ -26,7 +26,7 @@ ORDER ITEM
 type OrderItemRow = {
   id: string;
   order_id: string;
-
+  created_at: string;
   product_id: string | null;
   seller_id: string;
 
