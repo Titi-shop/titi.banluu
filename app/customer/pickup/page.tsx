@@ -180,8 +180,7 @@ export default function CustomerPickupPage() {
                 {/* PRODUCTS */}
 
                 <div className="px-4 py-3 space-y-3">
-
-o.order_items
+{o.order_items
   ?.filter(
     (item) =>
       item.status === "confirmed"
