@@ -2,10 +2,10 @@ import "./globals.css";
 import Script from "next/script";
 import PiRootClient from "./PiRootClient";
 import { AuthProvider } from "@/context/AuthContext";
-
+import AlertProvider from "@/app/components/AlertProvider";
 
 export const metadata = {
-  title: "🛍️ TiTi Shop",
+  title: "aliali",
   description: "Ứng dụng thương mại điện tử thanh toán qua Pi Network Testnet",
 };
 
