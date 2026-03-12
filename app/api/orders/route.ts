@@ -135,11 +135,6 @@ if (!user) {
 
   const orderItems = map.get(order.id) ?? [];
 
-  const total = orderItems.reduce(
-    (sum: number, item: OrderItemRow) =>
-      sum + Number(item.total_price),
-    0
-  );
 
   return {
     id: order.id,
