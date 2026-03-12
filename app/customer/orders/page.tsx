@@ -5,15 +5,18 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 /* =========================
 TYPES (MATCH API)
 ========================= */
 
 interface OrderItem {
-  product_name: string;
-  thumbnail: string;
-  images?: string[];
+  product_id: number
+  product_name: string
+  thumbnail: string
+  images?: string[]
 
   unit_price: number;
   quantity: number;
@@ -54,7 +57,9 @@ export default function CustomerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
-
+ const router = useRouter();
+const { user, piReady } = useAuth();
+  
   /* =========================
   LOAD ORDERS
   ========================= */
@@ -97,6 +102,116 @@ export default function CustomerOrdersPage() {
 
   }
 
+
+  async function handleRebuy(order: Order) {
+
+  if (!window.Pi || !piReady || !user) {
+    alert("Pi chưa sẵn sàng");
+    return;
+  }
+
+  const item = order.order_items?.[0];
+
+  if (!item) {
+    alert("Không có sản phẩm");
+    return;
+  }
+
+  const total = Number(order.total);
+
+  try {
+
+    await window.Pi.createPayment(
+      {
+        amount: Number(total.toFixed(6)),
+        memo: "Thanh toán đơn hàng TiTi",
+
+        metadata: {
+          shipping: null, // checkout sẽ load lại address
+          product: {
+            id: item.product_id,
+            name: item.product_name,
+            image: item.thumbnail || item.images?.[0] || "",
+            price: item.unit_price
+          },
+          quantity: item.quantity
+        },
+      },
+
+      {
+        /* APPROVE */
+
+        onReadyForServerApproval: async (paymentId, callback) => {
+
+          const token = await getPiAccessToken();
+
+          const res = await fetch("/api/pi/approve", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ paymentId }),
+          });
+
+          if (!res.ok) {
+            alert("Approve thất bại");
+            return;
+          }
+
+          callback();
+        },
+
+        /* COMPLETE */
+
+        onReadyForServerCompletion: async (paymentId, txid) => {
+
+          const token = await getPiAccessToken();
+
+          const res = await fetch("/api/pi/complete", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              paymentId,
+              txid,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              total,
+              shipping: null,
+              user: {
+                pi_uid: user.pi_uid
+              }
+            }),
+          });
+
+          if (!res.ok) {
+            alert("Complete thất bại");
+            return;
+          }
+
+          router.push("/customer/pending");
+        },
+
+        onCancel: () => {},
+
+        onError: () => {
+          alert("Thanh toán lỗi");
+        },
+      }
+    );
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert("Không thể thanh toán");
+
+  }
+
+}
   /* =========================
   FILTER
   ========================= */
@@ -269,11 +384,14 @@ export default function CustomerOrdersPage() {
 
                 </span>
 
-                <button className="px-4 py-1 border border-orange-500 text-orange-500 rounded">
+                <button
+  onClick={() => handleRebuy(o)}
+  className="px-4 py-1 border border-orange-500 text-orange-500 rounded"
+>
+  {t.buy_now}
+</button>
 
-                  {t.buy_now}
-
-                </button>
+            
 
               </div>
 
