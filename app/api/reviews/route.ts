@@ -123,6 +123,35 @@ export async function POST(req: Request) {
       );
     }
 
+
+     const itemResult = await query<{
+  id: string
+  seller_id: string
+  product_name: string
+  thumbnail: string | null
+}>(
+  `
+  select
+    id,
+    seller_id,
+    product_name,
+    thumbnail
+  from order_items
+  where order_id = $1
+  and product_id = $2
+  limit 1
+  `,
+  [orderId, productId]
+);
+
+if (itemResult.rows.length === 0) {
+  return NextResponse.json(
+    { error: "ORDER_ITEM_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const item = itemResult.rows[0];
     /* =========================
        CHECK REVIEW EXISTS
     ========================== */
@@ -166,13 +195,17 @@ export async function POST(req: Request) {
 values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
       returning *
       `,
-      [
-        orderId,
-        productId,
-        user.pi_uid,
-        rating,
-        comment,
-      ]
+     [
+  orderId,
+  item.id,
+  productId,
+  item.seller_id,
+  user.pi_uid,
+  item.product_name,
+  item.thumbnail,
+  rating,
+  comment,
+]
     );
 
     const review = insertResult.rows[0];
