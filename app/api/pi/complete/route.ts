@@ -282,6 +282,19 @@ const expectedTotal =
       ]
     );
 
+
+     /* =========================
+   UPDATE PRODUCT SOLD
+========================= */
+
+await query(
+  `
+  update products
+  set sold = sold + $1
+  where id = $2
+  `,
+  [quantity, product.id]
+);
     /* =========================
        SUCCESS
     ========================= */
