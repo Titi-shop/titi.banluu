@@ -87,8 +87,8 @@ export default function CustomerPickupPage() {
       const rawOrders = data.orders ?? [];
 
       const filtered = rawOrders.filter(
-        (o) => o.status === "pickup" || o.status === "shipping"
-      );
+  (o) => o.status === "pickup"
+);
 
       setOrders(filtered);
 
@@ -181,11 +181,10 @@ export default function CustomerPickupPage() {
 
                 <div className="px-4 py-3 space-y-3">
 
-{o.order_items
+o.order_items
   ?.filter(
     (item) =>
-      item.status === "pickup" ||
-      item.status === "shipping"
+      item.status === "confirmed"
   )
   .map((item, idx) => (
 
