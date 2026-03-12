@@ -37,7 +37,7 @@ export async function GET(req: Request) {
 
   try {
 
-    const user = await getUserFromBearer();
+    const user = await getUserFromBearer(req);
 
     if (!user) {
       return NextResponse.json(
@@ -63,27 +63,29 @@ export async function GET(req: Request) {
     const offset = (page - 1) * limit;
 
     const params: unknown[] = [user.pi_uid];
+let paramIndex = 2;
 
-    let statusFilter = "";
+if (status) {
+  statusFilter = `and oi.status = $${paramIndex}`;
+  params.push(status);
+  paramIndex++;
+}
 
-    if (status) {
-      params.push(status);
-      statusFilter = `and oi.status = $2`;
-    }
+const limitIndex = paramIndex++;
+const offsetIndex = paramIndex++;
 
     const { rows } = await query(
       `
-      select
-        o.id,
-        o.order_number,
-        o.created_at,
-
-        o.shipping_name,
-        o.shipping_phone,
-        o.shipping_address,
-        o.shipping_provider,
-        o.shipping_country,
-        o.shipping_postal_code,
+      group by
+  o.id,
+  o.order_number,
+  o.created_at,
+  o.shipping_name,
+  o.shipping_phone,
+  o.shipping_address,
+  o.shipping_provider,
+  o.shipping_country,
+  o.shipping_postal_code
 
         json_agg(
           json_build_object(
@@ -95,7 +97,8 @@ export async function GET(req: Request) {
             'quantity', oi.quantity,
             'unit_price', oi.unit_price,
             'total_price', oi.total_price,
-            'status', oi.status
+            'status', oi.status,
+            order by oi.created_at asc
           )
         ) as order_items,
 
