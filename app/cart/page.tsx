@@ -230,7 +230,7 @@ PAY WITH PI
 
           /* =========================
           COMPLETE
-          ========================= */.  
+          ========================= */
           onReadyForServerCompletion: async (paymentId, txid) => {
 
   const token = await getPiAccessToken();
