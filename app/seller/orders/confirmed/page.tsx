@@ -219,7 +219,7 @@ export default function SellerConfirmedOrdersPage() {
                     onClick={() => startShipping(order.id)}
                     className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg disabled:opacity-50"
                   >
-                    {t.shipping ?? "Shipping"}
+                    {t.start_shipping   ?? "Shipping"}
                   </button>
                 </div>
               </div>
