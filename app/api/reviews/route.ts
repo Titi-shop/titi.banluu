@@ -10,7 +10,7 @@ type ReviewRow = {
   id: string;
   order_id: string;
   product_id: string;
-  user_pi_uid: string;
+  user_id: string;
   rating: number;
   comment: string | null;
   created_at: string;
@@ -133,7 +133,7 @@ export async function POST(req: Request) {
       from reviews
       where order_id = $1
       and product_id = $2
-      and user_pi_uid = $3
+      and user_id = $3
       limit 1
       `,
       [orderId, productId, user.pi_uid]
@@ -153,13 +153,17 @@ export async function POST(req: Request) {
     const insertResult = await query<ReviewRow>(
       `
       insert into reviews (
-        order_id,
-        product_id,
-        user_pi_uid,
-        rating,
-        comment
-      )
-      values ($1, $2, $3, $4, $5)
+  order_id,
+  order_item_id,
+  product_id,
+  seller_id,
+  user_id,
+  product_name,
+  product_thumbnail,
+  rating,
+  comment
+)
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
       returning *
       `,
       [
@@ -229,7 +233,7 @@ export async function GET() {
       `
       select order_id, product_id, rating, comment, created_at
       from reviews
-      where user_pi_uid = $1
+      where user_id = $1
       order by created_at desc
       `,
       [user.pi_uid]
