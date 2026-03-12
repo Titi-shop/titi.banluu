@@ -30,7 +30,6 @@ function parseOrderStatus(v: string | null): OrderStatus | undefined {
   return allowed.includes(v as OrderStatus)
     ? (v as OrderStatus)
     : undefined;
-
 }
 
 export async function GET(req: Request) {
@@ -62,30 +61,36 @@ export async function GET(req: Request) {
     const limit = 20;
     const offset = (page - 1) * limit;
 
+    let statusFilter = "";
+
     const params: unknown[] = [user.pi_uid];
-let paramIndex = 2;
+    let paramIndex = 2;
 
-if (status) {
-  statusFilter = `and oi.status = $${paramIndex}`;
-  params.push(status);
-  paramIndex++;
-}
+    if (status) {
+      statusFilter = `and oi.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
 
-const limitIndex = paramIndex++;
-const offsetIndex = paramIndex++;
+    const limitIndex = paramIndex++;
+    const offsetIndex = paramIndex++;
+
+    params.push(limit);
+    params.push(offset);
 
     const { rows } = await query(
       `
-      group by
-  o.id,
-  o.order_number,
-  o.created_at,
-  o.shipping_name,
-  o.shipping_phone,
-  o.shipping_address,
-  o.shipping_provider,
-  o.shipping_country,
-  o.shipping_postal_code
+      select
+        o.id,
+        o.order_number,
+        o.created_at,
+
+        o.shipping_name,
+        o.shipping_phone,
+        o.shipping_address,
+        o.shipping_provider,
+        o.shipping_country,
+        o.shipping_postal_code,
 
         json_agg(
           json_build_object(
@@ -97,27 +102,35 @@ const offsetIndex = paramIndex++;
             'quantity', oi.quantity,
             'unit_price', oi.unit_price,
             'total_price', oi.total_price,
-            'status', oi.status,
-            order by oi.created_at asc
+            'status', oi.status
           )
+          order by oi.created_at asc
         ) as order_items,
 
         sum(oi.total_price) as total
 
       from orders o
-
       join order_items oi
       on oi.order_id = o.id
 
       where oi.seller_id = $1
       ${statusFilter}
 
-      group by o.id
+      group by
+        o.id,
+        o.order_number,
+        o.created_at,
+        o.shipping_name,
+        o.shipping_phone,
+        o.shipping_address,
+        o.shipping_provider,
+        o.shipping_country,
+        o.shipping_postal_code
 
       order by o.created_at desc
 
-      limit $3
-      offset $4
+      limit $${limitIndex}
+      offset $${offsetIndex}
       `,
       params
     );
