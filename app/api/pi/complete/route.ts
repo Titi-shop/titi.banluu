@@ -32,6 +32,8 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
+console.log("COMPLETE BODY", body);
+
     const paymentId = body.paymentId;
     const txid = body.txid;
     const productId = body.product_id;
