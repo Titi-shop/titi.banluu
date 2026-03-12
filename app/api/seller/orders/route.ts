@@ -116,8 +116,8 @@ const offsetIndex = paramIndex++;
 
       order by o.created_at desc
 
-      limit ${limit}
-      offset ${offset}
+      limit $3
+      offset $4
       `,
       params
     );
