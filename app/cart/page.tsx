@@ -171,17 +171,19 @@ PAY WITH PI
 
       await window.Pi.createPayment(
         {
-          amount: totalPrice,
+          amount: Number(totalPrice.toFixed(6)),
           memo: "Thanh toán đơn hàng TiTi",
 
           metadata: {
-            product: {
-              id: item.id,
-              name: item.name,
-              price: unit
-            },
-            quantity
-          },
+         shipping,
+       product: {
+       id: item.id,
+    name: item.name,
+    image: item.image || item.images?.[0] || "",
+    price: unit
+       },
+       quantity
+       },
         },
 
         {
@@ -228,56 +230,47 @@ PAY WITH PI
 
           /* =========================
           COMPLETE
-          ========================= */
-
+          ========================= */.  
           onReadyForServerCompletion: async (paymentId, txid) => {
 
-            const token = await getPiAccessToken();
+  const token = await getPiAccessToken();
 
-            const res = await fetch("/api/pi/complete", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
+  const res = await fetch("/api/pi/complete", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      paymentId,
+      txid,
+      product_id: item.id,
+      quantity,
+      total: totalPrice,
+      shipping,
+      user: {
+        pi_uid: user.pi_uid
+      }
+    }),
+  });
 
-              body: JSON.stringify({
-                paymentId,
-                txid,
+  if (!res.ok) {
 
-                product_id: Number(item.id),
+    console.error("COMPLETE FAIL", await res.text());
 
-                quantity,
+    setProcessing(false);
 
-                total: totalPrice,
+    alert("Complete thất bại");
 
-                shipping,
+    return;
+  }
 
-                user: {
-                  pi_uid: user.pi_uid
-                }
+  clearCart();
+  setSelectedIds([]);
+  router.push("/customer/pending");
+},
 
-              }),
-            });
-
-            if (!res.ok) {
-
-              console.error("COMPLETE FAIL", await res.text());
-
-              setProcessing(false);
-
-              alert("Complete thất bại");
-
-              return;
-            }
-
-            clearCart();
-
-            setSelectedIds([]);
-
-            router.push("/customer/pending");
-
-          },
+          
 
           onCancel: () => setProcessing(false),
 
