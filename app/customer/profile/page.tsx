@@ -23,8 +23,9 @@ interface ProfileData {
   ward: string | null;
   address_line: string | null;
   postal_code: string | null;
-
   avatar_url: string | null;
+
+  /* SHOP */
 
   shop_name: string | null;
   shop_slug: string | null;
@@ -38,7 +39,7 @@ const defaultProfile: ProfileData = {
   phone: null,
   bio: null,
 
-  country: "VN",
+  country: "",
   province: null,
   district: null,
   ward: null,
@@ -53,20 +54,20 @@ const defaultProfile: ProfileData = {
   shop_banner: null,
 };
 
+
 type EditableKey =
   | "full_name"
   | "email"
   | "phone"
   | "bio"
-  | "shop_banner"
-  | "shop_name"
-  | "shop_description"
   | "country"
   | "province"
   | "district"
   | "ward"
   | "address_line"
-  | "postal_code";
+  | "postal_code"
+  | "shop_name"
+  | "shop_description";
 
 const editableFields: EditableKey[] = [
   "full_name",
@@ -74,7 +75,6 @@ const editableFields: EditableKey[] = [
   "phone",
   "bio",
 
-  "shop_banner",
   "shop_name",
   "shop_description",
 
@@ -96,7 +96,6 @@ export default function ProfilePage() {
   const [form, setForm] = useState<ProfileData>(defaultProfile);
 
   const [editMode, setEditMode] = useState(false);
-
   const [preview, setPreview] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -122,7 +121,6 @@ export default function ProfilePage() {
         if (res.status === 401) {
           clearPiToken();
           const newToken = await getPiAccessToken();
-
           res = await fetch("/api/profile", {
             headers: { Authorization: `Bearer ${newToken}` },
           });
@@ -132,31 +130,34 @@ export default function ProfilePage() {
 
         const raw = await res.json();
 
-        const p = raw?.profile ?? {};
+        const profileData =
+          raw?.profile && typeof raw.profile === "object"
+            ? raw.profile
+            : null;
 
-        const safe: ProfileData = {
-          full_name: p.full_name ?? null,
-          email: p.email ?? null,
-          phone: p.phone ?? null,
-          bio: p.bio ?? null,
+        const safeProfile: ProfileData = {
+  full_name: profileData?.full_name ?? null,
+  email: profileData?.email ?? null,
+  phone: profileData?.phone ?? null,
+  bio: profileData?.bio ?? null,
 
-          country: p.country ?? "VN",
-          province: p.province ?? null,
-          district: p.district ?? null,
-          ward: p.ward ?? null,
-          address_line: p.address_line ?? null,
-          postal_code: p.postal_code ?? null,
+  country: profileData?.country ?? "VN",
+  province: profileData?.province ?? null,
+  district: profileData?.district ?? null,
+  ward: profileData?.ward ?? null,
+  address_line: profileData?.address_line ?? null,
+  postal_code: profileData?.postal_code ?? null,
 
-          avatar_url: p.avatar_url ?? null,
+  avatar_url: profileData?.avatar_url ?? null,
 
-          shop_name: p.shop_name ?? null,
-          shop_slug: p.shop_slug ?? null,
-          shop_description: p.shop_description ?? null,
-          shop_banner: p.shop_banner ?? null,
-        };
+  shop_name: profileData?.shop_name ?? null,
+  shop_slug: profileData?.shop_slug ?? null,
+  shop_description: profileData?.shop_description ?? null,
+  shop_banner: profileData?.shop_banner ?? null,
+};
 
-        setProfile(safe);
-        setForm(safe);
+        setProfile(safeProfile);
+        setForm(safeProfile);
       } catch {
         setError(t.profile_error_loading);
       } finally {
@@ -173,16 +174,15 @@ export default function ProfilePage() {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
-    const url = URL.createObjectURL(file);
-
-    setPreview(url);
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
     setUploading(true);
+    setError(null);
 
     try {
       const token = await getPiAccessToken();
-
       const formData = new FormData();
       formData.append("file", file);
 
@@ -196,55 +196,74 @@ export default function ProfilePage() {
 
       const data = await res.json();
 
-      setProfile((p) => ({ ...p, avatar_url: data.avatar }));
-      setForm((p) => ({ ...p, avatar_url: data.avatar }));
+      setProfile((prev) => ({
+        ...prev,
+        avatar_url: data.avatar,
+      }));
 
+      setForm((prev) => ({
+        ...prev,
+        avatar_url: data.avatar,
+      }));
+
+      setPreview(null);
       setSuccess(t.profile_avatar_updated);
       setTimeout(() => setSuccess(null), 2000);
     } catch {
       setError(t.upload_failed);
     } finally {
-      URL.revokeObjectURL(url);
-      setPreview(null);
+      URL.revokeObjectURL(objectUrl);
       setUploading(false);
     }
   };
 
-  /* ================= BANNER ================= */
+/* ================= SHOP BANNER ================= */
 
-  const handleBannerUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+const handleBannerUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
 
-    try {
-      const token = await getPiAccessToken();
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-      const formData = new FormData();
-      formData.append("file", file);
+  try {
 
-      const res = await fetch("/api/uploadShopBanner", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+    const token = await getPiAccessToken();
 
-      if (!res.ok) throw new Error();
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const data = await res.json();
+    const res = await fetch("/api/uploadShopBanner", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
 
-      setProfile((p) => ({ ...p, shop_banner: data.banner }));
-      setForm((p) => ({ ...p, shop_banner: data.banner }));
-    } catch {
-      setError("Upload failed");
-    }
-  };
+    if (!res.ok) throw new Error();
 
+    const data = await res.json();
+
+    setProfile((prev) => ({
+      ...prev,
+      shop_banner: data.banner,
+    }));
+
+    setForm((prev) => ({
+      ...prev,
+      shop_banner: data.banner,
+    }));
+
+  } catch {
+    setError("Upload failed");
+  }
+};
   /* ================= SAVE ================= */
 
   const handleSave = async () => {
     setSaving(true);
+    setError(null);
 
     try {
       const token = await getPiAccessToken();
@@ -262,7 +281,6 @@ export default function ProfilePage() {
 
       setProfile(form);
       setEditMode(false);
-
       setSuccess(t.saved_successfully);
       setTimeout(() => setSuccess(null), 2000);
     } catch {
@@ -278,10 +296,10 @@ export default function ProfilePage() {
     return <p className="p-4 text-center">{t.loading_profile}</p>;
   }
 
-  const dialProfile =
+  const profileDialCode =
     countries.find((c) => c.code === profile.country)?.dialCode ?? "";
 
-  const dialForm =
+  const formDialCode =
     countries.find((c) => c.code === form.country)?.dialCode ?? "";
 
   return (
@@ -290,21 +308,10 @@ export default function ProfilePage() {
 
         {/* AVATAR */}
         <div className="relative w-28 h-28 mx-auto mb-4">
-
           {preview ? (
-            <Image
-              src={preview}
-              alt="Preview"
-              fill
-              className="rounded-full object-cover border-4 border-orange-500"
-            />
+            <Image src={preview} alt="Preview" fill className="rounded-full object-cover border-4 border-orange-500" />
           ) : profile.avatar_url ? (
-            <Image
-              src={profile.avatar_url}
-              alt="Avatar"
-              fill
-              className="rounded-full object-cover border-4 border-orange-500"
-            />
+            <Image src={profile.avatar_url} alt="Avatar" fill className="rounded-full object-cover border-4 border-orange-500" />
           ) : (
             <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
               {user?.username?.charAt(0).toUpperCase()}
@@ -313,14 +320,8 @@ export default function ProfilePage() {
 
           <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
             <Upload size={16} className="text-white" />
-            <input
-              type="file"
-              hidden
-              accept="image/*"
-              onChange={handleAvatarChange}
-            />
+            <input type="file" accept="image/*" hidden onChange={handleAvatarChange} />
           </label>
-
         </div>
 
         <h2 className="text-center font-semibold mb-4">
@@ -328,129 +329,74 @@ export default function ProfilePage() {
         </h2>
 
         {uploading && <p className="text-center text-sm">{t.uploading}</p>}
-        {success && <p className="text-center text-green-600 text-sm">✓ {success}</p>}
-        {error && <p className="text-center text-red-500 text-sm">{error}</p>}
+        {success && <p className="text-center text-sm text-green-600">✓ {success}</p>}
+        {error && <p className="text-center text-sm text-red-500">{error}</p>}
 
         {/* INFO */}
-
         <div className="space-y-3 mt-4">
+          {editableFields.map((key) => (
+            <div key={key} className="flex justify-between border-b pb-2">
+              <span className="text-gray-500">{t[`profile_${key}`]}</span>
 
-          {editableFields.map((key) => {
-
-            if (key === "shop_banner") {
-              return (
-                <div key={key} className="flex justify-between border-b pb-2">
-                  <span className="text-gray-500">{t.profile_shop_banner}</span>
-
-                  {editMode ? (
-                    <label className="cursor-pointer text-orange-500 flex items-center gap-2">
-                      <Upload size={14} />
-                      {t.upload}
-
-                      <input
-                        hidden
-                        type="file"
-                        accept="image/*"
-                        onChange={handleBannerUpload}
-                      />
-                    </label>
-                  ) : (
-                    <span className="text-xs text-gray-500 break-all">
-                      {profile.shop_banner ?? t.profile_not_set}
+              {editMode ? (
+                key === "country" ? (
+                  <select
+                    className="text-right outline-none"
+                    value={form.country}
+                    onChange={(e) =>
+                      setForm({ ...form, country: e.target.value })
+                    }
+                  >
+                    {countries.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name} ({c.dialCode})
+                      </option>
+                    ))}
+                  </select>
+                ) : key === "phone" ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-sm">
+                      {formDialCode}
                     </span>
-                  )}
-                </div>
-              );
-            }
-
-            return (
-              <div key={key} className="flex justify-between border-b pb-2">
-
-                <span className="text-gray-500">
-                  {t[`profile_${key}`]}
-                </span>
-
-                {editMode ? (
-
-                  key === "country" ? (
-
-                    <select
-                      className="text-right"
-                      value={form.country}
-                      onChange={(e) =>
-                        setForm({ ...form, country: e.target.value })
-                      }
-                    >
-                      {countries.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.name} ({c.dialCode})
-                        </option>
-                      ))}
-                    </select>
-
-                  ) : key === "phone" ? (
-
-                    <div className="flex gap-2">
-                      <span className="text-gray-400 text-sm">{dialForm}</span>
-
-                      <input
-                        className="text-right w-24"
-                        value={form.phone ?? ""}
-                        onChange={(e) =>
-                          setForm({ ...form, phone: e.target.value })
-                        }
-                      />
-                    </div>
-
-                  ) : (
-
                     <input
-                      className="text-right"
-                      value={(form[key] as string) ?? ""}
+                      className="text-right outline-none w-28"
+                      value={form.phone ?? ""}
                       onChange={(e) =>
-                        setForm({ ...form, [key]: e.target.value })
+                        setForm({ ...form, phone: e.target.value })
                       }
                     />
-
-                  )
-
-                ) : key === "phone" ? (
-
-                  <span>
-                    {profile.phone
-                      ? `${dialProfile} ${profile.phone}`
-                      : t.profile_not_set}
-                  </span>
-
-                ) : key === "country" ? (
-
-                  <span>
-                    {countries.find(
-                      (c) => c.code === profile.country
-                    )?.name ?? t.profile_not_set}
-                  </span>
-
+                  </div>
                 ) : (
-
-                  <span>
-                    {(profile[key] as string) ?? t.profile_not_set}
-                  </span>
-
-                )}
-
-              </div>
-            );
-
-          })}
-
+                  <input
+                    className="text-right outline-none"
+                    value={(form[key] as string) ?? ""}
+                    onChange={(e) =>
+                      setForm({ ...form, [key]: e.target.value })
+                    }
+                  />
+                )
+              ) : key === "phone" ? (
+                <span>
+                  {profile.phone
+                    ? `${profileDialCode} ${profile.phone}`
+                    : t.profile_not_set}
+                </span>
+              ) : key === "country" ? (
+                <span>
+                  {countries.find(
+                    (c) => c.code === profile.country
+                  )?.name ?? t.profile_not_set}
+                </span>
+              ) : (
+                <span>{(profile[key] as string) ?? t.profile_not_set}</span>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* ACTION */}
-
         <div className="flex justify-center mt-6 gap-3">
-
           {editMode ? (
-
             <>
               <button
                 onClick={handleSave}
@@ -471,20 +417,15 @@ export default function ProfilePage() {
                 <X size={16} /> {t.cancel}
               </button>
             </>
-
           ) : (
-
             <button
               onClick={() => setEditMode(true)}
               className="btn-orange flex items-center gap-2"
             >
               <Edit3 size={16} /> {t.edit}
             </button>
-
           )}
-
         </div>
-
       </div>
     </main>
   );
