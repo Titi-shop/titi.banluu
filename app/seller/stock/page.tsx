@@ -144,11 +144,13 @@ const [shop, setShop] = useState<ShopProfile>({
 
     const data = await res.json();
 
-    setShop({
-      shop_name: data.shop_name ?? null,
-      shop_banner: data.shop_banner ?? null,
-      avatar_url: data.avatar_url ?? null,
-    });
+const profile = data.profile;
+
+setShop({
+  shop_name: profile?.shop_name ?? null,
+  shop_banner: profile?.shop_banner ?? null,
+  avatar_url: profile?.avatar_url ?? null,
+});
   } catch {}
 }, []);
 
