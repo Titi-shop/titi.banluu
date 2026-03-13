@@ -128,9 +128,8 @@ setter((prev) => [...prev, data.url]);
   }
 
 
-   function localToUTC(local: string): string {
-  const date = new Date(local);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
+function localToUTC(local: string): string {
+  return new Date(local).toISOString();
 }
 
   /* =========================
