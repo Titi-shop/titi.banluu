@@ -36,13 +36,29 @@ export async function GET(req: Request) {
     const { rows } = await query(
       `
       select
-        count(*) filter (where status = 'pending')::int   as pending,
-        count(*) filter (where status = 'pickup')::int    as pickup,
-        count(*) filter (where status = 'shipping')::int  as shipping,
-        count(*) filter (where status = 'completed')::int as completed,
-        count(*) filter (where status = 'cancelled')::int as cancelled
-      from orders
-      where buyer_id = $1
+  count(*) filter (where o.status='pending')::int as pending,
+  count(*) filter (where o.status='pickup')::int as pickup,
+  count(*) filter (where o.status='shipping')::int as shipping,
+
+  count(distinct o.id) filter (
+    where o.status='completed'
+    and exists (
+      select 1
+      from order_items oi
+      where oi.order_id = o.id
+      and not exists (
+        select 1
+        from reviews r
+        where r.order_item_id = oi.id
+        and r.user_id = $1
+      )
+    )
+  )::int as completed,
+
+  count(*) filter (where o.status='cancelled')::int as cancelled
+
+from orders o
+where o.buyer_id = $1
       `,
       [user.pi_uid]
     );
