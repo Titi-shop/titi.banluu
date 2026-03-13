@@ -15,6 +15,12 @@ function emptyProfile() {
     phone: null,
     avatar_url: null,
     bio: null,
+
+    shop_name: null,
+    shop_slug: null,
+    shop_description: null,
+    shop_banner: null,
+
     country: "VN",
     province: null,
     district: null,
@@ -23,7 +29,6 @@ function emptyProfile() {
     postal_code: null,
   };
 }
-
 /* ================= EMAIL CHECK ================= */
 
 function isValidEmail(email: string | null) {
