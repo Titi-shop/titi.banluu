@@ -21,7 +21,7 @@ function emptyProfile() {
     shop_description: null,
     shop_banner: null,
 
-    country: "VN",
+    country: "",
     province: null,
     district: null,
     ward: null,
@@ -101,7 +101,7 @@ const shop_banner =
   const country =
     typeof body.country === "string" && body.country
       ? body.country.trim().slice(0, 10)
-      : "VN";
+      : "";
 
   const province = normalize(body.province, 100);
   const district = normalize(body.district, 100);
