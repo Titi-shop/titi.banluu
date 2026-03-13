@@ -141,7 +141,7 @@ export default function ProfilePage() {
   phone: profileData?.phone ?? null,
   bio: profileData?.bio ?? null,
 
-  country: profileData?.country ?? "VN",
+  country: profileData?.country ?? "",
   province: profileData?.province ?? null,
   district: profileData?.district ?? null,
   ward: profileData?.ward ?? null,
@@ -303,72 +303,35 @@ const handleBannerUpload = async (
     countries.find((c) => c.code === form.country)?.dialCode ?? "";
 
   return (
-  <main className="min-h-screen bg-gray-100 pb-28">
-  
-<div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow p-6">
+    <main className="min-h-screen bg-gray-100 pb-28">
+      <div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow p-6">
 
-  <div className="relative mb-16">
-  {/* BANNER */}
-  <div className="relative w-full h-40 rounded-xl overflow-hidden">
-    {profile.shop_banner ? (
-      <Image
-        src={profile.shop_banner}
-        alt="Shop banner"
-        fill
-        className="object-cover"
-      />
-    ) : (
-      <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
-        No banner
-      </div>
-    )}
+        {/* AVATAR */}
+        <div className="relative w-28 h-28 mx-auto mb-4">
+          {preview ? (
+            <Image src={preview} alt="Preview" fill className="rounded-full object-cover border-4 border-orange-500" />
+          ) : profile.avatar_url ? (
+            <Image src={profile.avatar_url} alt="Avatar" fill className="rounded-full object-cover border-4 border-orange-500" />
+          ) : (
+            <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
+              {user?.username?.charAt(0).toUpperCase()}
+            </div>
+          )}
 
-    <label className="absolute bottom-2 right-2 bg-black/60 text-white px-3 py-1 rounded cursor-pointer text-sm">
-      Upload
-      <input
-        type="file"
-        hidden
-        accept="image/*"
-        onChange={handleBannerUpload}
-      />
-    </label>
-  </div>
-
-  {/* AVATAR */}
-  <div className="absolute left-1/2 -bottom-14 transform -translate-x-1/2">
-
-    <div className="relative w-28 h-28">
-
-      {preview ? (
-        <Image
-          src={preview}
-          alt="Preview"
-          fill
-          className="rounded-full object-cover border-4 border-white shadow"
-        />
-      ) : profile.avatar_url ? (
-        <Image
-          src={profile.avatar_url}
-          alt="Avatar"
-          fill
-          className="rounded-full object-cover border-4 border-white shadow"
-        />
-      ) : (
-        <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold border-4 border-white">
-          {user?.username?.charAt(0).toUpperCase()}
+          <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
+            <Upload size={16} className="text-white" />
+            <input type="file" accept="image/*" hidden onChange={handleAvatarChange} />
+          </label>
         </div>
-      )}
 
-      <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
-        <Upload size={14} className="text-white" />
-        <input type="file" hidden accept="image/*" onChange={handleAvatarChange}/>
-      </label>
+        <h2 className="text-center font-semibold mb-4">
+          @{user?.username}
+        </h2>
 
-    </div>
+        {uploading && <p className="text-center text-sm">{t.uploading}</p>}
+        {success && <p className="text-center text-sm text-green-600">✓ {success}</p>}
+        {error && <p className="text-center text-sm text-red-500">{error}</p>}
 
-  </div>
-
-</div>
         {/* INFO */}
         <div className="space-y-3 mt-4">
           {editableFields.map((key) => (
