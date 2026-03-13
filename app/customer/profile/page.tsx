@@ -335,9 +335,9 @@ const handleBannerUpload = async (
   </div>
 
   {/* AVATAR */}
-  <div className="absolute left-1/2 -bottom-14 transform -translate-x-1/2">
+  <div className="absolute left-1/2 bottom-0 translate-x-[-50%] translate-y-[50%] flex justify-center">
 
-    <div className="relative w-28 h-28">
+    <div className="relative w-28 h-28 flex items-center justify-center">
 
       {preview ? (
         <Image
