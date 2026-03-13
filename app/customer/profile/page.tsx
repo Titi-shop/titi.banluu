@@ -303,8 +303,40 @@ const handleBannerUpload = async (
     countries.find((c) => c.code === form.country)?.dialCode ?? "";
 
   return (
-    <main className="min-h-screen bg-gray-100 pb-28">
-      <div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow p-6">
+  <main className="min-h-screen bg-gray-100 pb-28">
+    <div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow p-6">
+
+      {/* SHOP BANNER */}
+
+      <div className="relative w-full h-40 rounded-xl overflow-hidden mb-6">
+
+        {profile.shop_banner ? (
+          <Image
+            src={profile.shop_banner}
+            alt="Shop banner"
+            fill
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+            No banner
+          </div>
+        )}
+
+        <label className="absolute bottom-2 right-2 bg-black/60 text-white px-3 py-1 rounded cursor-pointer">
+
+          Upload
+
+          <input
+            type="file"
+            hidden
+            accept="image/*"
+            onChange={handleBannerUpload}
+          />
+
+        </label>
+
+      </div>
 
         {/* AVATAR */}
         <div className="relative w-28 h-28 mx-auto mb-4">
