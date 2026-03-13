@@ -84,76 +84,63 @@ export default function AccountHeader() {
   ========================= */
 
   return (
-    <section className="mb-16">
+  <section className="mb-4">
 
-      {/* BANNER */}
+    {/* BANNER */}
+    <div className="relative w-full h-32">
 
-      <div className="relative w-full h-40">
+      {banner ? (
+        <Image
+          src={banner}
+          alt="Shop banner"
+          fill
+          className="object-cover"
+        />
+      ) : (
+        <div className="w-full h-full bg-orange-500" />
+      )}
 
-        {banner ? (
+    </div>
+
+    {/* AVATAR */}
+    <div className="flex justify-center -mt-10">
+
+      <div className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow bg-white flex items-center justify-center">
+
+        {avatar ? (
           <Image
-            src={banner}
-            alt="Shop banner"
+            src={avatar}
+            alt="Avatar"
             fill
             className="object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-orange-500" />
+          <UserCircle size={44} className="text-orange-500" />
         )}
 
       </div>
 
-      {/* AVATAR */}
+    </div>
 
-      <div className="flex justify-center -mt-12">
+    {/* SHOP NAME */}
+    <h2 className="text-center font-bold text-lg mt-2">
+      {shopName || user.username}
+    </h2>
 
-        <div className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white flex items-center justify-center">
+    {/* USERNAME */}
+    <p className="text-center text-sm text-gray-500">
+      @{user.username}
+    </p>
 
-          {avatar ? (
-            <Image
-              src={avatar}
-              alt="Avatar"
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <UserCircle size={56} className="text-orange-500" />
-          )}
+    {/* ROLE */}
+    <p className="text-center text-xs text-gray-400">
+      {user.role === "seller"
+        ? t.seller
+        : user.role === "admin"
+        ? t.admin
+        : t.customer}
+    </p>
 
-        </div>
-
-      </div>
-
-      {/* SHOP NAME */}
-
-      <h2 className="text-center font-bold text-lg mt-3">
-        {shopName || `@${user.username}`}
-      </h2>
-
-      {/* DESCRIPTION */}
-
-      {shopDescription && (
-        <p className="text-center text-gray-500 text-sm px-6 mt-1">
-          {shopDescription}
-        </p>
-      )}
-
-      {/* USERNAME */}
-
-      <p className="text-center text-xs text-gray-400 mt-1">
-        @{user.username}
-      </p>
-
-      {/* ROLE */}
-
-      <p className="text-center text-xs text-gray-400 mt-1">
-        {user.role === "seller"
-          ? t.seller
-          : user.role === "admin"
-          ? t.admin
-          : t.customer}
-      </p>
-
-    </section>
-  );
+  </section>
+);
 }
