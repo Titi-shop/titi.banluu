@@ -16,6 +16,7 @@ interface ProfileData {
   email: string | null;
   phone: string | null;
   bio: string | null;
+
   country: string;
   province: string | null;
   district: string | null;
@@ -23,6 +24,13 @@ interface ProfileData {
   address_line: string | null;
   postal_code: string | null;
   avatar_url: string | null;
+
+  /* SHOP */
+
+  shop_name: string | null;
+  shop_slug: string | null;
+  shop_description: string | null;
+  shop_banner: string | null;
 }
 
 const defaultProfile: ProfileData = {
@@ -30,14 +38,22 @@ const defaultProfile: ProfileData = {
   email: null,
   phone: null,
   bio: null,
-  country: "VN",
+
+  country: "",
   province: null,
   district: null,
   ward: null,
   address_line: null,
   postal_code: null,
+
   avatar_url: null,
+
+  shop_name: null,
+  shop_slug: null,
+  shop_description: null,
+  shop_banner: null,
 };
+
 
 type EditableKey =
   | "full_name"
@@ -49,13 +65,19 @@ type EditableKey =
   | "district"
   | "ward"
   | "address_line"
-  | "postal_code";
+  | "postal_code"
+  | "shop_name"
+  | "shop_description";
 
 const editableFields: EditableKey[] = [
   "full_name",
   "email",
   "phone",
   "bio",
+
+  "shop_name",
+  "shop_description",
+
   "country",
   "province",
   "district",
@@ -114,18 +136,25 @@ export default function ProfilePage() {
             : null;
 
         const safeProfile: ProfileData = {
-          full_name: profileData?.full_name ?? null,
-          email: profileData?.email ?? null,
-          phone: profileData?.phone ?? null,
-          bio: profileData?.bio ?? null,
-          country: profileData?.country ?? "VN",
-          province: profileData?.province ?? null,
-          district: profileData?.district ?? null,
-          ward: profileData?.ward ?? null,
-          address_line: profileData?.address_line ?? null,
-          postal_code: profileData?.postal_code ?? null,
-          avatar_url: profileData?.avatar_url ?? null,
-        };
+  full_name: profileData?.full_name ?? null,
+  email: profileData?.email ?? null,
+  phone: profileData?.phone ?? null,
+  bio: profileData?.bio ?? null,
+
+  country: profileData?.country ?? "VN",
+  province: profileData?.province ?? null,
+  district: profileData?.district ?? null,
+  ward: profileData?.ward ?? null,
+  address_line: profileData?.address_line ?? null,
+  postal_code: profileData?.postal_code ?? null,
+
+  avatar_url: profileData?.avatar_url ?? null,
+
+  shop_name: profileData?.shop_name ?? null,
+  shop_slug: profileData?.shop_slug ?? null,
+  shop_description: profileData?.shop_description ?? null,
+  shop_banner: profileData?.shop_banner ?? null,
+};
 
         setProfile(safeProfile);
         setForm(safeProfile);
