@@ -347,18 +347,30 @@ export default function SellerStockPage() {
                 {/* SALE TIME */}
 
                 {product.saleStart && (
-                  <p className="text-xs text-gray-500">
-                    {t.sale_start}:{" "}
-                    {new Date(product.saleStart).toLocaleString()}
-                  </p>
-                )}
+  <p className="text-xs text-gray-500">
+    {t.sale_start}:{" "}
+    {new Date(product.saleStart).toLocaleString(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
+  </p>
+)}
 
-                {product.saleEnd && (
-                  <p className="text-xs text-gray-500">
-                    {t.sale_end}:{" "}
-                    {new Date(product.saleEnd).toLocaleString()}
-                  </p>
-                )}
+{product.saleEnd && (
+  <p className="text-xs text-gray-500">
+    {t.sale_end}:{" "}
+    {new Date(product.saleEnd).toLocaleString(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
+  </p>
+)}
 
                 {/* ACTIONS */}
 
