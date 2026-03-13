@@ -426,4 +426,4 @@ const handleBannerUpload = async (
     </div>
   );
 
-})}
+)
