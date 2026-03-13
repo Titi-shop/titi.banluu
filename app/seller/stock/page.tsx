@@ -223,7 +223,7 @@ export default function SellerStockPage() {
 {/* STORE BANNER */}
 <div className="relative w-full h-32 rounded-xl overflow-hidden mb-4">
   <Image
-    src="/store-banner.jpg"
+    src="/banners/B52D845F-D059-4310-A329-A4E2724AB64E.png"
     alt="Store"
     fill
     className="object-cover"
