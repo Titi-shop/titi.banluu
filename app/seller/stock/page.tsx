@@ -1,4 +1,5 @@
 "use client";
+
 import { Plus } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
@@ -8,10 +9,10 @@ import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
 
-
 /* =========================
    TYPES
 ========================= */
+
 interface Product {
   id: string;
   name: string;
@@ -40,6 +41,7 @@ interface Message {
 /* =========================
    PAGE
 ========================= */
+
 export default function SellerStockPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -55,6 +57,7 @@ export default function SellerStockPage() {
   /* =========================
      LOAD PRODUCTS
   ========================= */
+
   const loadProducts = useCallback(async () => {
     try {
       const res = await apiAuthFetch("/api/seller/products", {
@@ -62,28 +65,10 @@ export default function SellerStockPage() {
       });
 
       if (!res.ok) {
-        let errorText = t.load_products_error;
-
-        try {
-          const err: unknown = await res.json();
-          if (
-            typeof err === "object" &&
-            err !== null &&
-            "error" in err
-          ) {
-            errorText = String(
-              (err as { error?: unknown }).error
-            );
-          }
-        } catch {
-          // ignore JSON parse error
-        }
-
         setMessage({
-          text: errorText,
+          text: t.load_products_error,
           type: "error",
         });
-
         return;
       }
 
@@ -121,8 +106,7 @@ export default function SellerStockPage() {
               : null,
           images: Array.isArray(p.images)
             ? p.images.filter(
-                (i): i is string =>
-                  typeof i === "string"
+                (i): i is string => typeof i === "string"
               )
             : [],
         };
@@ -148,51 +132,29 @@ export default function SellerStockPage() {
   /* =========================
      DELETE PRODUCT
   ========================= */
-  const handleDelete = async (id: string) => {
-    const product = products.find((p) => p.id === id);
-    if (!product) return;
 
-    const confirmed = confirm(
-      `${t.confirm_delete} "${product.name}"?`
-    );
+  const handleDelete = async (id: string) => {
+    const confirmed = confirm(t.confirm_delete);
     if (!confirmed) return;
 
     try {
       const res = await apiAuthFetch(
         `/api/products?id=${encodeURIComponent(id)}`,
-        {
-          method: "DELETE",
-        }
+        { method: "DELETE" }
       );
-
-      let errorText = t.delete_failed;
-
-      try {
-        const data: unknown = await res.json();
-        if (
-          typeof data === "object" &&
-          data !== null &&
-          "error" in data
-        ) {
-          errorText = String(
-            (data as { error?: unknown }).error
-          );
-        }
-      } catch {
-        // ignore parse error
-      }
 
       if (res.ok) {
         setProducts((prev) =>
           prev.filter((p) => p.id !== id)
         );
+
         setMessage({
           text: t.delete_success,
           type: "success",
         });
       } else {
         setMessage({
-          text: errorText,
+          text: t.delete_failed,
           type: "error",
         });
       }
@@ -205,12 +167,13 @@ export default function SellerStockPage() {
   };
 
   /* =========================
-     LOADING STATE
+     LOADING
   ========================= */
+
   if (pageLoading || authLoading) {
     return (
       <main className="text-center p-8">
-         {t.loading}
+        {t.loading}
       </main>
     );
   }
@@ -218,30 +181,39 @@ export default function SellerStockPage() {
   /* =========================
      UI
   ========================= */
+
   return (
     <main className="p-4 max-w-2xl mx-auto pb-28">
-{/* STORE BANNER */}
-<div className="relative w-full h-32 rounded-xl overflow-hidden mb-4">
-  <Image
-    src="/banners/B52D845F-D059-4310-A329-A4E2724AB64E.png"
-    alt="Store"
-    fill
-    className="object-cover"
-  />
 
-  <div className="absolute inset-0 bg-black/40 flex items-center justify-between px-4">
-    <h2 className="text-white font-bold text-lg">
-      {t.my_store}
-    </h2>
+      {/* STORE BANNER */}
 
-    <button
-      onClick={() => router.push("/seller/post")}
-      className="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
-    >
-      <Plus size={18}/>
-    </button>
-  </div>
-</div>
+      <div className="relative w-full h-36 rounded-xl overflow-hidden mb-6">
+
+        <Image
+          src="/banners/B52D845F-D059-4310-A329-A4E2724AB64E.png"
+          alt="Store"
+          fill
+          priority
+          className="object-cover"
+        />
+
+        <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+
+          <h2 className="text-white font-bold text-lg drop-shadow">
+            {t.my_store}
+          </h2>
+
+          <button
+            onClick={() => router.push("/seller/post")}
+            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg"
+          >
+            <Plus size={20} />
+          </button>
+
+        </div>
+      </div>
+
+      {/* MESSAGE */}
 
       {message.text && (
         <p
@@ -255,126 +227,172 @@ export default function SellerStockPage() {
         </p>
       )}
 
-      {products.length === 0 ? (
+      {/* EMPTY */}
+
+      {products.length === 0 && (
         <p className="text-center text-gray-400">
           {t.no_products}
         </p>
-      ) : (
-        <div className="space-y-4">
-          {products.map((product) => {
-            const now = new Date();
+      )}
 
-            const start = product.saleStart
-              ? new Date(product.saleStart)
-              : null;
+      {/* PRODUCT LIST */}
 
-            const end = product.saleEnd
-              ? new Date(product.saleEnd)
-              : null;
+      <div className="space-y-4">
 
-            const isSale =
-              product.salePrice !== null &&
-              start !== null &&
-              end !== null &&
-              now >= start &&
-              now <= end;
+        {products.map((product) => {
+          const now = new Date();
 
-            return (
-              <div
-                key={product.id}
-                onClick={() =>
-                  router.push(`/product/${product.id}`)
-                }
-                className="flex gap-3 p-3 bg-white rounded-lg shadow border cursor-pointer hover:bg-gray-50"
-              >
-                <div className="w-24 h-24 min-w-[96px] relative rounded overflow-hidden flex-shrink-0">
-                  {isSale && (
-                    <span className="absolute top-1 left-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
-                      SALE
-                    </span>
-                  )}
+          const start = product.saleStart
+            ? new Date(product.saleStart)
+            : null;
 
-                  {product.images.length > 0 ? (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.name}
-                      fill
-                      sizes="96px"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
-                      {t.no_image}
-                    </div>
-                  )}
-                </div>
+          const end = product.saleEnd
+            ? new Date(product.saleEnd)
+            : null;
 
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm leading-snug line-clamp-2">
-                    {product.name}
-                  </h3>
+          const isSale =
+            product.salePrice !== null &&
+            start !== null &&
+            end !== null &&
+            now >= start &&
+            now <= end;
 
-                  <div className="mt-1">
-                  
-                    {isSale ? (
-                      <>
-                        <p className="text-sm text-gray-400 line-through">
-                          {formatPi(product.price)} π
-                        </p>
-                        <p className="text-[#ff6600] font-bold">
-                          {formatPi(product.salePrice)} π
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-[#ff6600] font-bold">
+          const upcoming =
+            product.salePrice !== null &&
+            start !== null &&
+            now < start;
+
+          const ended =
+            product.salePrice !== null &&
+            end !== null &&
+            now > end;
+
+          return (
+            <div
+              key={product.id}
+              onClick={() =>
+                router.push(`/product/${product.id}`)
+              }
+              className="flex gap-3 p-3 bg-white rounded-xl shadow border hover:bg-gray-50 cursor-pointer"
+            >
+
+              {/* IMAGE */}
+
+              <div className="w-24 h-24 relative rounded-lg overflow-hidden flex-shrink-0">
+
+                {isSale && (
+                  <span className="absolute top-1 left-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                    SALE
+                  </span>
+                )}
+
+                {upcoming && (
+                  <span className="absolute top-1 left-1 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                    UPCOMING
+                  </span>
+                )}
+
+                {ended && (
+                  <span className="absolute top-1 left-1 bg-gray-500 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                    ENDED
+                  </span>
+                )}
+
+                {product.images.length > 0 ? (
+                  <Image
+                    src={product.images[0]}
+                    alt={product.name}
+                    fill
+                    sizes="96px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                    {t.no_image}
+                  </div>
+                )}
+
+              </div>
+
+              {/* CONTENT */}
+
+              <div className="flex-1 min-w-0">
+
+                <h3 className="font-semibold text-sm line-clamp-2">
+                  {product.name}
+                </h3>
+
+                {/* PRICE */}
+
+                <div className="mt-1">
+
+                  {isSale ? (
+                    <>
+                      <p className="text-sm text-gray-400 line-through">
                         {formatPi(product.price)} π
                       </p>
 
-                 {product.saleStart && (
-  <p className="text-xs text-gray-500">
-    {t.sale_start}:{" "}
-    {new Date(product.saleStart).toLocaleString()}
-  </p>
-)}
+                      <p className="text-[#ff6600] font-bold">
+                        {formatPi(product.salePrice)} π
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[#ff6600] font-bold">
+                      {formatPi(product.price)} π
+                    </p>
+                  )}
 
-{product.saleEnd && (
-  <p className="text-xs text-gray-500">
-    {t.sale_end}:{" "}
-    {new Date(product.saleEnd).toLocaleString()}
-  </p>
-)}
-                    )}
-                  </div>
-
-                  <div className="flex gap-4 mt-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(
-                          `/seller/edit/${product.id}`
-                        );
-                      }}
-                      className="text-green-600 underline"
-                    >
-                      {t.edit}
-                    </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(product.id);
-                      }}
-                      className="text-red-600 underline"
-                    >
-                      {t.delete}
-                    </button>
-                  </div>
                 </div>
+
+                {/* SALE TIME */}
+
+                {product.saleStart && (
+                  <p className="text-xs text-gray-500">
+                    {t.sale_start}:{" "}
+                    {new Date(product.saleStart).toLocaleString()}
+                  </p>
+                )}
+
+                {product.saleEnd && (
+                  <p className="text-xs text-gray-500">
+                    {t.sale_end}:{" "}
+                    {new Date(product.saleEnd).toLocaleString()}
+                  </p>
+                )}
+
+                {/* ACTIONS */}
+
+                <div className="flex gap-4 mt-2">
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/seller/edit/${product.id}`);
+                    }}
+                    className="text-green-600 underline"
+                  >
+                    {t.edit}
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(product.id);
+                    }}
+                    className="text-red-600 underline"
+                  >
+                    {t.delete}
+                  </button>
+
+                </div>
+
               </div>
-            );
-          })}
-        </div>
-      )}
+
+            </div>
+          );
+        })}
+
+      </div>
     </main>
   );
 }
