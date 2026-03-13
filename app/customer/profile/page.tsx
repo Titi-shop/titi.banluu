@@ -365,15 +365,6 @@ const handleBannerUpload = async (
       </label>
 
     </div>
-<h2 className="text-center font-semibold text-lg">
-  {profile.shop_name ?? user?.username}
-</h2>
-
-<p className="text-center text-gray-500 text-sm">
-  @{user?.username}
-</p>
-    
-
   </div>
 
 </div>
