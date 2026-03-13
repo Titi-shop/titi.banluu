@@ -38,6 +38,12 @@ interface Message {
   type: "success" | "error" | "";
 }
 
+interface ShopProfile {
+  shop_name: string | null;
+  shop_banner: string | null;
+  avatar_url: string | null;
+}
+
 /* =========================
    PAGE
 ========================= */
@@ -53,7 +59,11 @@ export default function SellerStockPage() {
     text: "",
     type: "",
   });
-
+const [shop, setShop] = useState<ShopProfile>({
+  shop_name: null,
+  shop_banner: null,
+  avatar_url: null,
+});
   /* =========================
      LOAD PRODUCTS
   ========================= */
@@ -124,11 +134,30 @@ export default function SellerStockPage() {
   }, [t]);
 
   useEffect(() => {
-    if (!authLoading) {
-      loadProducts();
-    }
-  }, [authLoading, loadProducts]);
+  if (!authLoading) {
+    loadProducts();
+    loadProfile();
+  }
+}, [authLoading, loadProducts, loadProfile]);
 
+
+   const loadProfile = useCallback(async () => {
+  try {
+    const res = await apiAuthFetch("/api/profile", {
+      cache: "no-store",
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    setShop({
+      shop_name: data.shop_name ?? null,
+      shop_banner: data.shop_banner ?? null,
+      avatar_url: data.avatar_url ?? null,
+    });
+  } catch {}
+}, []);
   /* =========================
      DELETE PRODUCT
   ========================= */
@@ -190,7 +219,7 @@ export default function SellerStockPage() {
       <div className="relative w-full h-36 rounded-xl overflow-hidden mb-6">
 
         <Image
-          src="/banners/B52D845F-D059-4310-A329-A4E2724AB64E.png"
+  src={shop.shop_banner || "/banners/default-shop.png"}
           alt="Store"
           fill
           priority
@@ -199,9 +228,23 @@ export default function SellerStockPage() {
 
         <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
 
-          <h2 className="text-white font-bold text-lg drop-shadow">
-            {t.my_store}
-          </h2>
+          <div className="flex items-center gap-3">
+
+  {shop.avatar_url && (
+    <Image
+      src={shop.avatar_url}
+      alt="avatar"
+      width={36}
+      height={36}
+      className="rounded-full border"
+    />
+  )}
+
+  <h2 className="text-white font-bold text-lg drop-shadow">
+    {shop.shop_name || t.my_store}
+  </h2>
+
+</div>
 
           <button
             onClick={() => router.push("/seller/post")}
