@@ -335,99 +335,95 @@ const handleBannerUpload = async (
         {error && <p className="text-center text-sm text-red-500">{error}</p>}
         {/* INFO */}
         <div className="space-y-3 mt-4">
-          {editableFields.map((key) => (
-            <div key={key} className="flex justify-between border-b pb-2">
-              <span className="text-gray-500">{t[`profile_${key}`]}</span>
+          {editableFields.map((key) => {
 
-              {editMode ? (
-                key === "country" ? (
-                  <select
-                    className="text-right outline-none"
-                    value={form.country}
-                    onChange={(e) =>
-                      setForm({ ...form, country: e.target.value })
-                    }
-                  >
-                    {countries.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.name} ({c.dialCode})
-                      </option>
-                    ))}
-                  </select>
-                ) : key === "phone" ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 text-sm">
-                      {formDialCode}
-                    </span>
-                    <input
-                      className="text-right outline-none w-28"
-                      value={form.phone ?? ""}
-                      onChange={(e) =>
-                        setForm({ ...form, phone: e.target.value })
-                      }
-                    />
-                  </div>
-                ) : (
-                  <input
-                    className="text-right outline-none"
-                    value={(form[key] as string) ?? ""}
-                    onChange={(e) =>
-                      setForm({ ...form, [key]: e.target.value })
-                    }
-                  />
-                )
-              ) : key === "phone" ? (
-                <span>
-                  {profile.phone
-                    ? `${profileDialCode} ${profile.phone}`
-                    : t.profile_not_set}
-                </span>
-              ) : key === "country" ? (
-                <span>
-                  {countries.find(
-                    (c) => c.code === profile.country
-                  )?.name ?? t.profile_not_set}
-                </span>
-              ) : (
-                <span>{(profile[key] as string) ?? t.profile_not_set}</span>
-              )}
-            </div>
-          ))}
-        </div>
+  /* ===== SHOP BANNER FIELD ===== */
 
-        {/* ACTION */}
-        <div className="flex justify-center mt-6 gap-3">
-          {editMode ? (
-            <>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="btn-orange flex items-center gap-2"
-              >
-                <Save size={16} />
-                {saving ? t.saving : t.save}
-              </button>
+  if (key === "shop_banner") {
+    return (
+      <div key={key} className="flex justify-between border-b pb-2">
+        <span className="text-gray-500">{t.profile_shop_banner}</span>
 
-              <button
-                onClick={() => {
-                  setForm(profile);
-                  setEditMode(false);
-                }}
-                className="bg-gray-300 px-4 py-2 rounded flex items-center gap-2"
-              >
-                <X size={16} /> {t.cancel}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setEditMode(true)}
-              className="btn-orange flex items-center gap-2"
-            >
-              <Edit3 size={16} /> {t.edit}
-            </button>
-          )}
-        </div>
+        {editMode ? (
+          <label className="cursor-pointer text-orange-500 flex items-center gap-2">
+            <Upload size={14} />
+            {t.upload}
+
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={handleBannerUpload}
+            />
+          </label>
+        ) : (
+          <span className="text-xs text-gray-500 break-all">
+            {profile.shop_banner ?? t.profile_not_set}
+          </span>
+        )}
       </div>
-    </main>
+    );
+  }
+
+  /* ===== NORMAL FIELDS ===== */
+
+  return (
+    <div key={key} className="flex justify-between border-b pb-2">
+      <span className="text-gray-500">{t[`profile_${key}`]}</span>
+
+      {editMode ? (
+        key === "country" ? (
+          <select
+            className="text-right outline-none"
+            value={form.country}
+            onChange={(e) =>
+              setForm({ ...form, country: e.target.value })
+            }
+          >
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name} ({c.dialCode})
+              </option>
+            ))}
+          </select>
+        ) : key === "phone" ? (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-sm">
+              {formDialCode}
+            </span>
+            <input
+              className="text-right outline-none w-28"
+              value={form.phone ?? ""}
+              onChange={(e) =>
+                setForm({ ...form, phone: e.target.value })
+              }
+            />
+          </div>
+        ) : (
+          <input
+            className="text-right outline-none"
+            value={(form[key] as string) ?? ""}
+            onChange={(e) =>
+              setForm({ ...form, [key]: e.target.value })
+            }
+          />
+        )
+      ) : key === "phone" ? (
+        <span>
+          {profile.phone
+            ? `${profileDialCode} ${profile.phone}`
+            : t.profile_not_set}
+        </span>
+      ) : key === "country" ? (
+        <span>
+          {countries.find(
+            (c) => c.code === profile.country
+          )?.name ?? t.profile_not_set}
+        </span>
+      ) : (
+        <span>{(profile[key] as string) ?? t.profile_not_set}</span>
+      )}
+    </div>
   );
-}
+
+})}
