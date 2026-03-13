@@ -371,39 +371,7 @@
   "edit": "Chỉnh sửa",
 
   
-  
-
   "profile_shop_name": "Tên cửa hàng",
-  "profile_shop_description": "Mô tả cửa hàng",
+  "profile_shop_description": "Mô tả cửa hàng"
 
-  "profile_full_name": "Họ tên",
-  "profile_email": "Email",
-  "profile_phone": "Điện thoại",
-  "profile_bio": "Giới thiệu",
-
-  "profile_country": "Quốc gia",
-  "profile_province": "Tỉnh / Thành",
-  "profile_district": "Quận / Huyện",
-  "profile_ward": "Phường / Xã",
-  "profile_address_line": "Địa chỉ",
-  "profile_postal_code": "Mã bưu điện",
-
-  "profile_not_set": "Chưa thiết lập",
-
-  "profile_error_loading": "Không thể tải hồ sơ",
-  "profile_avatar_updated": "Đã cập nhật ảnh đại diện",
-
-  "upload_failed": "Tải ảnh thất bại",
-
-  "saved_successfully": "Đã lưu thành công",
-  "save_failed": "Lưu thất bại",
-
-  "loading_profile": "Đang tải hồ sơ...",
-  "uploading": "Đang tải ảnh...",
-  "saving": "Đang lưu...",
-  "save": "Lưu",
-  "cancel": "Hủy",
-  "edit": "Chỉnh sửa"
-
-  
 }
