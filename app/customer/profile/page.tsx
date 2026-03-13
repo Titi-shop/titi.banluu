@@ -67,7 +67,7 @@ type EditableKey =
   | "address_line"
   | "postal_code"
   | "shop_name"
-  | "shop_description";
+  | "shop_description"
   | "shop_banner";
 
 const editableFields: EditableKey[] = [
