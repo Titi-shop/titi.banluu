@@ -133,13 +133,6 @@ const [shop, setShop] = useState<ShopProfile>({
     }
   }, [t]);
 
-  useEffect(() => {
-  if (!authLoading) {
-    loadProducts();
-    loadProfile();
-  }
-}, [authLoading, loadProducts, loadProfile]);
-
 
    const loadProfile = useCallback(async () => {
   try {
@@ -158,6 +151,13 @@ const [shop, setShop] = useState<ShopProfile>({
     });
   } catch {}
 }, []);
+
+   useEffect(() => {
+  if (!authLoading) {
+    loadProducts();
+    loadProfile();
+  }
+}, [authLoading, loadProducts, loadProfile]);
   /* =========================
      DELETE PRODUCT
   ========================= */
