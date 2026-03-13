@@ -94,7 +94,10 @@ export async function POST(req: Request) {
   const email = normalize(body.email, 100);
   const phone = normalize(body.phone, 20);
   const bio = normalize(body.bio, 500);
-
+const shop_name = normalize(body.shop_name, 120);
+const shop_description = normalize(body.shop_description, 500);
+const shop_banner =
+  typeof body.shop_banner === "string" ? body.shop_banner : null;
   const country =
     typeof body.country === "string" && body.country
       ? body.country.trim().slice(0, 10)
@@ -117,58 +120,76 @@ export async function POST(req: Request) {
 
   try {
     await query(
-      `
-      INSERT INTO user_profiles (
-        user_id,
-        full_name,
-        email,
-        phone,
-        avatar_url,
-        bio,
-        country,
-        province,
-        district,
-        ward,
-        address_line,
-        postal_code,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-        NOW(),NOW()
-      )
-      ON CONFLICT (user_id)
-      DO UPDATE SET
-        full_name = EXCLUDED.full_name,
-        email = EXCLUDED.email,
-        phone = EXCLUDED.phone,
-        avatar_url = EXCLUDED.avatar_url,
-        bio = EXCLUDED.bio,
-        country = EXCLUDED.country,
-        province = EXCLUDED.province,
-        district = EXCLUDED.district,
-        ward = EXCLUDED.ward,
-        address_line = EXCLUDED.address_line,
-        postal_code = EXCLUDED.postal_code,
-        updated_at = NOW()
-      `,
-      [
-        user.pi_uid,
-        full_name,
-        email,
-        phone,
-        avatar_url,
-        bio,
-        country,
-        province,
-        district,
-        ward,
-        address_line,
-        postal_code,
-      ]
-    );
+`
+INSERT INTO user_profiles (
+  user_id,
+  full_name,
+  email,
+  phone,
+  avatar_url,
+  bio,
 
+  shop_name,
+  shop_description,
+  shop_banner,
+
+  country,
+  province,
+  district,
+  ward,
+  address_line,
+  postal_code,
+
+  created_at,
+  updated_at
+)
+VALUES (
+  $1,$2,$3,$4,$5,$6,
+  $7,$8,$9,
+  $10,$11,$12,$13,$14,$15,
+  NOW(),NOW()
+)
+ON CONFLICT (user_id)
+DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  email = EXCLUDED.email,
+  phone = EXCLUDED.phone,
+  avatar_url = EXCLUDED.avatar_url,
+  bio = EXCLUDED.bio,
+
+  shop_name = EXCLUDED.shop_name,
+  shop_description = EXCLUDED.shop_description,
+  shop_banner = EXCLUDED.shop_banner,
+
+  country = EXCLUDED.country,
+  province = EXCLUDED.province,
+  district = EXCLUDED.district,
+  ward = EXCLUDED.ward,
+  address_line = EXCLUDED.address_line,
+  postal_code = EXCLUDED.postal_code,
+
+  updated_at = NOW()
+`,
+[
+  user.pi_uid,
+  full_name,
+  email,
+  phone,
+  avatar_url,
+  bio,
+
+  shop_name,
+  shop_description,
+  shop_banner,
+
+  country,
+  province,
+  district,
+  ward,
+  address_line,
+  postal_code
+]
+);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("PROFILE SAVE ERROR:", err);
