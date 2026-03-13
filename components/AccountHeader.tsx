@@ -8,35 +8,24 @@ import { getPiAccessToken } from "@/lib/piAuth";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
-
 interface Profile {
   avatar?: string | null;
   avatar_url?: string | null;
-
-  shop_banner?: string | null;
-  shop_name?: string | null;
-  shop_description?: string | null;
 }
 
 /* =========================
    COMPONENT
 ========================= */
-
 export default function AccountHeader() {
   const { user } = useAuth();
   const { t } = useTranslation();
-
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [banner, setBanner] = useState<string | null>(null);
-  const [shopName, setShopName] = useState<string | null>(null);
-  const [shopDescription, setShopDescription] = useState<string | null>(null);
 
   /* =========================
-     LOAD PROFILE
+     LOAD PROFILE (NETWORK–FIRST)
   ========================= */
-
   useEffect(() => {
     if (!user) return;
 
@@ -63,14 +52,16 @@ export default function AccountHeader() {
           const profile = (raw as { profile?: Profile }).profile;
 
           if (profile) {
-            setAvatar(profile.avatar_url ?? profile.avatar ?? null);
-            setBanner(profile.shop_banner ?? null);
-            setShopName(profile.shop_name ?? null);
-            setShopDescription(profile.shop_description ?? null);
+            setAvatar(
+              profile.avatar_url ??
+              profile.avatar ??
+              null
+            );
           }
         }
       } catch (err) {
         console.error("Load profile failed:", err);
+        setAvatar(null);
       }
     };
 
@@ -82,65 +73,36 @@ export default function AccountHeader() {
   /* =========================
      RENDER
   ========================= */
-
   return (
-  <section className="mb-4">
-
-    {/* BANNER */}
-    <div className="relative w-full h-32">
-
-      {banner ? (
-        <Image
-          src={banner}
-          alt="Shop banner"
-          fill
-          className="object-cover"
-        />
-      ) : (
-        <div className="w-full h-full bg-orange-500" />
-      )}
-
-    </div>
-
-    {/* AVATAR */}
-    <div className="flex justify-center -mt-10">
-
-      <div className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow bg-white flex items-center justify-center">
-
+    <section className="bg-orange-500 text-white p-6 text-center shadow">
+      {/* AVATAR */}
+      <div className="w-24 h-24 bg-white rounded-full mx-auto overflow-hidden shadow flex items-center justify-center">
         {avatar ? (
           <Image
             src={avatar}
             alt="Avatar"
-            fill
+            width={96}
+            height={96}
             className="object-cover"
           />
         ) : (
-          <UserCircle size={44} className="text-orange-500" />
+          <UserCircle size={56} className="text-orange-500" />
         )}
-
       </div>
 
-    </div>
+      {/* USERNAME */}
+      <p className="mt-3 text-lg font-semibold">
+        @{user.username}
+      </p>
 
-    {/* SHOP NAME */}
-    <h2 className="text-center font-bold text-lg mt-2">
-      {shopName || user.username}
-    </h2>
-
-    {/* USERNAME */}
-    <p className="text-center text-sm text-gray-500">
-      @{user.username}
-    </p>
-
-    {/* ROLE */}
-    <p className="text-center text-xs text-gray-400">
-      {user.role === "seller"
-        ? t.seller
-        : user.role === "admin"
-        ? t.admin
-        : t.customer}
-    </p>
-
-  </section>
-);
+      {/* ROLE */}
+      <p className="text-xs opacity-90">
+        {user.role === "seller"
+          ? t.seller
+          : user.role === "admin"
+          ? t.admin
+          : t.customer}
+      </p>
+    </section>
+  );
 }
