@@ -372,6 +372,8 @@
 
   
   "profile_shop_name": "Tên cửa hàng",
-  "profile_shop_description": "Mô tả cửa hàng"
-
+  "profile_shop_description": "Mô tả cửa hàng",
+  "upload_banner": "Tải banner cửa hàng",
+  "no_banner": "Chưa có banner"
+  
 }
