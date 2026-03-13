@@ -217,6 +217,48 @@ export default function ProfilePage() {
     }
   };
 
+/* ================= SHOP BANNER ================= */
+
+const handleBannerUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+
+    const token = await getPiAccessToken();
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/uploadShopBanner", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error();
+
+    const data = await res.json();
+
+    setProfile((prev) => ({
+      ...prev,
+      shop_banner: data.banner,
+    }));
+
+    setForm((prev) => ({
+      ...prev,
+      shop_banner: data.banner,
+    }));
+
+  } catch {
+    setError("Upload failed");
+  }
+};
   /* ================= SAVE ================= */
 
   const handleSave = async () => {
