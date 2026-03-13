@@ -332,6 +332,38 @@ const handleBannerUpload = async (
         {success && <p className="text-center text-sm text-green-600">✓ {success}</p>}
         {error && <p className="text-center text-sm text-red-500">{error}</p>}
 
+        {/* SHOP BANNER */}
+<div className="relative w-full h-40 rounded-xl overflow-hidden mb-6">
+
+  {profile.shop_banner ? (
+    <Image
+      src={profile.shop_banner}
+      alt="Shop banner"
+      fill
+      className="object-cover"
+    />
+  ) : (
+    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
+      No banner
+    </div>
+  )}
+
+  <label className="absolute bottom-2 right-2 bg-black/60 text-white px-3 py-1 rounded cursor-pointer flex items-center gap-1">
+
+    <Upload size={14} />
+
+    {t.upload}
+
+    <input
+      type="file"
+      hidden
+      accept="image/*"
+      onChange={handleBannerUpload}
+    />
+
+  </label>
+
+</div>
         {/* INFO */}
         <div className="space-y-3 mt-4">
           {editableFields.map((key) => (
