@@ -67,7 +67,7 @@ type EditableKey =
   | "address_line"
   | "postal_code"
   | "shop_name"
-  | "shop_description"
+  | "shop_description";
   | "shop_banner";
 
 const editableFields: EditableKey[] = [
@@ -426,4 +426,40 @@ const handleBannerUpload = async (
     </div>
   );
 
-)
+})}
+        {/* ACTION */}
+        <div className="flex justify-center mt-6 gap-3">
+          {editMode ? (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="btn-orange flex items-center gap-2"
+              >
+                <Save size={16} />
+                {saving ? t.saving : t.save}
+              </button>
+
+              <button
+                onClick={() => {
+                  setForm(profile);
+                  setEditMode(false);
+                }}
+                className="bg-gray-300 px-4 py-2 rounded flex items-center gap-2"
+              >
+                <X size={16} /> {t.cancel}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setEditMode(true)}
+              className="btn-orange flex items-center gap-2"
+            >
+              <Edit3 size={16} /> {t.edit}
+            </button>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
