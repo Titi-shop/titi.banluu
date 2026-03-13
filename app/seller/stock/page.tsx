@@ -242,9 +242,6 @@ export default function SellerStockPage() {
     </button>
   </div>
 </div>
-      <h1 className="text-2xl font-bold text-center mb-4 text-[#ff6600]">
-        {t.my_stock}
-      </h1>
 
       {message.text && (
         <p
@@ -318,19 +315,7 @@ export default function SellerStockPage() {
                   </h3>
 
                   <div className="mt-1">
-                     {product.saleStart && (
-  <p className="text-xs text-gray-500">
-    {t.sale_start}:{" "}
-    {new Date(product.saleStart).toLocaleDateString()}
-  </p>
-)}
-
-{product.saleEnd && (
-  <p className="text-xs text-gray-500">
-    {t.sale_end}:{" "}
-    {new Date(product.saleEnd).toLocaleDateString()}
-  </p>
-)}
+                  
                     {isSale ? (
                       <>
                         <p className="text-sm text-gray-400 line-through">
@@ -344,6 +329,20 @@ export default function SellerStockPage() {
                       <p className="text-[#ff6600] font-bold">
                         {formatPi(product.price)} π
                       </p>
+
+                 {product.saleStart && (
+  <p className="text-xs text-gray-500">
+    {t.sale_start}:{" "}
+    {new Date(product.saleStart).toLocaleString()}
+  </p>
+)}
+
+{product.saleEnd && (
+  <p className="text-xs text-gray-500">
+    {t.sale_end}:{" "}
+    {new Date(product.saleEnd).toLocaleString()}
+  </p>
+)}
                     )}
                   </div>
 
