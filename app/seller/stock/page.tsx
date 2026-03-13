@@ -210,7 +210,7 @@ export default function SellerStockPage() {
   if (pageLoading || authLoading) {
     return (
       <main className="text-center p-8">
-        ⏳ {t.loading}
+         {t.loading}
       </main>
     );
   }
@@ -220,29 +220,6 @@ export default function SellerStockPage() {
   ========================= */
   return (
     <main className="p-4 max-w-2xl mx-auto pb-28">
-
-       {/* STORE BANNER */}
-<div className="relative w-full h-32 rounded-xl overflow-hidden mb-4">
-  <Image
-    src="/store-banner.jpg"
-    alt="Store"
-    fill
-    className="object-cover"
-  />
-
-  <div className="absolute inset-0 bg-black/40 flex items-center justify-between px-4">
-    <h2 className="text-white font-bold text-lg">
-      {t.my_store}
-    </h2>
-
-    <button
-      onClick={() => router.push("/seller/create")}
-      className="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
-    >
-      <Plus size={18} />
-    </button>
-  </div>
-</div>
 {/* STORE BANNER */}
 <div className="relative w-full h-32 rounded-xl overflow-hidden mb-4">
   <Image
@@ -258,7 +235,7 @@ export default function SellerStockPage() {
     </h2>
 
     <button
-      onClick={() => router.push("/seller/create")}
+      onClick={() => router.push("/seller/post")}
       className="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
     >
       <Plus size={18}/>
