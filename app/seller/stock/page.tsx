@@ -42,6 +42,10 @@ interface ShopProfile {
   shop_name: string | null;
   shop_banner: string | null;
   avatar_url: string | null;
+  shop_description: string | null;
+  rating: number | null;
+  total_reviews: number | null;
+  total_sales: number | null;
 }
 
 /* =========================
@@ -63,6 +67,10 @@ const [shop, setShop] = useState<ShopProfile>({
   shop_name: null,
   shop_banner: null,
   avatar_url: null,
+  shop_description: null,
+  rating: null,
+  total_reviews: null,
+  total_sales: null,
 });
   /* =========================
      LOAD PRODUCTS
@@ -150,6 +158,10 @@ setShop({
   shop_name: profile?.shop_name ?? null,
   shop_banner: profile?.shop_banner ?? null,
   avatar_url: profile?.avatar_url ?? null,
+  shop_description: profile?.shop_description ?? null,
+  rating: profile?.rating ?? 0,
+  total_reviews: profile?.total_reviews ?? 0,
+  total_sales: profile?.total_sales ?? 0,
 });
   } catch {}
 }, []);
@@ -216,47 +228,82 @@ setShop({
   return (
     <main className="p-4 max-w-2xl mx-auto pb-28">
 
-      {/* STORE BANNER */}
+      {/* SHOP HEADER */}
 
-      <div className="relative w-full h-36 rounded-xl overflow-hidden mb-6">
+<div className="mb-10">
 
-        <Image
-  src={shop.shop_banner || "/banners/default-shop.png"}
-          alt="Store"
-          fill
-          priority
-          className="object-cover"
-        />
+  {/* BANNER */}
+  <div className="relative w-full h-40 rounded-xl overflow-hidden">
 
-        <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
-
-          <div className="flex items-center gap-3">
-
-  {shop.avatar_url && (
     <Image
-      src={shop.avatar_url}
-      alt="avatar"
-      width={36}
-      height={36}
-      className="rounded-full border"
+      src={shop.shop_banner || "/banners/default-shop.png"}
+      alt="Shop banner"
+      fill
+      priority
+      className="object-cover"
     />
-  )}
 
-  <h2 className="text-white font-bold text-lg drop-shadow">
+    {/* POST BUTTON */}
+    <button
+      onClick={() => router.push("/seller/post")}
+      className="absolute top-3 right-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg"
+    >
+      <Plus size={20} />
+    </button>
+
+  </div>
+
+  {/* AVATAR */}
+
+  <div className="flex justify-center -mt-12">
+
+    <div className="relative w-24 h-24">
+
+      {shop.avatar_url ? (
+        <Image
+          src={shop.avatar_url}
+          alt="avatar"
+          fill
+          className="rounded-full border-4 border-white shadow-lg object-cover"
+        />
+      ) : (
+        <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg flex items-center justify-center text-gray-500">
+          ?
+        </div>
+      )}
+
+    </div>
+
+  </div>
+
+  {/* SHOP NAME */}
+
+  <h2 className="text-center font-bold text-xl mt-3">
     {shop.shop_name || t.my_store}
   </h2>
 
+  {/* STATS */}
+
+  <div className="flex justify-center gap-6 text-sm text-gray-600 mt-2">
+
+    <div className="flex items-center gap-1">
+      ⭐
+      <span>{shop.rating ?? 0}</span>
+    </div>
+
+    <div className="flex items-center gap-1">
+      📦
+      <span>{products.length}</span>
+    </div>
+
+    <div className="flex items-center gap-1">
+      🛒
+      <span>{shop.total_sales ?? 0}</span>
+    </div>
+
+  </div>
+
 </div>
-
-          <button
-            onClick={() => router.push("/seller/post")}
-            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg"
-          >
-            <Plus size={20} />
-          </button>
-
-        </div>
-      </div>
 
       {/* MESSAGE */}
 
