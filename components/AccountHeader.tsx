@@ -8,12 +8,11 @@ import { getPiAccessToken } from "@/lib/piAuth";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* =========================
-   TYPES
+   TYPES (NO any)
 ========================= */
 interface Profile {
   avatar?: string | null;
   avatar_url?: string | null;
-  shop_name?: string | null;
 }
 
 /* =========================
@@ -22,12 +21,10 @@ interface Profile {
 export default function AccountHeader() {
   const { user } = useAuth();
   const { t } = useTranslation();
-
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [shopName, setShopName] = useState<string | null>(null);
 
   /* =========================
-     LOAD PROFILE
+     LOAD PROFILE (NETWORK–FIRST)
   ========================= */
   useEffect(() => {
     if (!user) return;
@@ -60,8 +57,6 @@ export default function AccountHeader() {
               profile.avatar ??
               null
             );
-
-            setShopName(profile.shop_name ?? null);
           }
         }
       } catch (err) {
@@ -80,7 +75,6 @@ export default function AccountHeader() {
   ========================= */
   return (
     <section className="bg-orange-500 text-white p-6 text-center shadow">
-      
       {/* AVATAR */}
       <div className="w-24 h-24 bg-white rounded-full mx-auto overflow-hidden shadow flex items-center justify-center">
         {avatar ? (
@@ -109,14 +103,6 @@ export default function AccountHeader() {
           ? t.admin
           : t.customer}
       </p>
-
-      {/* SHOP NAME */}
-      {shopName && (
-        <p className="text-sm mt-1 opacity-90">
-          {shopName}
-        </p>
-      )}
-
     </section>
   );
 }
