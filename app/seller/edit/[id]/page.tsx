@@ -136,8 +136,7 @@ setSaleEnd(found.saleEnd ? utcToLocalInput(found.saleEnd) : "");
   /* ================= SAVE ================= */
 
   function localToUTC(local: string): string {
-  const date = new Date(local);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
+  return new Date(local).toISOString();
 }
 
 function utcToLocalInput(utc: string): string {
