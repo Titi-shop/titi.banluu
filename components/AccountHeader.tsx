@@ -80,7 +80,7 @@ export default function AccountHeader() {
   ========================= */
   return (
     <section className="bg-orange-500 text-white p-6 text-center shadow">
-
+      
       {/* AVATAR */}
       <div className="w-24 h-24 bg-white rounded-full mx-auto overflow-hidden shadow flex items-center justify-center">
         {avatar ? (
@@ -96,15 +96,8 @@ export default function AccountHeader() {
         )}
       </div>
 
-      {/* SHOP NAME */}
-      {shopName && (
-        <p className="mt-3 text-lg font-semibold">
-          {shopName}
-        </p>
-      )}
-
       {/* USERNAME */}
-      <p className="text-sm opacity-90">
+      <p className="mt-3 text-lg font-semibold">
         @{user.username}
       </p>
 
@@ -116,6 +109,13 @@ export default function AccountHeader() {
           ? t.admin
           : t.customer}
       </p>
+
+      {/* SHOP NAME */}
+      {shopName && (
+        <p className="text-sm mt-1 opacity-90">
+          {shopName}
+        </p>
+      )}
 
     </section>
   );
