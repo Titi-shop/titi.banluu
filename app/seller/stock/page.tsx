@@ -1,5 +1,5 @@
 "use client";
-
+import { Plus } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -220,6 +220,29 @@ export default function SellerStockPage() {
   ========================= */
   return (
     <main className="p-4 max-w-2xl mx-auto pb-28">
+
+{/* STORE BANNER */}
+<div className="relative w-full h-32 rounded-xl overflow-hidden mb-4">
+  <Image
+    src="/store-banner.jpg"
+    alt="Store"
+    fill
+    className="object-cover"
+  />
+
+  <div className="absolute inset-0 bg-black/40 flex items-center justify-between px-4">
+    <h2 className="text-white font-bold text-lg">
+      {t.my_store}
+    </h2>
+
+    <button
+      onClick={() => router.push("/seller/create")}
+      className="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
+    >
+      <Plus size={18}/>
+    </button>
+  </div>
+</div>
       <h1 className="text-2xl font-bold text-center mb-4 text-[#ff6600]">
         {t.my_stock}
       </h1>
@@ -296,6 +319,19 @@ export default function SellerStockPage() {
                   </h3>
 
                   <div className="mt-1">
+                     {product.saleStart && (
+  <p className="text-xs text-gray-500">
+    {t.sale_start}:{" "}
+    {new Date(product.saleStart).toLocaleDateString()}
+  </p>
+)}
+
+{product.saleEnd && (
+  <p className="text-xs text-gray-500">
+    {t.sale_end}:{" "}
+    {new Date(product.saleEnd).toLocaleDateString()}
+  </p>
+)}
                     {isSale ? (
                       <>
                         <p className="text-sm text-gray-400 line-through">
