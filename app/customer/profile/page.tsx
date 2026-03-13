@@ -304,8 +304,10 @@ const handleBannerUpload = async (
 
   return (
   <main className="min-h-screen bg-gray-100 pb-28">
-    <div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow p-<div className="relative mb-16">
+  
+<div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow p-6">
 
+  <div className="relative mb-16">
   {/* BANNER */}
   <div className="relative w-full h-40 rounded-xl overflow-hidden">
     {profile.shop_banner ? (
