@@ -1,63 +1,112 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { getPiAccessToken } from "@/lib/piAuth";
 import { useAuth } from "@/context/AuthContext";
 
-type ReturnRecord = {
+/* =========================
+RETURN STATUS
+========================= */
+
+type ReturnStatus =
+  | "pending"
+  | "seller_reviewing"
+  | "approved"
+  | "shipping_back"
+  | "received"
+  | "refunded"
+  | "rejected";
+
+/* =========================
+TYPES (MATCH API)
+========================= */
+
+interface ReturnRecord {
+
   id: string;
+
   order_id: string;
+
   product_name: string;
+
   product_thumbnail: string | null;
+
   quantity: number;
+
   refund_amount: number;
-  status: string;
+
+  status: ReturnStatus;
+
   created_at: string;
-};
+
+}
+
+/* =========================
+PAGE
+========================= */
 
 export default function ReturnsPage() {
 
-  const router = useRouter();
-  const { accessToken, authLoading } = useAuth();
   const { t } = useTranslation();
 
+  const router = useRouter();
+
+  const { user, loading: authLoading } = useAuth();
+
   const [returns, setReturns] = useState<ReturnRecord[]>([]);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
 
     if (authLoading) return;
-    if (!accessToken) return;
+
+    if (!user) return;
 
     void loadReturns();
 
-  }, [authLoading, accessToken]);
+  }, [authLoading, user]);
+
+  /* =========================
+  LOAD RETURNS
+  ========================= */
 
   async function loadReturns(): Promise<void> {
 
-    if (!accessToken) return;
+    if (authLoading) return;
+
+    if (!user) return;
 
     try {
 
+      const token = await getPiAccessToken();
+
+      if (!token) return;
+
       const res = await fetch("/api/returns", {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
         cache: "no-store",
       });
 
-      if (!res.ok) throw new Error("LOAD_FAILED");
+      if (!res.ok) throw new Error("UNAUTHORIZED");
 
-      const data: ReturnRecord[] = await res.json();
+      const data = await res.json();
 
-      setReturns(Array.isArray(data) ? data : []);
+      const rawReturns: ReturnRecord[] = data ?? [];
+
+      setReturns(rawReturns);
 
     } catch (err) {
 
       console.error("Load returns error:", err);
+
       setReturns([]);
 
     } finally {
@@ -68,123 +117,172 @@ export default function ReturnsPage() {
 
   }
 
-  function getStatusColor(status: string) {
+  /* =========================
+  STATUS COLOR
+  ========================= */
+
+  function getStatusColor(status: ReturnStatus) {
 
     switch (status) {
 
       case "pending":
-        return "bg-yellow-100 text-yellow-700";
+        return "text-yellow-600";
 
       case "seller_reviewing":
-        return "bg-blue-100 text-blue-700";
+        return "text-blue-600";
 
       case "approved":
-        return "bg-green-100 text-green-700";
+        return "text-green-600";
 
       case "shipping_back":
-        return "bg-indigo-100 text-indigo-700";
+        return "text-indigo-600";
 
       case "received":
-        return "bg-purple-100 text-purple-700";
+        return "text-purple-600";
 
       case "refunded":
-        return "bg-green-200 text-green-800";
+        return "text-green-700";
 
       case "rejected":
-        return "bg-red-100 text-red-700";
+        return "text-red-600";
 
       default:
-        return "bg-gray-100 text-gray-600";
+        return "text-gray-500";
     }
 
   }
 
-  if (loading || authLoading) {
-    return <div className="p-6">{t.loading}</div>;
-  }
+  /* =========================
+  UI
+  ========================= */
 
   return (
 
-    <main className="min-h-screen bg-gray-50 pb-16">
+    <main className="min-h-screen bg-gray-100 pb-24">
 
-      <div className="max-w-xl mx-auto p-4 space-y-4">
+      {/* HEADER */}
 
-        <h1 className="text-lg font-semibold">
-          {t.my_returns}
-        </h1>
+      <header className="bg-orange-500 text-white px-4 py-4">
 
-        {returns.length === 0 && (
+        <div className="bg-orange-400 rounded-lg p-4">
 
-          <div className="bg-white p-6 rounded-xl shadow-sm text-center text-gray-500">
-            {t.no_return_requests}
+          <p className="text-sm opacity-90">
+            {t.return_requests}
+          </p>
+
+          <p className="text-xs opacity-80 mt-1">
+            {t.total}: {returns.length}
+          </p>
+
+        </div>
+
+      </header>
+
+      {/* CONTENT */}
+
+      <section className="mt-6 px-4">
+
+        {loading || authLoading ? (
+
+          <p className="text-center text-gray-400">
+            {t.loading}
+          </p>
+
+        ) : returns.length === 0 ? (
+
+          <div className="flex flex-col items-center justify-center mt-16 text-gray-400">
+
+            <div className="w-24 h-24 bg-gray-200 rounded-full mb-4 opacity-40" />
+
+            <p>
+              {t.no_return_requests}
+            </p>
+
           </div>
 
-        )}
+        ) : (
 
-        {returns.map((r) => (
+          <div className="space-y-4">
 
-          <div
-            key={r.id}
-            onClick={() => router.push(`/customer/returns/${r.id}`)}
-            className="bg-white rounded-xl shadow-sm p-4 cursor-pointer hover:shadow-md transition space-y-3"
-          >
+            {returns.map((r) => (
 
-            <div className="flex justify-between items-center">
+              <div
+                key={r.id}
+                onClick={() =>
+                  router.push(`/customer/returns/${r.id}`)
+                }
+                className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer"
+              >
 
-              <div className="flex items-center gap-3">
+                {/* HEADER */}
 
-                {r.product_thumbnail && (
-                  <img
-                    src={r.product_thumbnail}
-                    className="w-12 h-12 object-cover rounded"
-                  />
-                )}
+                <div className="flex justify-between items-start px-4 py-3 border-b">
 
-                <div>
+                  <span className="font-semibold text-xs break-all max-w-[60%]">
+                    #{t.order_id}
+                  </span>
 
-                  <p className="font-medium">
-                    {r.product_name}
+                  <span
+                    className={`text-xs text-right max-w-[120px] leading-tight ${getStatusColor(
+                      t.status
+                    )}`}
+                  >
+                    {t[r.status]}
+                  </span>
+
+                </div>
+
+                {/* PRODUCT */}
+
+                <div className="flex gap-3 items-center px-4 py-3">
+
+                  <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+
+                    <img
+                      src={r.product_thumbnail || "/placeholder.png"}
+                      alt={r.product_name}
+                      className="w-full h-full object-cover"
+                    />
+
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+
+                    <p className="text-sm font-medium line-clamp-2 min-h-[40px]">
+                      {r.product_name}
+                    </p>
+
+                    <p className="text-xs text-gray-500">
+                      {t.quantity}: {r.quantity}
+                    </p>
+
+                  </div>
+
+                </div>
+
+                {/* FOOTER */}
+
+                <div className="flex justify-between items-center px-4 py-3 border-t">
+
+                  <p className="text-sm font-semibold">
+                    {t.refund_amount}: π{r.refund_amount}
                   </p>
 
-                  <p className="text-xs text-gray-400">
-                    {t.order}: {r.order_id}
-                  </p>
+                  <span className="text-xs text-gray-400">
+                    {new Date(t.created_at).toLocaleDateString()}
+                  </span>
 
                 </div>
 
               </div>
 
-              <span
-                className={`px-3 py-1 text-xs rounded-full ${getStatusColor(
-                  r.status
-                )}`}
-              >
-                {r.status}
-              </span>
-
-            </div>
-
-            <div className="text-xs text-gray-500 flex justify-between">
-
-              <span>
-                {t.quantity}: {r.quantity}
-              </span>
-
-              <span>
-                {t.refund_amount}: {r.refund_amount}
-              </span>
-
-            </div>
-
-            <div className="text-[10px] text-gray-400">
-              {new Date(r.created_at).toLocaleString()}
-            </div>
+            ))}
 
           </div>
 
-        ))}
+        )}
 
-      </div>
+      </section>
 
     </main>
 
