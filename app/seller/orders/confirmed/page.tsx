@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useAuth } from "@/context/AuthContext"
 import { formatPi } from "@/lib/pi";
 
 /* ================= TYPES ================= */
@@ -41,11 +42,20 @@ interface Order {
 
 /* ================= HELPERS ================= */
 
-function formatDate(date?: string): string {
-  if (!date) return "—";
+function formatDate(date: string): string {
   const d = new Date(date);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+
+  if (Number.isNaN(d.getTime())) {
+    return "—";
+  }
+
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
+
 
 /* ================= PAGE ================= */
 
@@ -56,12 +66,14 @@ export default function SellerConfirmedOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
-
+const { user, loading: authLoading } = useAuth();
+  
   /* ================= LOAD ================= */
 
   useEffect(() => {
+    if (authLoading) return;
     void loadOrders();
-  }, []);
+  }, [authLoading, loadOrders]);
 
   async function loadOrders() {
     try {
