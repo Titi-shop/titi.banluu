@@ -1,157 +1,103 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import { useAuth } from "@/context/AuthContext";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type ReturnRecord = {
   id: string;
   order_id: string;
-  product_name: string;
-  product_thumbnail: string | null;
-  quantity: number;
-  refund_amount: number;
   status: string;
   created_at: string;
+  return_tracking_code: string | null;
+  refunded_at: string | null;
 };
 
 export default function ReturnsPage() {
-
-  const t = useTranslation();   // 🔥 SỬA CHỖ NÀY
   const router = useRouter();
-  const { accessToken, authLoading } = useAuth();
-
   const [returns, setReturns] = useState<ReturnRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const load = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (authLoading) return;
-    if (!accessToken) return;
+      const token = session?.access_token;
 
-    void loadReturns();
-
-  }, [authLoading, accessToken]);
-
-  async function loadReturns(): Promise<void> {
-
-    if (!accessToken) return;
-
-    try {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
       const res = await fetch("/api/returns", {
+        method: "GET",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
-        cache: "no-store",
       });
 
-      if (!res.ok) throw new Error("LOAD_FAILED");
-
-      const data: ReturnRecord[] = await res.json();
-
-      setReturns(Array.isArray(data) ? data : []);
-
-    } catch (err) {
-
-      console.error("Load returns error:", err);
-      setReturns([]);
-
-    } finally {
+      if (res.ok) {
+        const data = await res.json();
+        setReturns(data);
+      }
 
       setLoading(false);
+    };
 
-    }
-
-  }
+    load();
+  }, []);
 
   function getStatusColor(status: string) {
-
     switch (status) {
-
       case "pending":
         return "bg-yellow-100 text-yellow-700";
-
-      case "seller_reviewing":
-        return "bg-blue-100 text-blue-700";
-
       case "approved":
         return "bg-green-100 text-green-700";
-
-      case "shipping_back":
-        return "bg-indigo-100 text-indigo-700";
-
+      case "shipped":
+        return "bg-blue-100 text-blue-700";
       case "received":
         return "bg-purple-100 text-purple-700";
-
       case "refunded":
         return "bg-green-200 text-green-800";
-
       case "rejected":
         return "bg-red-100 text-red-700";
-
       default:
         return "bg-gray-100 text-gray-600";
     }
-
   }
 
-  if (loading || authLoading) {
-    return <div className="p-6">{t("loading")}</div>;
-  }
+  if (loading) return <div className="p-6">Loading...</div>;
 
   return (
-
     <main className="min-h-screen bg-gray-50 pb-16">
-
       <div className="max-w-xl mx-auto p-4 space-y-4">
-
-        <h1 className="text-lg font-semibold">
-          {t("my_returns")}
-        </h1>
+        <h1 className="text-lg font-semibold">My Returns</h1>
 
         {returns.length === 0 && (
-
           <div className="bg-white p-6 rounded-xl shadow-sm text-center text-gray-500">
-            {t("no_return_requests")}
+            No return requests yet
           </div>
-
         )}
 
         {returns.map((r) => (
-
           <div
             key={r.id}
             onClick={() => router.push(`/customer/returns/${r.id}`)}
             className="bg-white rounded-xl shadow-sm p-4 cursor-pointer hover:shadow-md transition space-y-3"
           >
-
             <div className="flex justify-between items-center">
-
-              <div className="flex items-center gap-3">
-
-                {r.product_thumbnail && (
-                  <img
-                    src={r.product_thumbnail}
-                    className="w-12 h-12 object-cover rounded"
-                  />
-                )}
-
-                <div>
-
-                  <p className="font-medium">
-                    {r.product_name}
-                  </p>
-
-                  <p className="text-xs text-gray-400">
-                    {t("order")}: {r.order_id}
-                  </p>
-
-                </div>
-
+              <div>
+                <p className="font-medium">Return #{r.id}</p>
+                <p className="text-xs text-gray-400">
+                  Order: {r.order_id}
+                </p>
               </div>
 
               <span
@@ -161,33 +107,32 @@ export default function ReturnsPage() {
               >
                 {r.status}
               </span>
-
             </div>
 
-            <div className="text-xs text-gray-500 flex justify-between">
-
-              <span>
-                {t("quantity")}: {r.quantity}
-              </span>
-
-              <span>
-                {t("refund_amount")}: {r.refund_amount}
-              </span>
-
+            <div className="flex items-center gap-2 text-[10px] text-gray-400">
+              <span>Pending</span>
+              <span>→</span>
+              <span>Approved</span>
+              <span>→</span>
+              <span>Shipped</span>
+              <span>→</span>
+              <span>Refunded</span>
             </div>
 
-            <div className="text-[10px] text-gray-400">
-              {new Date(r.created_at).toLocaleString()}
-            </div>
+            {r.return_tracking_code && (
+              <div className="text-xs text-blue-600">
+                Tracking: {r.return_tracking_code}
+              </div>
+            )}
 
+            {r.refunded_at && (
+              <div className="text-xs text-green-600">
+                Refunded at: {new Date(r.refunded_at).toLocaleString()}
+              </div>
+            )}
           </div>
-
         ))}
-
       </div>
-
     </main>
-
   );
-
 }
