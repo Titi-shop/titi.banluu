@@ -3,51 +3,55 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import { useAuth } from "@/context/AuthContext"
+import { useAuth } from "@/context/AuthContext";
 import { formatPi } from "@/lib/pi";
 
 /* ================= TYPES ================= */
 
 interface OrderItem {
   id: string;
-  product_id: string;
+  product_id: string | null;
   product_name: string;
   thumbnail?: string;
   images?: string[];
+
   quantity: number;
-  unit_price: number;
-  total_price: number;
+  unit_price: number | string;
+  total_price: number | string;
 }
 
 interface Order {
   id: string;
   order_number?: string;
+
   status: string;
-  total: number;
+  total: number | string;
+
   created_at?: string;
 
   shipping_name?: string;
   shipping_phone?: string;
   shipping_address?: string;
-  shipping_provider?: string;
-  shipping_country?: string;
-  shipping_postal_code?: string;
+
+  shipping_provider?: string | null;
+  shipping_country?: string | null;
+  shipping_postal_code?: string | null;
 
   order_items: OrderItem[];
 }
 
 /* ================= HELPERS ================= */
 
-function formatDate(date: string): string {
+function formatDate(date?: string): string {
+  if (!date) return "—";
+
   const d = new Date(date);
 
-  if (Number.isNaN(d.getTime())) {
-    return "—";
-  }
+  if (Number.isNaN(d.getTime())) return "—";
 
   return d.toLocaleDateString(undefined, {
     year: "numeric",
@@ -56,33 +60,30 @@ function formatDate(date: string): string {
   });
 }
 
-
 /* ================= PAGE ================= */
 
 export default function SellerConfirmedOrdersPage() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
-const { user, loading: authLoading } = useAuth();
-  
+
   /* ================= LOAD ================= */
 
-  useEffect(() => {
-    if (authLoading) return;
-    void loadOrders();
-  }, [authLoading, loadOrders]);
-
-  async function loadOrders() {
+  const loadOrders = useCallback(async () => {
     try {
       const res = await apiAuthFetch(
         "/api/seller/orders?status=confirmed",
         { cache: "no-store" }
       );
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        setOrders([]);
+        return;
+      }
 
       const data = await res.json();
       setOrders(Array.isArray(data) ? data : []);
@@ -91,18 +92,23 @@ const { user, loading: authLoading } = useAuth();
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    void loadOrders();
+  }, [authLoading, loadOrders]);
 
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
-  () =>
-    orders.reduce(
-      (sum, o) => sum + Number(o.total ?? 0),
-      0
-    ),
-  [orders]
-);
+    () =>
+      orders.reduce(
+        (sum, o) => sum + Number(o.total ?? 0),
+        0
+      ),
+    [orders]
+  );
 
   /* ================= SHIPPING ================= */
 
@@ -115,10 +121,9 @@ const { user, loading: authLoading } = useAuth();
         { method: "PATCH" }
       );
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) return;
 
       await loadOrders();
-    } catch {
     } finally {
       setProcessingId(null);
     }
@@ -128,7 +133,7 @@ const { user, loading: authLoading } = useAuth();
 
   if (loading) {
     return (
-      <p className="text-center mt-10 text-gray-500">
+      <p className="text-center mt-10 text-gray-400">
         {t.loading ?? "Loading..."}
       </p>
     );
@@ -138,36 +143,46 @@ const { user, loading: authLoading } = useAuth();
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
+
       {/* HEADER */}
-      <header className="bg-gray-600/90 backdrop-blur-lg text-white px-4 py-5 shadow-md">
-        <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-          <p className="text-sm font-medium">
-            {t.confirmed_orders ?? "Confirmed Orders"}
+
+      <header className="bg-gray-600 text-white px-4 py-4">
+        <div className="bg-gray-500 rounded-lg p-4">
+
+          <p className="text-sm opacity-90">
+            {t.confirmed_orders ?? "Confirmed orders"}
           </p>
 
-          <p className="text-xs mt-1 text-white/80">
+          <p className="text-xs opacity-80 mt-1">
             {t.orders ?? "Orders"}: {orders.length} · π{formatPi(totalPi)}
           </p>
+
         </div>
       </header>
 
-      {/* CONTENT */}
-      <section className="px-4 mt-5 space-y-4">
+      {/* LIST */}
+
+      <section className="mt-6 px-4 space-y-4">
+
         {orders.length === 0 ? (
           <p className="text-center text-gray-400">
             {t.no_confirmed_orders ?? "No confirmed orders"}
           </p>
         ) : (
           orders.map((order) => (
+
             <div
               key={order.id}
               onDoubleClick={() =>
                 router.push(`/seller/orders/${order.id}`)
               }
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+              className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
+
               {/* ORDER HEADER */}
+
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
+
                 <div>
                   <p className="font-semibold text-sm">
                     #{order.order_number ?? order.id.slice(0, 8)}
@@ -178,15 +193,65 @@ const { user, loading: authLoading } = useAuth();
                   </p>
                 </div>
 
-                <span className="text-xs font-medium px-3 py-1 rounded-full bg-green-100 text-green-700">
+                <span className="text-green-600 text-sm font-medium">
                   {t.status_confirmed ?? "Confirmed"}
                 </span>
+
+              </div>
+
+              {/* SHIPPING INFO */}
+
+              <div className="px-4 py-3 text-sm space-y-1 border-b">
+
+                <p>
+                  <span className="text-gray-500">
+                    {t.customer ?? "Customer"}:
+                  </span>{" "}
+                  {order.shipping_name}
+                </p>
+
+                <p>
+                  <span className="text-gray-500">
+                    {t.phone ?? "Phone"}:
+                  </span>{" "}
+                  {order.shipping_phone}
+                </p>
+
+                <p className="text-gray-600 text-xs">
+                  {order.shipping_address}
+                </p>
+
+                {(order.shipping_provider ||
+                  order.shipping_country ||
+                  order.shipping_postal_code) && (
+
+                  <p className="text-xs text-gray-500">
+
+                    {order.shipping_provider && (
+                      <span>{order.shipping_provider}</span>
+                    )}
+
+                    {order.shipping_country && (
+                      <span> · {order.shipping_country}</span>
+                    )}
+
+                    {order.shipping_postal_code && (
+                      <span> · {order.shipping_postal_code}</span>
+                    )}
+
+                  </p>
+                )}
+
               </div>
 
               {/* PRODUCTS */}
+
               <div className="divide-y">
+
                 {order.order_items.map((item) => (
+
                   <div key={item.id} className="flex gap-3 p-4">
+
                     <img
                       src={
                         item.thumbnail ??
@@ -198,84 +263,53 @@ const { user, loading: authLoading } = useAuth();
                     />
 
                     <div className="flex-1 min-w-0">
+
                       <p className="text-sm font-medium line-clamp-1">
                         {item.product_name}
                       </p>
 
                       <p className="text-xs text-gray-500 mt-1">
-                        x{item.quantity} · π{formatPi(item.unit_price)}
+                        x{item.quantity} · π{formatPi(Number(item.unit_price))}
                       </p>
+
                     </div>
+
                   </div>
+
                 ))}
-              </div>
-
-              {/* SHIPPING INFO */}
-               <div className="px-4 py-3 text-sm space-y-1 border-b">
-
-                <p>
-                  <span className="text-gray-500">
-                    {t.customer ?? "Customer"}:
-                  </span>{" "}
-                  {o.shipping_name}
-                </p>
-
-                <p>
-                  <span className="text-gray-500">
-                    {t.phone ?? "Phone"}:
-                  </span>{" "}
-                  {o.shipping_phone}
-                </p>
-
-                <p className="text-gray-600 text-xs">
-                  {o.shipping_address}
-                </p>
-
-                {(o.shipping_provider ||
-                  o.shipping_country ||
-                  o.shipping_postal_code) && (
-
-                  <p className="text-xs text-gray-500">
-
-                    {o.shipping_provider && (
-                      <span>{o.shipping_provider}</span>
-                    )}
-
-                    {o.shipping_country && (
-                      <span> · {o.shipping_country}</span>
-                    )}
-
-                    {o.shipping_postal_code && (
-                      <span> · {o.shipping_postal_code}</span>
-                    )}
-
-                  </p>
-                )}
 
               </div>
 
               {/* FOOTER */}
+
               <div
-                className="px-4 py-4 border-t bg-gray-50"
+                className="px-4 py-3 border-t bg-gray-50"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="text-sm font-semibold mb-3">
-                  {t.total ?? "Total"}: π{formatPi(Number(o.total ?? 0))}
-                </div>
 
-                <div className="flex justify-end">
+                <div className="flex justify-between items-center">
+
+                  <span className="font-semibold">
+                    {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
+                  </span>
+
                   <button
                     disabled={processingId === order.id}
                     onClick={() => startShipping(order.id)}
-                    className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg disabled:opacity-50"
+                    className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
                   >
-                    {t.start_shipping   ?? "Shipping"}
+                    {t.start_shipping ?? "Start shipping"}
                   </button>
+
                 </div>
+
               </div>
+
             </div>
+
           ))
         )}
+
       </section>
     </main>
   );
