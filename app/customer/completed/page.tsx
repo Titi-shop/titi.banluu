@@ -9,6 +9,7 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
+
 /* =========================
 TYPES
 ========================= */
@@ -21,26 +22,20 @@ type OrderStatus =
   | "cancelled";
 
 interface OrderItem {
-
   product_id: string;
-
   product_name: string;
   thumbnail: string;
   images?: string[];
-
   quantity: number;
   unit_price: number;
   total_price: number;
 }
 
 interface Order {
-
   id: string;
   order_number: string;
-
   total: number;
   status: OrderStatus;
-
   order_items: OrderItem[];
 }
 
@@ -70,8 +65,11 @@ export default function CompletedOrdersPage() {
   const [reviewError, setReviewError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+
     void loadOrders();
-  }, []);
+  }, [authLoading, user]);
 
   /* =========================
   LOAD COMPLETED ORDERS
@@ -79,9 +77,13 @@ export default function CompletedOrdersPage() {
 
   async function loadOrders(): Promise<void> {
 
+    if (authLoading) return;
+    if (!user) return;
+
     try {
 
       const token = await getPiAccessToken();
+      if (!token) return;
 
       const res = await fetch("/api/orders", {
         headers: { Authorization: `Bearer ${token}` },
@@ -153,11 +155,15 @@ export default function CompletedOrdersPage() {
     productId: string
   ) {
 
+    if (authLoading) return;
+    if (!user) return;
+
     try {
 
       setReviewError(null);
 
       const token = await getPiAccessToken();
+      if (!token) return;
 
       const res = await fetch("/api/reviews", {
 
@@ -172,9 +178,7 @@ export default function CompletedOrdersPage() {
 
           order_id: orderId,
           product_id: productId,
-
           rating,
-
           comment: comment.trim() || t.default_review_comment,
 
         }),
