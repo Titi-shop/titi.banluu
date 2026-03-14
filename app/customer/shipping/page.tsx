@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
+import { useAuth } from "@/context/AuthContext";
 
 /* =========================
 ORDER STATUS
@@ -25,7 +26,6 @@ TYPES (MATCH API)
 ========================= */
 
 interface OrderItem {
-
   product_name: string;
   thumbnail: string;
   images?: string[];
@@ -39,7 +39,6 @@ interface OrderItem {
 }
 
 interface Order {
-
   id: string;
   order_number: string;
 
@@ -58,13 +57,18 @@ export default function ShippingOrdersPage() {
   const { t } = useTranslation();
   const router = useRouter();
 
+  const { user, loading: authLoading } = useAuth();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+
     void loadOrders();
-  }, []);
+  }, [authLoading, user]);
 
   /* =========================
   LOAD ORDERS
@@ -72,9 +76,13 @@ export default function ShippingOrdersPage() {
 
   async function loadOrders(): Promise<void> {
 
+    if (authLoading) return;
+    if (!user) return;
+
     try {
 
       const token = await getPiAccessToken();
+      if (!token) return;
 
       const res = await fetch("/api/orders", {
         headers: {
@@ -114,40 +122,45 @@ export default function ShippingOrdersPage() {
 
   async function handleConfirmReceived(orderId: string) {
 
-  try {
+    if (authLoading) return;
+    if (!user) return;
 
-    setProcessingId(orderId);
+    try {
 
-    const token = await getPiAccessToken();
+      setProcessingId(orderId);
 
-    const res = await fetch(`/api/orders/${orderId}/complete`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+      const token = await getPiAccessToken();
+      if (!token) return;
 
-    if (!res.ok) {
-      throw new Error("UPDATE_FAILED");
+      const res = await fetch(`/api/orders/${orderId}/complete`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("UPDATE_FAILED");
+      }
+
+      setOrders((prev) =>
+        prev.filter((o) => o.id !== orderId)
+      );
+
+      router.push("/customer/completed");
+
+    } catch (err) {
+
+      console.error("Confirm received error:", err);
+      alert(t.confirm_failed);
+
+    } finally {
+
+      setProcessingId(null);
+
     }
 
-    setOrders((prev) =>
-      prev.filter((o) => o.id !== orderId)
-    );
-
-    router.push("/customer/completed");
-
-  } catch (err) {
-
-    console.error("Confirm received error:", err);
-    alert(t.confirm_failed);
-
-  } finally {
-
-    setProcessingId(null);
-
   }
-}
 
   const totalPi = orders.reduce(
     (sum, o) => sum + Number(o.total),
