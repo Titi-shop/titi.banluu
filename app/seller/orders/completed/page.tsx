@@ -3,96 +3,127 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useAuth } from "@/context/AuthContext";
 import { formatPi } from "@/lib/pi";
 
 /* ================= TYPES ================= */
 
-interface Product {
-  id: string;
-  name: string;
-  images: string[];
-}
-
 interface OrderItem {
-  product_id: string;
-  quantity: number;
-  price: number;
-  product?: Product;
-}
+  id: string;
+  product_id: string | null;
+  product_name: string;
 
-interface Buyer {
-  name: string;
-  phone: string;
-  address: string;
+  thumbnail?: string;
+  images?: string[];
+
+  quantity: number;
+  unit_price: number | string;
+  total_price: number | string;
 }
 
 interface Order {
   id: string;
+  order_number?: string;
+
   status: string;
-  total: number;
-  created_at: string;
-  buyer?: Buyer;
+  total: number | string;
+
+  created_at?: string;
+
+  shipping_name?: string;
+  shipping_phone?: string;
+  shipping_address?: string;
+
+  shipping_provider?: string | null;
+  shipping_country?: string | null;
+  shipping_postal_code?: string | null;
+
   order_items: OrderItem[];
 }
 
 /* ================= HELPERS ================= */
 
-function formatDate(date: string): string {
+function formatDate(date?: string): string {
+  if (!date) return "—";
+
   const d = new Date(date);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleDateString();
+
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
 /* ================= PAGE ================= */
 
 export default function SellerCompletedOrdersPage() {
+
   const router = useRouter();
   const { t } = useTranslation();
+  const { user, loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* ================= LOAD ================= */
 
-  useEffect(() => {
-    void loadOrders();
-  }, []);
-
-  async function loadOrders(): Promise<void> {
+  const loadOrders = useCallback(async () => {
     try {
+
       const res = await apiAuthFetch(
         "/api/seller/orders?status=completed",
         { cache: "no-store" }
       );
 
-      if (!res.ok) throw new Error("LOAD_FAILED");
+      if (!res.ok) {
+        setOrders([]);
+        return;
+      }
 
-      const data: unknown = await res.json();
-      setOrders(Array.isArray(data) ? (data as Order[]) : []);
+      const data = await res.json();
+
+      setOrders(Array.isArray(data) ? data : []);
+
     } catch {
+
       setOrders([]);
+
     } finally {
+
       setLoading(false);
+
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    void loadOrders();
+  }, [authLoading, loadOrders]);
 
   /* ================= TOTAL ================= */
 
-  const totalPi = useMemo(() => {
-    return orders.reduce((sum, o) => sum + o.total, 0);
-  }, [orders]);
+  const totalPi = useMemo(
+    () =>
+      orders.reduce(
+        (sum, o) => sum + Number(o.total ?? 0),
+        0
+      ),
+    [orders]
+  );
 
   /* ================= LOADING ================= */
 
   if (loading) {
     return (
-      <p className="text-center mt-10 text-gray-500">
-         {t.loading ?? "Loading..."}
+      <p className="text-center mt-10 text-gray-400">
+        {t.loading ?? "Loading..."}
       </p>
     );
   }
@@ -101,118 +132,170 @@ export default function SellerCompletedOrdersPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
-      {/* ===== HEADER XÁM MỜ ===== */}
-      <header className="bg-gray-600/90 backdrop-blur-lg text-white px-4 py-5 shadow-md">
-        <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-          <p className="text-sm font-medium opacity-90">
-            {t.completed_orders ?? "Completed Orders"}
+
+      {/* HEADER */}
+
+      <header className="bg-gray-600 text-white px-4 py-4">
+
+        <div className="bg-gray-500 rounded-lg p-4">
+
+          <p className="text-sm opacity-90">
+            {t.completed_orders ?? "Completed orders"}
           </p>
 
-          <p className="text-xs mt-1 text-white/80">
-            {t.orders ?? "Orders"}: {orders.length} · π
-            {formatPi(totalPi)}
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders ?? "Orders"}: {orders.length} · π{formatPi(totalPi)}
           </p>
+
         </div>
+
       </header>
 
-      {/* ===== CONTENT ===== */}
-      <section className="px-4 mt-5 space-y-4">
+      {/* LIST */}
+
+      <section className="mt-6 px-4 space-y-4">
+
         {orders.length === 0 ? (
           <p className="text-center text-gray-400">
             {t.no_completed_orders ?? "No completed orders"}
           </p>
         ) : (
+
           orders.map((order) => (
+
             <div
               key={order.id}
               onDoubleClick={() =>
                 router.push(`/seller/orders/${order.id}`)
               }
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden active:scale-[0.99] transition"
+              className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
+
               {/* ORDER HEADER */}
+
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
+
                 <div>
+
                   <p className="font-semibold text-sm">
-                    #{order.id.slice(0, 8)}
+                    #{order.order_number ?? order.id.slice(0, 8)}
                   </p>
+
                   <p className="text-xs text-gray-500">
                     {formatDate(order.created_at)}
                   </p>
+
                 </div>
 
-                <span className="text-xs font-medium px-3 py-1 rounded-full bg-green-100 text-green-700">
+                <span className="text-green-600 text-sm font-medium">
                   {t.status_completed ?? "Completed"}
                 </span>
+
               </div>
 
-              {/* BUYER INFO */}
-              <div className="px-4 py-3 text-sm space-y-1">
+              {/* SHIPPING INFO */}
+
+              <div className="px-4 py-3 text-sm space-y-1 border-b">
+
                 <p>
                   <span className="text-gray-500">
                     {t.customer ?? "Customer"}:
                   </span>{" "}
-                  {order.buyer?.name ?? "—"}
+                  {order.shipping_name}
                 </p>
 
                 <p>
                   <span className="text-gray-500">
                     {t.phone ?? "Phone"}:
                   </span>{" "}
-                  {order.buyer?.phone ?? "—"}
+                  {order.shipping_phone}
                 </p>
 
                 <p className="text-gray-600 text-xs">
-                  {order.buyer?.address ??
-                    (t.no_address ?? "No address")}
+                  {order.shipping_address}
                 </p>
+
+                {(order.shipping_provider ||
+                  order.shipping_country ||
+                  order.shipping_postal_code) && (
+
+                  <p className="text-xs text-gray-500">
+
+                    {order.shipping_provider && (
+                      <span>{order.shipping_provider}</span>
+                    )}
+
+                    {order.shipping_country && (
+                      <span> · {order.shipping_country}</span>
+                    )}
+
+                    {order.shipping_postal_code && (
+                      <span> · {order.shipping_postal_code}</span>
+                    )}
+
+                  </p>
+
+                )}
+
               </div>
 
               {/* PRODUCTS */}
+
               <div className="divide-y">
+
                 {order.order_items.map((item) => (
-                  <div
-                    key={`${order.id}-${item.product_id}`}
-                    className="flex gap-3 p-4"
-                  >
+
+                  <div key={item.id} className="flex gap-3 p-4">
+
                     <img
                       src={
-                        item.product?.images?.[0] ??
+                        item.thumbnail ??
+                        item.images?.[0] ??
                         "/placeholder.png"
                       }
-                      alt={item.product?.name ?? (t.product ?? "Product")}
+                      alt={item.product_name}
                       className="w-14 h-14 rounded-lg object-cover bg-gray-100"
                     />
 
                     <div className="flex-1 min-w-0">
+
                       <p className="text-sm font-medium line-clamp-1">
-                        {item.product?.name ??
-                          (t.product ?? "Product")}
+                        {item.product_name}
                       </p>
 
                       <p className="text-xs text-gray-500 mt-1">
-                        x{item.quantity} · π
-                        {formatPi(item.price)}
+                        x{item.quantity} · π{formatPi(Number(item.unit_price))}
                       </p>
+
                     </div>
+
                   </div>
+
                 ))}
+
               </div>
 
               {/* FOOTER */}
+
               <div
-                className="px-4 py-3 border-t bg-gray-50 text-sm"
+                className="px-4 py-3 border-t bg-gray-50"
                 onClick={(e) => e.stopPropagation()}
               >
+
                 <span className="font-semibold">
-                  {t.total ?? "Total"}: π
-                  {formatPi(order.total)}
+                  {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
                 </span>
+
               </div>
+
             </div>
+
           ))
+
         )}
+
       </section>
+
     </main>
   );
 }
