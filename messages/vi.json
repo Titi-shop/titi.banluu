@@ -374,6 +374,20 @@
   "profile_shop_name": "Tên cửa hàng",
   "profile_shop_description": "Mô tả cửa hàng",
   "upload_banner": "Tải banner cửa hàng",
-  "no_banner": "Chưa có banner"
+  "no_banner": "Chưa có banner",
+
+
+  
+  "loading_order": "Đang tải đơn hàng...",
+  "order_not_found": "Không tìm thấy đơn hàng",
+
+  "order_detail": "Chi tiết đơn hàng",
+  "order_id": "Mã đơn hàng",
+  "status": "Trạng thái",
+  "created_at": "Ngày tạo",
+  "total": "Tổng tiền",
+
+  "request_return": "Yêu cầu hoàn hàng",
+  "view_return_status": "Xem trạng thái hoàn hàng"
   
 }
