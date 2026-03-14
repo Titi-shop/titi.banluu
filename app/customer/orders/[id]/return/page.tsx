@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getPiAccessToken } from "@/lib/piAuth";
+import { useAuth } from "@/app/context/AuthContext";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type OrderStatus =
   | "pending"
@@ -19,12 +20,18 @@ type OrderDetail = {
 export default function OrderReturnPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { accessToken, authLoading } = useAuth();
+  const { t } = useTranslation();
 
   const orderId = params.id;
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [reason, setReason] = useState<string>("");
   const [description, setDescription] = useState<string>("");
+
+  const [images, setImages] = useState<File[]>([]);
+  const [preview, setPreview] = useState<string[]>([]);
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -32,14 +39,19 @@ export default function OrderReturnPage() {
   /* =========================
      1️⃣ LOAD ORDER
   ========================= */
+
   useEffect(() => {
+    if (authLoading) return;
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
+
     async function loadOrder() {
       try {
-        const token = await getPiAccessToken();
-
         const res = await fetch(`/api/orders/${orderId}`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         });
 
@@ -66,34 +78,67 @@ export default function OrderReturnPage() {
     }
 
     loadOrder();
-  }, [orderId]);
+  }, [orderId, accessToken, authLoading]);
 
   /* =========================
-     2️⃣ SUBMIT RETURN
+     2️⃣ IMAGE SELECT
   ========================= */
+
+  function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newFiles: File[] = [];
+    const newPreview: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      if (images.length + newFiles.length >= 3) break;
+
+      const file = files[i];
+      newFiles.push(file);
+      newPreview.push(URL.createObjectURL(file));
+    }
+
+    setImages((prev) => [...prev, ...newFiles]);
+    setPreview((prev) => [...prev, ...newPreview]);
+  }
+
+  function removeImage(index: number) {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    setPreview((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  /* =========================
+     3️⃣ SUBMIT RETURN
+  ========================= */
+
   async function handleSubmit() {
     if (!reason.trim()) {
       setError("Vui lòng nhập lý do trả hàng");
       return;
     }
 
+    if (!accessToken) return;
+
     try {
       setSubmitting(true);
       setError(null);
 
-      const token = await getPiAccessToken();
+      const formData = new FormData();
+      formData.append("order_id", orderId);
+      formData.append("reason", reason);
+      formData.append("description", description);
+
+      images.forEach((file) => {
+        formData.append("images", file);
+      });
 
       const res = await fetch("/api/returns", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          order_id: orderId,
-          reason,
-          description,
-        }),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -112,12 +157,13 @@ export default function OrderReturnPage() {
   }
 
   /* =========================
-     3️⃣ UI
+     4️⃣ UI
   ========================= */
-  if (loading) {
+
+  if (loading || authLoading) {
     return (
       <main className="p-4">
-        <p>Đang tải...</p>
+        <p>{t("loading")}</p>
       </main>
     );
   }
@@ -161,6 +207,41 @@ export default function OrderReturnPage() {
           className="w-full border rounded-md p-2 text-sm"
           rows={4}
         />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
+          Ảnh sản phẩm (tối đa 3 ảnh)
+        </label>
+
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageChange}
+          disabled={images.length >= 3}
+          className="text-sm"
+        />
+
+        {preview.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {preview.map((src, i) => (
+              <div key={i} className="relative">
+                <img
+                  src={src}
+                  className="w-full h-24 object-cover rounded border"
+                />
+
+                <button
+                  onClick={() => removeImage(i)}
+                  className="absolute top-1 right-1 bg-black text-white text-xs px-1 rounded"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {error && (
