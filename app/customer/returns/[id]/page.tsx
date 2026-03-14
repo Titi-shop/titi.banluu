@@ -219,12 +219,12 @@ export default function ReturnsPage() {
                 <div className="flex justify-between items-start px-4 py-3 border-b">
 
                   <span className="font-semibold text-xs break-all max-w-[60%]">
-                    #{t.order_id}
+                    #{r.order_id}
                   </span>
 
                   <span
                     className={`text-xs text-right max-w-[120px] leading-tight ${getStatusColor(
-                      t.status
+                      r.status
                     )}`}
                   >
                     {t[r.status]}
@@ -269,7 +269,7 @@ export default function ReturnsPage() {
                   </p>
 
                   <span className="text-xs text-gray-400">
-                    {new Date(t.created_at).toLocaleDateString()}
+                    {new Date(r.created_at).toLocaleDateString()}
                   </span>
 
                 </div>
