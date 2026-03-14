@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
+import { useAuth } from "@/context/AuthContext";
 
 /* =========================
 ORDER STATUS
@@ -56,12 +57,19 @@ export default function CustomerPickupPage() {
 
   const { t } = useTranslation();
 
+  const { user, loading: authLoading } = useAuth();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+
+    if (authLoading) return;
+    if (!user) return;
+
     void loadOrders();
-  }, []);
+
+  }, [authLoading, user]);
 
   /* =========================
   LOAD ORDERS
@@ -69,9 +77,13 @@ export default function CustomerPickupPage() {
 
   async function loadOrders(): Promise<void> {
 
+    if (authLoading) return;
+    if (!user) return;
+
     try {
 
       const token = await getPiAccessToken();
+      if (!token) return;
 
       const res = await fetch("/api/orders", {
         headers: {
@@ -87,8 +99,8 @@ export default function CustomerPickupPage() {
       const rawOrders = data.orders ?? [];
 
       const filtered = rawOrders.filter(
-  (o) => o.status === "pickup"
-);
+        (o) => o.status === "pickup"
+      );
 
       setOrders(filtered);
 
@@ -134,7 +146,7 @@ export default function CustomerPickupPage() {
 
       <section className="mt-6 px-4">
 
-        {loading ? (
+        {loading || authLoading ? (
 
           <p className="text-center text-gray-400">
             {t.loading_orders}
@@ -180,46 +192,48 @@ export default function CustomerPickupPage() {
                 {/* PRODUCTS */}
 
                 <div className="px-4 py-3 space-y-3">
-{o.order_items
-  ?.filter(
-    (item) =>
-      item.status === "confirmed"
-  )
-  .map((item, idx) => (
 
-    <div
-      key={idx}
-      className="flex gap-3 items-center"
-    >
+                  {o.order_items
+                    ?.filter(
+                      (item) =>
+                        item.status === "confirmed"
+                    )
+                    .map((item, idx) => (
 
-      <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
-        <img
-          src={item.thumbnail || "/placeholder.png"}
-          alt={item.product_name}
-          className="w-full h-full object-cover"
-        />
-      </div>
+                      <div
+                        key={idx}
+                        className="flex gap-3 items-center"
+                      >
 
-      <div className="flex-1 min-w-0">
+                        <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden">
+                          <img
+                            src={item.thumbnail || "/placeholder.png"}
+                            alt={item.product_name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
 
-        <p className="text-sm font-medium line-clamp-1">
-          {item.product_name}
-        </p>
+                        <div className="flex-1 min-w-0">
 
-        <p className="text-xs text-gray-500">
-          x{item.quantity} · π
-          {formatPi(
-            Number(item.total_price) /
-            Number(item.quantity || 1)
-          )}
-        </p>
+                          <p className="text-sm font-medium line-clamp-1">
+                            {item.product_name}
+                          </p>
 
-      </div>
+                          <p className="text-xs text-gray-500">
+                            x{item.quantity} · π
+                            {formatPi(
+                              Number(item.total_price) /
+                              Number(item.quantity || 1)
+                            )}
+                          </p>
 
-    </div>
+                        </div>
 
-))}
-</div>
+                      </div>
+
+                    ))}
+
+                </div>
 
                 {/* FOOTER */}
 
