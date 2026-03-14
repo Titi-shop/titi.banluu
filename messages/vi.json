@@ -430,5 +430,8 @@
 
   "refund_processing": "Đang xử lý hoàn tiền",
 
-  "refund_completed": "Đã hoàn tiền"
+  "refund_completed": "Đã hoàn tiền",
+
+  "order_not_found": "Không tìm thấy đơn hàng"
+}
 }
