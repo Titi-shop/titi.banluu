@@ -367,8 +367,6 @@ setShop({
 
   </div>
 
-</div>
-
       {/* MESSAGE */}
 
       {message.text && (
