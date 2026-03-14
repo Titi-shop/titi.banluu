@@ -53,26 +53,36 @@ PAGE
 export default function CustomerOrdersPage() {
 
   const { t } = useTranslation();
+  const router = useRouter();
+
+  const { user, loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
- const router = useRouter();
-const { user, loading: authLoading } = useAuth();
-  
+
   /* =========================
   LOAD ORDERS
   ========================= */
 
   useEffect(() => {
+
+    if (authLoading) return;
+    if (!user) return;
+
     void loadOrders();
-  }, []);
+
+  }, [authLoading, user]);
 
   async function loadOrders(): Promise<void> {
+
+    if (authLoading) return;
+    if (!user) return;
 
     try {
 
       const token = await getPiAccessToken();
+      if (!token) return;
 
       const res = await fetch("/api/orders", {
         headers: {
@@ -102,116 +112,121 @@ const { user, loading: authLoading } = useAuth();
 
   }
 
+  /* =========================
+  REBUY
+  ========================= */
 
   async function handleRebuy(order: Order) {
 
-  if (!window.Pi || !piReady || !user) {
-    alert("Pi chưa sẵn sàng");
-    return;
-  }
+    if (authLoading || !user) {
+      alert("Auth chưa sẵn sàng");
+      return;
+    }
 
-  const item = order.order_items?.[0];
+    if (!window.Pi) {
+      alert("Pi chưa sẵn sàng");
+      return;
+    }
 
-  if (!item) {
-    alert("Không có sản phẩm");
-    return;
-  }
+    const item = order.order_items?.[0];
 
-  const total = Number(order.total);
+    if (!item) {
+      alert("Không có sản phẩm");
+      return;
+    }
 
-  try {
+    const total = Number(order.total);
 
-    await window.Pi.createPayment(
-      {
-        amount: Number(total.toFixed(6)),
-        memo: "Thanh toán đơn hàng TiTi",
+    try {
 
-        metadata: {
-          shipping: null, // checkout sẽ load lại address
-          product: {
-            id: item.product_id,
-            name: item.product_name,
-            image: item.thumbnail || item.images?.[0] || "",
-            price: item.unit_price
+      await window.Pi.createPayment(
+        {
+          amount: Number(total.toFixed(6)),
+          memo: "Thanh toán đơn hàng TiTi",
+
+          metadata: {
+            shipping: null,
+            product: {
+              id: item.product_id,
+              name: item.product_name,
+              image: item.thumbnail || item.images?.[0] || "",
+              price: item.unit_price
+            },
+            quantity: item.quantity
           },
-          quantity: item.quantity
-        },
-      },
-
-      {
-        /* APPROVE */
-
-        onReadyForServerApproval: async (paymentId, callback) => {
-
-          const token = await getPiAccessToken();
-
-          const res = await fetch("/api/pi/approve", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ paymentId }),
-          });
-
-          if (!res.ok) {
-            alert("Approve thất bại");
-            return;
-          }
-
-          callback();
         },
 
-        /* COMPLETE */
+        {
 
-        onReadyForServerCompletion: async (paymentId, txid) => {
+          onReadyForServerApproval: async (paymentId, callback) => {
 
-          const token = await getPiAccessToken();
+            const token = await getPiAccessToken();
 
-          const res = await fetch("/api/pi/complete", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              paymentId,
-              txid,
-              product_id: item.product_id,
-              quantity: item.quantity,
-              total,
-              shipping: null,
-              user: {
-                pi_uid: user.pi_uid
-              }
-            }),
-          });
+            const res = await fetch("/api/pi/approve", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ paymentId }),
+            });
 
-          if (!res.ok) {
-            alert("Complete thất bại");
-            return;
-          }
+            if (!res.ok) {
+              alert("Approve thất bại");
+              return;
+            }
 
-          router.push("/customer/pending");
-        },
+            callback();
+          },
 
-        onCancel: () => {},
+          onReadyForServerCompletion: async (paymentId, txid) => {
 
-        onError: () => {
-          alert("Thanh toán lỗi");
-        },
-      }
-    );
+            const token = await getPiAccessToken();
 
-  } catch (err) {
+            const res = await fetch("/api/pi/complete", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                paymentId,
+                txid,
+                product_id: item.product_id,
+                quantity: item.quantity,
+                total,
+                shipping: null,
+                user: {
+                  pi_uid: user.pi_uid
+                }
+              }),
+            });
 
-    console.error(err);
+            if (!res.ok) {
+              alert("Complete thất bại");
+              return;
+            }
 
-    alert("Không thể thanh toán");
+            router.push("/customer/pending");
+          },
+
+          onCancel: () => {},
+
+          onError: () => {
+            alert("Thanh toán lỗi");
+          },
+        }
+      );
+
+    } catch (err) {
+
+      console.error(err);
+      alert("Không thể thanh toán");
+
+    }
 
   }
 
-}
   /* =========================
   FILTER
   ========================= */
@@ -230,8 +245,6 @@ const { user, loading: authLoading } = useAuth();
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
-
-      {/* HEADER */}
 
       <header className="bg-orange-500 text-white px-4 py-4">
 
@@ -286,7 +299,7 @@ const { user, loading: authLoading } = useAuth();
 
       <section className="px-4 mt-4 space-y-4">
 
-        {loading ? (
+        {loading || authLoading ? (
 
           <p className="text-center text-gray-500">
             {t.loading}
@@ -307,20 +320,17 @@ const { user, loading: authLoading } = useAuth();
               className="bg-white rounded-lg shadow-sm overflow-hidden"
             >
 
-              {/* HEADER */}
-
               <div className="flex justify-between px-4 py-3 border-b text-sm">
 
                 <span className="font-semibold">
                   #{o.order_number}
                 </span>
+
                 <span className="text-orange-500 text-right max-w-[120px] leading-tight line-clamp-2">
-  {t[`order_${o.status}`] ?? o.status}
-</span>
+                  {t[`order_${o.status}`] ?? o.status}
+                </span>
 
               </div>
-
-              {/* PRODUCTS */}
 
               {o.order_items?.map((item, idx) => (
 
@@ -345,25 +355,23 @@ const { user, loading: authLoading } = useAuth();
                       {item.product_name}
                     </p>
 
-                     <p className="text-xs text-gray-500">
-                          x{item.quantity} · π
-                          {formatPi(
-                            Number(item.total_price) /
-                            Number(item.quantity || 1)
-                          )}
-                        </p>
+                    <p className="text-xs text-gray-500">
+                      x{item.quantity} · π
+                      {formatPi(
+                        Number(item.total_price) /
+                        Number(item.quantity || 1)
+                      )}
+                    </p>
 
                     {item.seller_message && (
                       <p className="text-xs text-blue-600 mt-1">
-                        {t.seller_message ?? "Seller message"}:{" "}
-                        {item.seller_message}
+                        {t.seller_message}: {item.seller_message}
                       </p>
                     )}
 
                     {item.seller_cancel_reason && (
                       <p className="text-xs text-red-500 mt-1">
-                        {t.seller_cancel_reason ?? "Seller reason"}:{" "}
-                        {item.seller_cancel_reason}
+                        {t.seller_cancel_reason}: {item.seller_cancel_reason}
                       </p>
                     )}
 
@@ -373,25 +381,18 @@ const { user, loading: authLoading } = useAuth();
 
               ))}
 
-              {/* FOOTER */}
-
               <div className="flex justify-between items-center px-4 py-3 text-sm">
 
                 <span>
-
-                  {t.total}:{" "}
-                  <b>π{formatPi(o.total)}</b>
-
+                  {t.total}: <b>π{formatPi(o.total)}</b>
                 </span>
 
                 <button
-  onClick={() => handleRebuy(o)}
-  className="px-4 py-1 border border-orange-500 text-orange-500 rounded"
->
-  {t.buy_now}
-</button>
-
-            
+                  onClick={() => handleRebuy(o)}
+                  className="px-4 py-1 border border-orange-500 text-orange-500 rounded"
+                >
+                  {t.buy_now}
+                </button>
 
               </div>
 
