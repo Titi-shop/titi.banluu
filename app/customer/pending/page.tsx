@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-
+import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
@@ -52,6 +52,7 @@ PAGE
 export default function PendingOrdersPage() {
 
   const { t } = useTranslation();
+  const { loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +62,7 @@ export default function PendingOrdersPage() {
   const [selectedReason, setSelectedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
 
+  
   useEffect(() => {
     void loadOrders();
   }, []);
