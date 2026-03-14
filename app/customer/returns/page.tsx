@@ -20,7 +20,7 @@ type ReturnRecord = {
 
 export default function ReturnsPage() {
 
-  const { t } = useTranslation();
+  const t = useTranslation();   // 🔥 SỬA CHỖ NÀY
   const router = useRouter();
   const { accessToken, authLoading } = useAuth();
 
