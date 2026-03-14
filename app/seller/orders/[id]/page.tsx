@@ -5,59 +5,64 @@ export const fetchCache = "force-no-store";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { formatPi } from "@/lib/pi";
 
-/* =========================
-   TYPES
-========================= */
-
-interface Product {
-  name: string;
-}
+/* ================= TYPES ================= */
 
 interface OrderItem {
-  quantity: number;
-  product?: Product;
-}
+  id: string;
+  product_id: string | null;
+  product_name: string;
 
-interface Buyer {
-  name: string;
-  phone?: string;
-  address?: string;
-  province?: string;
-  country?: string;
+  quantity: number;
+  unit_price: number | string;
+  total_price: number | string;
 }
 
 interface Order {
   id: string;
+  order_number?: string;
+
   created_at: string;
-  buyer: Buyer;
+
+  shipping_name?: string;
+  shipping_phone?: string;
+  shipping_address?: string;
+
+  shipping_provider?: string | null;
+  shipping_country?: string | null;
+  shipping_postal_code?: string | null;
+
+  total?: number | string;
+
   order_items: OrderItem[];
 }
 
-/* =========================
-   HELPERS
-========================= */
+/* ================= HELPERS ================= */
 
 function formatDate(date: string): string {
   const d = new Date(date);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
+  return Number.isNaN(d.getTime())
+    ? "—"
+    : d.toLocaleString();
 }
 
 function downloadText(filename: string, content: string): void {
   const blob = new Blob([content], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
+
   URL.revokeObjectURL(url);
 }
 
-/* =========================
-   PAGE
-========================= */
+/* ================= PAGE ================= */
 
 export default function SellerOrderDetailPage({
   params,
@@ -66,16 +71,16 @@ export default function SellerOrderDetailPage({
 }) {
   const router = useRouter();
   const { t } = useTranslation();
-
+const { user, loading: authLoading } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
-    void loadOrder();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (authLoading) return;
+    void loadOrders();
+  }, [authLoading, loadOrders]);
 
   async function loadOrder(): Promise<void> {
     try {
@@ -87,6 +92,7 @@ export default function SellerOrderDetailPage({
       if (!res.ok) throw new Error("LOAD_FAILED");
 
       const data = await res.json();
+
       setOrder(data as Order);
     } catch {
       setOrder(null);
@@ -100,7 +106,7 @@ export default function SellerOrderDetailPage({
   if (loading) {
     return (
       <p className="text-center mt-10 text-gray-500">
-        ⏳ {t.loading_order ?? "Loading order..."}
+        {t.loading_order ?? "Loading order..."}
       </p>
     );
   }
@@ -108,90 +114,132 @@ export default function SellerOrderDetailPage({
   if (!order) {
     return (
       <p className="text-center mt-10 text-red-500">
-        ❌ {t.order_not_found ?? "Order not found"}
+        {t.order_not_found ?? "Order not found"}
       </p>
     );
   }
 
+  /* ================= TOTAL ================= */
+
+  const total =
+    order.total ??
+    order.order_items.reduce(
+      (sum, i) => sum + Number(i.total_price ?? 0),
+      0
+    );
+
   /* ================= DOWNLOAD CONTENT ================= */
 
   const downloadContent = `
-${t.order ?? "ORDER"}: ${order.id}
+${t.order ?? "ORDER"}: ${order.order_number ?? order.id}
 ${t.created_at ?? "Created at"}: ${formatDate(order.created_at)}
 
 ${t.receiver ?? "Receiver"}:
-${t.name ?? "Name"}: ${order.buyer.name}
-${t.phone ?? "Phone"}: ${order.buyer.phone ?? ""}
-${t.address ?? "Address"}: ${order.buyer.address ?? ""}
-${t.province ?? "Province"}: ${order.buyer.province ?? ""}
-${t.country ?? "Country"}: ${order.buyer.country ?? ""}
+${t.name ?? "Name"}: ${order.shipping_name ?? ""}
+${t.phone ?? "Phone"}: ${order.shipping_phone ?? ""}
+${t.address ?? "Address"}: ${order.shipping_address ?? ""}
+${t.country ?? "Country"}: ${order.shipping_country ?? ""}
+${t.postal_code ?? "Postal code"}: ${order.shipping_postal_code ?? ""}
+${t.shipping_provider ?? "Shipping"}: ${order.shipping_provider ?? ""}
 
 ${t.products ?? "Products"}:
 ${order.order_items
   .map(
     (item, idx) =>
-      `${idx + 1}. ${
-        item.product?.name ?? (t.product ?? "Product")
-      } x${item.quantity}`
+      `${idx + 1}. ${item.product_name} x${item.quantity} · π${formatPi(
+        Number(item.unit_price)
+      )}`
   )
   .join("\n")}
+
+${t.total ?? "Total"}: π${formatPi(Number(total))}
 `;
 
   /* ================= UI ================= */
 
   return (
-    <main className="min-h-screen bg-[#f4efe6] p-6 print:bg-white">
-      {/* ACTION BAR (HIDDEN WHEN PRINTING) */}
+    <main className="min-h-screen bg-gray-100 p-6 print:bg-white">
+
+      {/* ACTION BAR */}
+
       <div className="flex justify-end gap-2 mb-6 print:hidden">
+
         <button
           onClick={() =>
-            downloadText(`order-${order.id}.txt`, downloadContent)
+            downloadText(
+              `order-${order.order_number ?? order.id}.txt`,
+              downloadContent
+            )
           }
-          className="px-4 py-2 border border-[#7a553a] text-[#7a553a] rounded"
+          className="px-4 py-2 border border-gray-600 text-gray-700 rounded"
         >
-          💾 {t.download ?? "Download"}
+          {t.download ?? "Download"}
         </button>
 
         <button
           onClick={() => window.print()}
-          className="px-4 py-2 bg-[#7a553a] text-white rounded"
+          className="px-4 py-2 bg-gray-700 text-white rounded"
         >
-          🖨 {t.print ?? "Print"}
+          {t.print ?? "Print"}
         </button>
+
       </div>
 
       {/* ORDER PAPER */}
+
       <section className="max-w-2xl mx-auto bg-white p-6 border shadow print:shadow-none">
+
         <h1 className="text-xl font-semibold text-center mb-6">
           {t.delivery_note ?? "Delivery Note"}
         </h1>
 
-        {/* BUYER INFO */}
+        {/* SHIPPING INFO */}
+
         <div className="space-y-1 text-sm mb-6">
+
           <p>
-            <b>{t.receiver ?? "Receiver"}:</b> {order.buyer.name}
+            <b>{t.receiver ?? "Receiver"}:</b>{" "}
+            {order.shipping_name}
           </p>
+
           <p>
-            <b>{t.phone ?? "Phone"}:</b> {order.buyer.phone ?? ""}
+            <b>{t.phone ?? "Phone"}:</b>{" "}
+            {order.shipping_phone}
           </p>
+
           <p>
-            <b>{t.address ?? "Address"}:</b> {order.buyer.address ?? ""}
+            <b>{t.address ?? "Address"}:</b>{" "}
+            {order.shipping_address}
           </p>
+
           <p>
-            <b>{t.province ?? "Province"}:</b> {order.buyer.province ?? ""}
+            <b>{t.country ?? "Country"}:</b>{" "}
+            {order.shipping_country}
           </p>
+
           <p>
-            <b>{t.country ?? "Country"}:</b> {order.buyer.country ?? ""}
+            <b>{t.postal_code ?? "Postal code"}:</b>{" "}
+            {order.shipping_postal_code}
           </p>
+
+          <p>
+            <b>{t.shipping_provider ?? "Shipping"}:</b>{" "}
+            {order.shipping_provider}
+          </p>
+
           <p>
             <b>{t.created_at ?? "Created at"}:</b>{" "}
             {formatDate(order.created_at)}
           </p>
+
         </div>
 
         {/* ITEMS TABLE */}
+
         <table className="w-full border text-sm">
+
           <thead className="bg-gray-100">
+
             <tr>
               <th className="border px-2 py-1 text-left">#</th>
               <th className="border px-2 py-1 text-left">
@@ -200,24 +248,51 @@ ${order.order_items
               <th className="border px-2 py-1 text-center">
                 {t.quantity ?? "Qty"}
               </th>
+              <th className="border px-2 py-1 text-right">
+                π
+              </th>
             </tr>
+
           </thead>
+
           <tbody>
+
             {order.order_items.map((item, i) => (
-              <tr key={i}>
-                <td className="border px-2 py-1">{i + 1}</td>
+
+              <tr key={item.id}>
+
                 <td className="border px-2 py-1">
-                  {item.product?.name ??
-                    (t.product ?? "Product")}
+                  {i + 1}
                 </td>
+
+                <td className="border px-2 py-1">
+                  {item.product_name}
+                </td>
+
                 <td className="border px-2 py-1 text-center">
                   {item.quantity}
                 </td>
+
+                <td className="border px-2 py-1 text-right">
+                  π{formatPi(Number(item.total_price))}
+                </td>
+
               </tr>
+
             ))}
+
           </tbody>
+
         </table>
+
+        {/* TOTAL */}
+
+        <div className="mt-4 text-right font-semibold">
+          {t.total ?? "Total"}: π{formatPi(Number(total))}
+        </div>
+
       </section>
+
     </main>
   );
 }
