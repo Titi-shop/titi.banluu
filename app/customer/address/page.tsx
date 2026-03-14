@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { countries } from "@/data/countries";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
-
+import { useAuth } from "@/context/AuthContext";
 /* =========================
    TYPES
 ========================= */
@@ -32,6 +32,7 @@ const emptyForm = {
 export default function CustomerAddressPage() {
   const router = useRouter();
   const { t } = useTranslation();
+const { loading: authLoading } = useAuth();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [showForm, setShowForm] = useState(false);
