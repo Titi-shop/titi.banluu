@@ -95,9 +95,14 @@ const { user, loading: authLoading } = useAuth();
 
   /* ================= TOTAL ================= */
 
-  const totalPi = useMemo(() => {
-    return orders.reduce((sum, o) => sum + o.total, 0);
-  }, [orders]);
+  const totalPi = useMemo(
+  () =>
+    orders.reduce(
+      (sum, o) => sum + Number(o.total ?? 0),
+      0
+    ),
+  [orders]
+);
 
   /* ================= SHIPPING ================= */
 
@@ -222,7 +227,7 @@ const { user, loading: authLoading } = useAuth();
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="text-sm font-semibold mb-3">
-                  {t.total ?? "Total"}: π{formatPi(order.total)}
+                  {t.total ?? "Total"}: π{formatPi(Number(o.total ?? 0))}
                 </div>
 
                 <div className="flex justify-end">
