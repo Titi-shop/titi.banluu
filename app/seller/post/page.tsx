@@ -22,6 +22,10 @@ interface MessageState {
   type: "success" | "error" | "";
 }
 
+interface AuthUser {
+  role?: string;
+}
+
 /* =========================
    PAGE
 ========================= */
@@ -29,6 +33,8 @@ export default function SellerPostPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading } = useAuth();
+
+  const authUser = user as AuthUser | null;
 
   /* =========================
      STATE
@@ -54,10 +60,10 @@ export default function SellerPostPage() {
      SELLER GUARD
   ========================= */
   useEffect(() => {
-    if (!loading && (!user || user.role !== "seller")) {
+    if (!loading && (!authUser || authUser.role !== "seller")) {
       router.replace("/account");
     }
-  }, [loading, user, router]);
+  }, [loading, authUser, router]);
 
   /* =========================
      LOAD CATEGORIES
@@ -96,22 +102,22 @@ export default function SellerPostPage() {
         form.append("file", file);
 
         const res = await apiAuthFetch("/api/upload", {
-  method: "POST",
-  body: form,
-});
+          method: "POST",
+          body: form,
+        });
 
-if (!res.ok) {
-  console.error("UPLOAD ERROR:", await res.text());
-  throw new Error("UPLOAD_FAILED");
-}
+        if (!res.ok) {
+          console.error("UPLOAD ERROR:", await res.text());
+          throw new Error("UPLOAD_FAILED");
+        }
 
-const data = (await res.json()) as { url?: string };
+        const data = (await res.json()) as { url?: string };
 
-if (!data.url) {
-  throw new Error("NO_URL_RETURNED");
-}
+        if (!data.url) {
+          throw new Error("NO_URL_RETURNED");
+        }
 
-setter((prev) => [...prev, data.url]);
+        setter((prev) => [...prev, data.url]);
       }
     } catch {
       setMessage({
@@ -127,17 +133,17 @@ setter((prev) => [...prev, data.url]);
     setImages((prev) => prev.filter((_, i) => i !== index));
   }
 
-
-function localToUTC(local: string): string {
-  return new Date(local).toISOString();
-}
+  function localToUTC(local: string): string {
+    return new Date(local).toISOString();
+  }
 
   /* =========================
      SUBMIT
   ========================= */
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!user || user.role !== "seller") return;
+
+    if (!authUser || authUser.role !== "seller") return;
 
     if (!images.length) {
       setMessage({
@@ -176,7 +182,7 @@ function localToUTC(local: string): string {
       ),
       salePrice: salePrice || null,
       saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
+      saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
       description: (
         form.elements.namedItem("description") as HTMLTextAreaElement
       ).value,
@@ -225,7 +231,7 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
     }
   }
 
-  if (loading || !user) {
+  if (loading || !authUser) {
     return <main className="p-8 text-center">⏳ {t.loading}</main>;
   }
 
@@ -241,18 +247,21 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* CATEGORY */}
         <select
-  name="categoryId"
-  className="w-full border p-2 rounded"
-  required
->
-  <option value="">{t.select_category}</option>
+          name="categoryId"
+          className="w-full border p-2 rounded"
+          required
+        >
+          <option value="">{t.select_category}</option>
 
-  {categories.map((c) => (
-  <option key={c.id} value={c.id}>
-  {t[c.key] ?? c.key}
-</option>
-))}
-</select>
+          {categories.map((c) => {
+            const key = c.key as keyof typeof t;
+            return (
+              <option key={c.id} value={c.id}>
+                {t[key] ?? c.key}
+              </option>
+            );
+          })}
+        </select>
 
         {/* NAME */}
         <input
@@ -316,39 +325,31 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
           }
           className="w-full border p-2 rounded"
         />
-         {salePrice && (
-  <div className="space-y-2">
-    <p className="text-sm text-gray-600 font-medium">
-      📅 {t.sale_time || "Thời gian khuyến mãi"}
-    </p>
 
-    <div className="grid grid-cols-2 gap-3">
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-500">
-          {t.start_date || "Bắt đầu"}
-        </label>
-        <input
-          type="datetime-local"
-          value={saleStart}
-          onChange={(e) => setSaleStart(e.target.value)}
-          className="border p-2 rounded"
-        />
-      </div>
+        {/* SALE TIME */}
+        {salePrice && (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600 font-medium">
+              📅 {t.sale_time || "Thời gian khuyến mãi"}
+            </p>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-500">
-          {t.end_date || "Kết thúc"}
-        </label>
-        <input
-          type="datetime-local"
-          value={saleEnd}
-          onChange={(e) => setSaleEnd(e.target.value)}
-          className="border p-2 rounded"
-        />
-      </div>
-    </div>
-  </div>
-)}
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="datetime-local"
+                value={saleStart}
+                onChange={(e) => setSaleStart(e.target.value)}
+                className="border p-2 rounded"
+              />
+
+              <input
+                type="datetime-local"
+                value={saleEnd}
+                onChange={(e) => setSaleEnd(e.target.value)}
+                className="border p-2 rounded"
+              />
+            </div>
+          </div>
+        )}
 
         {/* DESCRIPTION */}
         <textarea
@@ -395,7 +396,7 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
           disabled={saving}
           className="w-full bg-[#ff6600] text-white py-3 rounded-lg font-semibold"
         >
-          {saving ? t.posting : "" + t.post_product}
+          {saving ? t.posting : t.post_product}
         </button>
       </form>
     </main>
