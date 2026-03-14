@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type OrderStatus =
   | "pending"
@@ -36,21 +37,33 @@ interface Order {
 }
 
 export default function OrderDetailPage() {
+  const { t } = useTranslation();
+
   const params = useParams();
   const router = useRouter();
   const orderId = params.id as string;
+
   const { user, loading: authLoading } = useAuth();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void loadOrder();
-  }, []);
+    if (authLoading) return;
+    if (!user) return;
 
-  async function loadOrder() {
+    void loadOrder();
+  }, [authLoading, user, orderId]);
+
+  async function loadOrder(): Promise<void> {
+
+    if (authLoading) return;
+    if (!user) return;
+
     try {
+
       const token = await getPiAccessToken();
+      if (!token) return;
 
       const res = await fetch(`/api/orders/${orderId}`, {
         headers: {
@@ -63,17 +76,22 @@ export default function OrderDetailPage() {
 
       const data = await res.json();
       setOrder(data);
+
     } catch (err) {
+
       console.error("Load order error:", err);
+
     } finally {
+
       setLoading(false);
+
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <main className="p-6 text-center text-gray-400">
-        Loading order...
+        {t.loading_order}
       </main>
     );
   }
@@ -81,7 +99,7 @@ export default function OrderDetailPage() {
   if (!order) {
     return (
       <main className="p-6 text-center text-red-500">
-        Order not found
+        {t.order_not_found}
       </main>
     );
   }
@@ -93,22 +111,22 @@ export default function OrderDetailPage() {
         {/* HEADER */}
         <div className="bg-white rounded-xl shadow-sm p-4">
           <h1 className="text-lg font-bold mb-2">
-            🧾 Order Detail
+            🧾 {t.order_detail}
           </h1>
 
           <p className="text-sm text-gray-500">
-            Order ID: {order.id}
+            {t.order_id}: {order.id}
           </p>
 
           <p className="text-sm mt-1">
-            Status:{" "}
+            {t.status}:{" "}
             <span className="font-semibold text-orange-500">
-              {order.status}
+              {t[`order_status_${order.status}`]}
             </span>
           </p>
 
           <p className="text-xs text-gray-400 mt-1">
-            Created at:{" "}
+            {t.created_at}:{" "}
             {new Date(order.created_at).toLocaleString()}
           </p>
         </div>
@@ -145,14 +163,13 @@ export default function OrderDetailPage() {
         {/* TOTAL */}
         <div className="bg-white rounded-xl shadow-sm p-4">
           <p className="text-base font-bold">
-            Total: π{formatPi(order.total)}
+            {t.total}: π{formatPi(order.total)}
           </p>
         </div>
 
         {/* ACTIONS */}
         <div className="space-y-3">
 
-          {/* RETURN BUTTON */}
           {order.status === "completed" && (
             <button
               onClick={() =>
@@ -162,11 +179,10 @@ export default function OrderDetailPage() {
               }
               className="w-full py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
             >
-              Request Return
+              {t.request_return}
             </button>
           )}
 
-          {/* IF ALREADY REQUESTED */}
           {order.status === "return_requested" && (
             <button
               onClick={() =>
@@ -174,9 +190,10 @@ export default function OrderDetailPage() {
               }
               className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
             >
-              View Return Status
+              {t.view_return_status}
             </button>
           )}
+
         </div>
 
       </div>
