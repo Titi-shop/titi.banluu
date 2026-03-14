@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
@@ -45,9 +45,16 @@ interface Order {
 
 function formatDate(date: string): string {
   const d = new Date(date);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleString();
+
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function downloadText(filename: string, content: string): void {
@@ -71,37 +78,65 @@ export default function SellerOrderDetailPage({
 }) {
   const router = useRouter();
   const { t } = useTranslation();
-const { user, loading: authLoading } = useAuth();
+  const { user, loading } = useAuth();
+
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ================= LOAD ================= */
+  /* ================= LOAD ORDER ================= */
 
-  useEffect(() => {
-    if (authLoading) return;
-    void loadOrders();
-  }, [authLoading, loadOrders]);
-
-  async function loadOrder(): Promise<void> {
+  const loadOrder = useCallback(async () => {
     try {
       const res = await apiAuthFetch(
         `/api/seller/orders/${params.id}`,
         { cache: "no-store" }
       );
 
-      if (!res.ok) throw new Error("LOAD_FAILED");
+      if (!res.ok) {
+        setOrder(null);
+        return;
+      }
 
-      const data = await res.json();
+      const data: unknown = await res.json();
 
-      setOrder(data as Order);
+      if (data && typeof data === "object") {
+        const safe = data as Partial<Order>;
+
+        setOrder({
+          id: safe.id ?? "",
+          order_number: safe.order_number,
+          created_at: safe.created_at ?? "",
+
+          shipping_name: safe.shipping_name ?? "",
+          shipping_phone: safe.shipping_phone ?? "",
+          shipping_address: safe.shipping_address ?? "",
+
+          shipping_provider: safe.shipping_provider ?? null,
+          shipping_country: safe.shipping_country ?? null,
+          shipping_postal_code: safe.shipping_postal_code ?? null,
+
+          total: safe.total ?? 0,
+
+          order_items: Array.isArray(safe.order_items)
+            ? safe.order_items
+            : [],
+        });
+      } else {
+        setOrder(null);
+      }
     } catch {
       setOrder(null);
     } finally {
       setLoading(false);
     }
-  }
+  }, [params.id]);
 
-  /* ================= STATES ================= */
+  useEffect(() => {
+    if (authLoading) return;
+    void loadOrder();
+  }, [authLoading, loadOrder]);
+
+  /* ================= LOADING ================= */
 
   if (loading) {
     return (
@@ -121,23 +156,25 @@ const { user, loading: authLoading } = useAuth();
 
   /* ================= TOTAL ================= */
 
-  const total =
-    order.total ??
-    order.order_items.reduce(
+  const total = useMemo(() => {
+    if (order.total) return Number(order.total);
+
+    return order.order_items.reduce(
       (sum, i) => sum + Number(i.total_price ?? 0),
       0
     );
+  }, [order]);
 
-  /* ================= DOWNLOAD CONTENT ================= */
+  /* ================= DOWNLOAD TEXT ================= */
 
   const downloadContent = `
 ${t.order ?? "ORDER"}: ${order.order_number ?? order.id}
 ${t.created_at ?? "Created at"}: ${formatDate(order.created_at)}
 
 ${t.receiver ?? "Receiver"}:
-${t.name ?? "Name"}: ${order.shipping_name ?? ""}
-${t.phone ?? "Phone"}: ${order.shipping_phone ?? ""}
-${t.address ?? "Address"}: ${order.shipping_address ?? ""}
+${t.name ?? "Name"}: ${order.shipping_name}
+${t.phone ?? "Phone"}: ${order.shipping_phone}
+${t.address ?? "Address"}: ${order.shipping_address}
 ${t.country ?? "Country"}: ${order.shipping_country ?? ""}
 ${t.postal_code ?? "Postal code"}: ${order.shipping_postal_code ?? ""}
 ${t.shipping_provider ?? "Shipping"}: ${order.shipping_provider ?? ""}
@@ -147,12 +184,12 @@ ${order.order_items
   .map(
     (item, idx) =>
       `${idx + 1}. ${item.product_name} x${item.quantity} · π${formatPi(
-        Number(item.unit_price)
+        Number(item.unit_price ?? 0)
       )}`
   )
   .join("\n")}
 
-${t.total ?? "Total"}: π${formatPi(Number(total))}
+${t.total ?? "Total"}: π${formatPi(total)}
 `;
 
   /* ================= UI ================= */
@@ -181,6 +218,13 @@ ${t.total ?? "Total"}: π${formatPi(Number(total))}
           className="px-4 py-2 bg-gray-700 text-white rounded"
         >
           {t.print ?? "Print"}
+        </button>
+
+        <button
+          onClick={() => router.back()}
+          className="px-4 py-2 border border-gray-400 rounded"
+        >
+          {t.back ?? "Back"}
         </button>
 
       </div>
@@ -234,7 +278,7 @@ ${t.total ?? "Total"}: π${formatPi(Number(total))}
 
         </div>
 
-        {/* ITEMS TABLE */}
+        {/* ITEMS */}
 
         <table className="w-full border text-sm">
 
@@ -242,15 +286,19 @@ ${t.total ?? "Total"}: π${formatPi(Number(total))}
 
             <tr>
               <th className="border px-2 py-1 text-left">#</th>
+
               <th className="border px-2 py-1 text-left">
                 {t.product ?? "Product"}
               </th>
+
               <th className="border px-2 py-1 text-center">
                 {t.quantity ?? "Qty"}
               </th>
+
               <th className="border px-2 py-1 text-right">
                 π
               </th>
+
             </tr>
 
           </thead>
@@ -274,7 +322,7 @@ ${t.total ?? "Total"}: π${formatPi(Number(total))}
                 </td>
 
                 <td className="border px-2 py-1 text-right">
-                  π{formatPi(Number(item.total_price))}
+                  π{formatPi(Number(item.total_price ?? 0))}
                 </td>
 
               </tr>
@@ -288,7 +336,9 @@ ${t.total ?? "Total"}: π${formatPi(Number(total))}
         {/* TOTAL */}
 
         <div className="mt-4 text-right font-semibold">
-          {t.total ?? "Total"}: π{formatPi(Number(total))}
+
+          {t.total ?? "Total"}: π{formatPi(total)}
+
         </div>
 
       </section>
