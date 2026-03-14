@@ -158,134 +158,120 @@ export default function ReturnsPage() {
 
   return (
 
-    <main className="min-h-screen bg-gray-100 pb-24">
+<main className="min-h-screen bg-gray-100 pb-24">
 
-      {/* HEADER */}
+  {/* HEADER */}
 
-      <header className="bg-orange-500 text-white px-4 py-4">
+  <header className="bg-orange-500 text-white px-4 py-4">
 
-        <div className="bg-orange-400 rounded-lg p-4">
+    <div className="bg-orange-400 rounded-lg p-4">
 
-          <p className="text-sm opacity-90">
-            {t.return_requests}
-          </p>
+      <p className="text-sm opacity-90">
+        {t.return_detail || "Return Detail"}
+      </p>
 
-          <p className="text-xs opacity-80 mt-1">
-            {t.total}: {returns.length}
-          </p>
+      <p className="text-xs opacity-80 mt-1">
+        {t.order || "Order"}: #{data.order_id}
+      </p>
 
-        </div>
+    </div>
 
-      </header>
+  </header>
 
-      {/* CONTENT */}
+  {/* CONTENT */}
 
-      <section className="mt-6 px-4">
+  <section className="mt-6 px-4 space-y-4">
 
-        {loading || authLoading ? (
+    {/* PRODUCT */}
 
-          <p className="text-center text-gray-400">
-            {t.loading}
-          </p>
+    <div className="bg-white rounded-xl shadow-sm p-4 flex gap-3">
 
-        ) : returns.length === 0 ? (
+      <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden">
 
-          <div className="flex flex-col items-center justify-center mt-16 text-gray-400">
+        <img
+          src={data.product_thumbnail || "/placeholder.png"}
+          alt={data.product_name}
+          className="w-full h-full object-cover"
+        />
 
-            <div className="w-24 h-24 bg-gray-200 rounded-full mb-4 opacity-40" />
+      </div>
 
-            <p>
-              {t.no_return_requests}
-            </p>
+      <div className="flex-1">
 
-          </div>
+        <p className="font-medium text-sm">
+          {data.product_name}
+        </p>
 
-        ) : (
+        <p className="text-xs text-gray-500">
+          {t.quantity || "Quantity"}: {data.quantity}
+        </p>
 
-          <div className="space-y-4">
+      </div>
 
-            {returns.map((r) => (
+    </div>
 
-              <div
-                key={r.id}
-                onClick={() =>
-                  router.push(`/customer/returns/${r.id}`)
-                }
-                className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer"
-              >
+    {/* STATUS */}
 
-                {/* HEADER */}
+    <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
 
-                <div className="flex justify-between items-start px-4 py-3 border-b">
+      <span className="text-sm">
+        {t.status || "Status"}
+      </span>
 
-                  <span className="font-semibold text-xs break-all max-w-[60%]">
-                    #{r.order_id}
-                  </span>
+      <span className={`text-sm ${getStatusColor(data.status)}`}>
+        {t[data.status as keyof typeof t] || data.status}
+      </span>
 
-                  <span
-                    className={`text-xs text-right max-w-[120px] leading-tight ${getStatusColor(
-                      r.status
-                    )}`}
-                  >
-                    {t[r.status]}
-                  </span>
+    </div>
 
-                </div>
+    {/* REFUND */}
 
-                {/* PRODUCT */}
+    <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
 
-                <div className="flex gap-3 items-center px-4 py-3">
+      <span className="text-sm">
+        {t.refund_amount || "Refund"}
+      </span>
 
-                  <div className="w-14 h-14 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+      <span className="font-semibold">
+        π{data.refund_amount}
+      </span>
 
-                    <img
-                      src={r.product_thumbnail || "/placeholder.png"}
-                      alt={r.product_name}
-                      className="w-full h-full object-cover"
-                    />
+    </div>
 
-                  </div>
+    {/* REASON */}
 
-                  <div className="flex-1 min-w-0">
+    {data.reason && (
 
-                    <p className="text-sm font-medium line-clamp-2 min-h-[40px]">
-                      {r.product_name}
-                    </p>
+      <div className="bg-white rounded-xl shadow-sm p-4">
 
-                    <p className="text-xs text-gray-500">
-                      {t.quantity}: {r.quantity}
-                    </p>
+        <p className="text-sm font-medium mb-1">
+          {t.return_reason || "Reason"}
+        </p>
 
-                  </div>
+        <p className="text-sm text-gray-600">
+          {data.reason}
+        </p>
 
-                </div>
+      </div>
 
-                {/* FOOTER */}
+    )}
 
-                <div className="flex justify-between items-center px-4 py-3 border-t">
+    {/* DATE */}
 
-                  <p className="text-sm font-semibold">
-                    {t.refund_amount}: π{r.refund_amount}
-                  </p>
+    <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
 
-                  <span className="text-xs text-gray-400">
-                    {new Date(r.created_at).toLocaleDateString()}
-                  </span>
+      <span className="text-sm">
+        {t.created_at || "Created"}
+      </span>
 
-                </div>
+      <span className="text-xs text-gray-500">
+        {new Date(data.created_at).toLocaleDateString()}
+      </span>
 
-              </div>
+    </div>
 
-            ))}
+  </section>
 
-          </div>
-
-        )}
-
-      </section>
-
-    </main>
-
-  );
-
+</main>
+);
 }
