@@ -3,33 +3,47 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useAuth } from "@/context/AuthContext";
 import { formatPi } from "@/lib/pi";
 
 /* ================= TYPES ================= */
 
-interface Product {
-  id: string;
-  name: string;
-  images: string[];
-}
-
 interface OrderItem {
-  product_id: string;
+  id: string;
+  product_id: string | null;
+  product_name: string;
+
+  thumbnail?: string;
+  images?: string[];
+
   quantity: number;
-  price: number;
-  product?: Product;
+  unit_price: number | string;
+  total_price: number | string;
 }
 
 interface Order {
   id: string;
+  order_number?: string;
+
   status: string;
-  total: number;
+  total: number | string;
+
   created_at?: string;
+
+  shipping_name?: string;
+  shipping_phone?: string;
+  shipping_address?: string;
+
+  shipping_provider?: string | null;
+  shipping_country?: string | null;
+  shipping_postal_code?: string | null;
+
   cancel_reason?: string | null;
+
   order_items: OrderItem[];
 }
 
@@ -37,29 +51,35 @@ interface Order {
 
 function formatDate(date?: string): string {
   if (!date) return "—";
+
   const d = new Date(date);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleDateString("vi-VN");
+
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
 /* ================= PAGE ================= */
 
-export default function SellerCanceledOrdersPage() {
+export default function SellerCancelledOrdersPage() {
+
   const router = useRouter();
   const { t } = useTranslation();
+  const { user, loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* ================= LOAD ================= */
 
-  useEffect(() => {
-    void loadOrders();
-  }, []);
+  const loadOrders = useCallback(async () => {
 
-  async function loadOrders(): Promise<void> {
     try {
+
       const res = await apiAuthFetch(
         "/api/seller/orders?status=cancelled",
         { cache: "no-store" }
@@ -70,27 +90,44 @@ export default function SellerCanceledOrdersPage() {
         return;
       }
 
-      const data: unknown = await res.json();
-      setOrders(Array.isArray(data) ? (data as Order[]) : []);
+      const data = await res.json();
+
+      setOrders(Array.isArray(data) ? data : []);
+
     } catch {
+
       setOrders([]);
+
     } finally {
+
       setLoading(false);
+
     }
-  }
+
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    void loadOrders();
+  }, [authLoading, loadOrders]);
 
   /* ================= TOTAL ================= */
 
-  const totalPi = useMemo(() => {
-    return orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-  }, [orders]);
+  const totalPi = useMemo(
+    () =>
+      orders.reduce(
+        (sum, o) => sum + Number(o.total ?? 0),
+        0
+      ),
+    [orders]
+  );
 
   /* ================= LOADING ================= */
 
   if (loading) {
     return (
-      <p className="text-center mt-10 text-gray-500">
-         {t.loading ?? "Loading..."}
+      <p className="text-center mt-10 text-gray-400">
+        {t.loading ?? "Loading..."}
       </p>
     );
   }
@@ -99,98 +136,178 @@ export default function SellerCanceledOrdersPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
-      {/* ===== HEADER XÁM MỜ ===== */}
-      <header className="bg-gray-600/90 backdrop-blur-lg text-white px-4 py-5 shadow-md">
-        <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-          <p className="text-sm font-medium opacity-90">
-            {t.cancelled_orders ?? "Canceled Orders"}
+
+      {/* HEADER */}
+
+      <header className="bg-gray-600 text-white px-4 py-4">
+
+        <div className="bg-gray-500 rounded-lg p-4">
+
+          <p className="text-sm opacity-90">
+            {t.cancelled_orders ?? "Cancelled orders"}
           </p>
 
-          <p className="text-xs mt-1 text-white/80">
-            {t.orders ?? "Orders"}: {orders.length} · π
-            {formatPi(totalPi)}
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders ?? "Orders"}: {orders.length} · π{formatPi(totalPi)}
           </p>
+
         </div>
+
       </header>
 
-      {/* ===== CONTENT ===== */}
-      <section className="px-4 mt-5 space-y-4">
+      {/* LIST */}
+
+      <section className="mt-6 px-4 space-y-4">
+
         {orders.length === 0 ? (
           <p className="text-center text-gray-400">
-            {t.no_cancelled_orders ?? "No canceled orders"}
+            {t.no_cancelled_orders ?? "No cancelled orders"}
           </p>
         ) : (
+
           orders.map((order) => (
+
             <div
               key={order.id}
               onDoubleClick={() =>
                 router.push(`/seller/orders/${order.id}`)
               }
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden active:scale-[0.99] transition"
+              className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
+
               {/* ORDER HEADER */}
+
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
+
                 <div>
+
                   <p className="font-semibold text-sm">
-                    #{order.id.slice(0, 8)}
+                    #{order.order_number ?? order.id.slice(0, 8)}
                   </p>
+
                   <p className="text-xs text-gray-500">
                     {formatDate(order.created_at)}
                   </p>
+
                 </div>
 
-                <span className="text-xs font-medium px-3 py-1 rounded-full bg-gray-200 text-gray-700">
-                  {t.status_cancelled ?? "Canceled"}
+                <span className="text-gray-600 text-sm font-medium">
+                  {t.status_cancelled ?? "Cancelled"}
                 </span>
+
               </div>
 
-              {/* ORDER ITEMS */}
-              <div className="px-4 py-3 space-y-2">
+              {/* SHIPPING INFO */}
+
+              <div className="px-4 py-3 text-sm space-y-1 border-b">
+
+                <p>
+                  <span className="text-gray-500">
+                    {t.customer ?? "Customer"}:
+                  </span>{" "}
+                  {order.shipping_name}
+                </p>
+
+                <p>
+                  <span className="text-gray-500">
+                    {t.phone ?? "Phone"}:
+                  </span>{" "}
+                  {order.shipping_phone}
+                </p>
+
+                <p className="text-gray-600 text-xs">
+                  {order.shipping_address}
+                </p>
+
+                {(order.shipping_provider ||
+                  order.shipping_country ||
+                  order.shipping_postal_code) && (
+
+                  <p className="text-xs text-gray-500">
+
+                    {order.shipping_provider && (
+                      <span>{order.shipping_provider}</span>
+                    )}
+
+                    {order.shipping_country && (
+                      <span> · {order.shipping_country}</span>
+                    )}
+
+                    {order.shipping_postal_code && (
+                      <span> · {order.shipping_postal_code}</span>
+                    )}
+
+                  </p>
+
+                )}
+
+                {/* CANCEL REASON */}
+
+                {order.cancel_reason && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {t.cancel_reason ?? "Reason"}: {order.cancel_reason}
+                  </p>
+                )}
+
+              </div>
+
+              {/* PRODUCTS */}
+
+              <div className="divide-y">
+
                 {order.order_items.map((item) => (
-                  <div
-                    key={`${order.id}-${item.product_id}`}
-                    className="flex gap-3"
-                  >
+
+                  <div key={item.id} className="flex gap-3 p-4">
+
                     <img
                       src={
-                        item.product?.images?.[0] ??
+                        item.thumbnail ??
+                        item.images?.[0] ??
                         "/placeholder.png"
                       }
-                      alt={item.product?.name ?? "product"}
-                      className="w-12 h-12 rounded object-cover"
+                      alt={item.product_name}
+                      className="w-14 h-14 rounded-lg object-cover bg-gray-100"
                     />
 
-                    <div className="flex-1">
-                      <p className="text-sm">
-                        {item.product?.name ??
-                          (t.product ?? "Product")}
+                    <div className="flex-1 min-w-0">
+
+                      <p className="text-sm font-medium line-clamp-1">
+                        {item.product_name}
                       </p>
 
-                      <p className="text-xs text-gray-500">
-                        x{item.quantity} · π
-                        {formatPi(item.price)}
+                      <p className="text-xs text-gray-500 mt-1">
+                        x{item.quantity} · π{formatPi(Number(item.unit_price))}
                       </p>
-                      {/* 👇 Hiển thị lý do huỷ */}
-                   {order.cancel_reason && (
-               <p className="text-xs text-red-500 mt-1">
-                  {t.cancel_reason ?? "Reason"}: {order.cancel_reason}
-                </p>
-                )}
-             </div>
-              
+
+                    </div>
+
                   </div>
+
                 ))}
+
               </div>
 
               {/* FOOTER */}
-              <div className="px-4 py-3 border-t bg-gray-50 text-sm font-semibold">
-                {t.total ?? "Total"}: π
-                {formatPi(order.total)}
+
+              <div
+                className="px-4 py-3 border-t bg-gray-50"
+                onClick={(e) => e.stopPropagation()}
+              >
+
+                <span className="font-semibold">
+                  {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
+                </span>
+
               </div>
+
             </div>
+
           ))
+
         )}
+
       </section>
+
     </main>
   );
 }
