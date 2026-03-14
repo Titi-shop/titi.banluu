@@ -284,22 +284,24 @@ const { user, loading: authLoading } = useAuth();
                 </p>
 
                {(o.shipping_provider ||
-                  o.shipping_country ||
-                  o.shipping_postal_code) && (
-                  <p className="text-xs text-gray-500">
-                  {o.shipping_provider && (
-  <span>{o.shipping_provider}</span>
-)}
+  o.shipping_country ||
+  o.shipping_postal_code) && (
+  <p className="text-xs text-gray-500">
 
-{o.shipping_country && (
-  <span> · {o.shipping_country}</span>
-)}
+    {o.shipping_provider && (
+      <span>{t.shipping_provider ?? "Carrier"}: {o.shipping_provider}</span>
+    )}
 
-{o.shipping_postal_code && (
-  <span> · {o.shipping_postal_code}</span>
+    {o.shipping_country && (
+      <span> · {o.shipping_country}</span>
+    )}
+
+    {o.shipping_postal_code && (
+      <span> · {o.shipping_postal_code}</span>
+    )}
+
+  </p>
 )}
-                  </p>
-                )}
               </div>
 
               {/* PRODUCTS */}
