@@ -378,16 +378,58 @@
 
 
   
-  "loading_order": "Đang tải đơn hàng...",
-  "order_not_found": "Không tìm thấy đơn hàng",
-
-  "order_detail": "Chi tiết đơn hàng",
-  "order_id": "Mã đơn hàng",
-  "status": "Trạng thái",
-  "created_at": "Ngày tạo",
-  "total": "Tổng tiền",
 
   "request_return": "Yêu cầu hoàn hàng",
-  "view_return_status": "Xem trạng thái hoàn hàng"
-  
+  "view_return_status": "Xem trạng thái hoàn hàng",
+
+
+  "loading": "Đang tải...",
+  "not_found": "Không tìm thấy dữ liệu",
+
+  "my_returns": "Yêu cầu trả hàng",
+  "no_return_requests": "Chưa có yêu cầu trả hàng nào",
+
+  "return": "Trả hàng",
+  "order": "Đơn hàng",
+
+  "pending": "Chờ xử lý",
+  "approved": "Đã duyệt",
+  "shipped": "Đã gửi",
+  "received": "Đã nhận",
+  "refunded": "Đã hoàn tiền",
+  "rejected": "Bị từ chối",
+
+  "tracking": "Mã vận đơn",
+  "tracking_code": "Mã vận đơn",
+
+  "refunded_at": "Hoàn tiền lúc",
+
+  "reason": "Lý do",
+
+  "seller_note": "Ghi chú của người bán",
+
+  "return_address": "Địa chỉ trả hàng",
+
+  "enter_tracking_code": "Nhập mã vận đơn",
+
+  "confirm_shipment": "Xác nhận đã gửi hàng",
+
+  "processing": "Đang xử lý",
+
+  "waiting_seller_approval": "Đang chờ người bán duyệt",
+
+  "request_rejected": "Yêu cầu bị từ chối",
+
+  "return_approved": "Đã duyệt - Vui lòng gửi hàng trả lại",
+
+  "item_shipped": "Hàng đã được gửi",
+
+  "waiting_seller_receive": "Đang chờ người bán xác nhận nhận hàng",
+
+  "seller_received_item": "Người bán đã nhận hàng",
+
+  "refund_processing": "Đang xử lý hoàn tiền",
+
+  "refund_completed": "Đã hoàn tiền"
+}
 }
