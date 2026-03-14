@@ -61,6 +61,7 @@ export default function EditProductPage() {
 
   useEffect(() => {
     if (authLoading) return;
+
     if (!user || (user.role !== "seller" && user.role !== "admin")) {
       router.replace("/account");
     }
@@ -69,23 +70,29 @@ export default function EditProductPage() {
   /* ================= LOAD CATEGORIES ================= */
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+
     apiAuthFetch("/api/categories")
       .then((r) => r.json())
       .then((d: unknown) =>
         setCategories(Array.isArray(d) ? (d as Category[]) : [])
       )
       .catch(() => setCategories([]));
-  }, []);
+  }, [authLoading, user]);
 
   /* ================= LOAD PRODUCT ================= */
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
     if (!id) return;
 
     apiAuthFetch("/api/products")
       .then((r) => r.json())
       .then((list: ProductData[]) => {
         const found = list.find((p) => String(p.id) === String(id));
+
         if (!found) {
           setMessage({
             text: t.product_not_found || "Product not found",
@@ -100,9 +107,9 @@ export default function EditProductPage() {
         setDetail(found.detail || "");
         setSalePrice(found.salePrice ?? "");
         setSaleStart(found.saleStart ? utcToLocalInput(found.saleStart) : "");
-setSaleEnd(found.saleEnd ? utcToLocalInput(found.saleEnd) : "");
+        setSaleEnd(found.saleEnd ? utcToLocalInput(found.saleEnd) : "");
       });
-  }, [id, t]);
+  }, [id, t, authLoading, user]);
 
   /* ================= IMAGE UPLOAD ================= */
 
@@ -120,6 +127,7 @@ setSaleEnd(found.saleEnd ? utcToLocalInput(found.saleEnd) : "");
       });
 
       const data = (await res.json()) as { url?: string };
+
       if (data?.url) {
         setter((prev) => [...prev, data.url as string]);
       }
@@ -136,15 +144,15 @@ setSaleEnd(found.saleEnd ? utcToLocalInput(found.saleEnd) : "");
   /* ================= SAVE ================= */
 
   function localToUTC(local: string): string {
-  return new Date(local).toISOString();
-}
+    return new Date(local).toISOString();
+  }
 
-function utcToLocalInput(utc: string): string {
-  const date = new Date(utc);
-  const local = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
-}
-  
+  function utcToLocalInput(utc: string): string {
+    const date = new Date(utc);
+    const local = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  }
+
   async function handleSave(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!product) return;
@@ -167,7 +175,7 @@ function utcToLocalInput(utc: string): string {
       ),
       salePrice: salePrice || null,
       saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
+      saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
       description: (
         form.elements.namedItem("description") as HTMLTextAreaElement
       ).value,
@@ -189,7 +197,7 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
     router.push("/seller/stock");
   }
 
-  if (!product) {
+  if (authLoading || !user || !product) {
     return (
       <main className="p-8 text-center">
         {t.loading || "Loading..."}
@@ -259,23 +267,6 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
               </button>
             </div>
           ))}
-
-          {images.length < 6 && (
-            <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28 text-gray-400">
-              ＋
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                hidden
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  uploadImages(files, setImages);
-                  e.target.value = "";
-                }}
-              />
-            </label>
-          )}
         </div>
 
         {/* PRICE */}
@@ -303,83 +294,6 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
           className="w-full border p-2 rounded"
         />
 
-        {salePrice && (
-          <div className="space-y-2">
-            <p className="text-sm text-gray-600 font-medium">
-              📅 {t.sale_time || "Sale time"}
-            </p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="datetime-local"
-                value={saleStart}
-                onChange={(e) => setSaleStart(e.target.value)}
-                className="border p-2 rounded"
-              />
-              <input
-                type="datetime-local"
-                value={saleEnd}
-                onChange={(e) => setSaleEnd(e.target.value)}
-                className="border p-2 rounded"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* DESCRIPTION */}
-        <textarea
-          name="description"
-          defaultValue={product.description}
-          placeholder={t.description || "Description"}
-          className="w-full border p-2 rounded min-h-[80px]"
-        />
-
-        {/* DETAIL */}
-        <textarea
-          value={detail}
-          onChange={(e) => setDetail(e.target.value)}
-          placeholder={t.product_detail || "Product detail"}
-          className="w-full border p-2 rounded min-h-[120px]"
-        />
-
-        {/* DETAIL IMAGES */}
-        <div className="grid grid-cols-3 gap-3">
-          {detailImages.map((url, i) => (
-            <div key={url} className="relative h-28">
-              <Image
-                src={url}
-                alt=""
-                fill
-                className="object-cover rounded"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  removeImage(i, setDetailImages)
-                }
-                className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-
-          <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28 text-gray-400">
-            ＋
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              onChange={(e) => {
-                const files = Array.from(e.target.files || []);
-                uploadImages(files, setDetailImages);
-                e.target.value = "";
-              }}
-            />
-          </label>
-        </div>
-
         {/* SAVE BUTTON */}
         <button
           disabled={saving}
@@ -389,6 +303,7 @@ saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
             ? t.saving || "Saving..."
             : t.save_changes || "Save changes"}
         </button>
+
       </form>
     </main>
   );
