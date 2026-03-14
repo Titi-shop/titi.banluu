@@ -264,23 +264,21 @@ export default function CustomerOrdersPage() {
 
       {/* TABS */}
 
-      <div className="bg-white border-b">
-
-        <div className="grid grid-cols-6 text-xs text-center">
-
+        <div className="bg-white border-b">
+        <div className="flex gap-6 px-4 py-3 text-sm overflow-x-auto whitespace-nowrap">
           {([
             ["all", t.all],
             ["pending", t.order_pending],
             ["pickup", t.order_pickup],
             ["shipping", t.order_shipping],
-            ["completed", t.order_received],
+            ["received", t.order_received],
+            ["returned", t.order_returned],
             ["cancelled", t.order_cancelled],
           ] as [OrderTab, string][]).map(([key, label]) => (
-
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`py-3 border-b-2 truncate ${
+              className={`pb-2 border-b-2 ${
                 activeTab === key
                   ? "border-orange-500 text-orange-500 font-semibold"
                   : "border-transparent text-gray-500"
@@ -288,13 +286,9 @@ export default function CustomerOrdersPage() {
             >
               {label}
             </button>
-
           ))}
-
         </div>
-
       </div>
-
       {/* CONTENT */}
 
       <section className="px-4 mt-4 space-y-4">
