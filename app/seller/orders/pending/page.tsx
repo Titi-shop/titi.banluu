@@ -342,8 +342,8 @@ const { user, loading: authLoading } = useAuth();
               >
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">
-                    {t.total ?? "Tổng"}: π{formatPi(o.total)}
-                  </span>
+                {t.total ?? "Total"}: π{formatPi(Number(o.total ?? 0))}
+            </span>
 
                   <div className="flex gap-2">
                     <button
