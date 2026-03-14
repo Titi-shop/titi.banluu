@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
-
+import { useAuth } from "@/lib/auth/AuthContext";
 /* ================= TYPES ================= */
 
 interface OrderItem {
@@ -53,9 +53,16 @@ interface Order {
 
 function formatDate(date: string): string {
   const d = new Date(date);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleDateString("vi-VN");
+
+  if (Number.isNaN(d.getTime())) {
+    return "—";
+  }
+
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
 /* ================= PAGE ================= */
@@ -63,7 +70,8 @@ function formatDate(date: string): string {
 export default function SellerPendingOrdersPage() {
   const router = useRouter();
   const { t } = useTranslation();
-
+const { user, loading: authLoading } = useAuth();
+  
   const SELLER_CANCEL_REASONS: string[] = [
     t.cancel_reason_out_of_stock ?? "Out of stock",
     t.cancel_reason_discontinued ?? "Product discontinued",
@@ -113,8 +121,11 @@ export default function SellerPendingOrdersPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
     void loadOrders();
-  }, [loadOrders]);
+  }, [authLoading, loadOrders]);
+
+
 
   const totalPi = useMemo(
     () => orders.reduce((sum, o) => sum + o.total, 0),
