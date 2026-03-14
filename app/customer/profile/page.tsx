@@ -25,8 +25,6 @@ interface ProfileData {
   postal_code: string | null;
   avatar_url: string | null;
 
-  /* SHOP */
-
   shop_name: string | null;
   shop_slug: string | null;
   shop_description: string | null;
@@ -54,7 +52,6 @@ const defaultProfile: ProfileData = {
   shop_banner: null,
 };
 
-
 type EditableKey =
   | "full_name"
   | "email"
@@ -74,10 +71,8 @@ const editableFields: EditableKey[] = [
   "email",
   "phone",
   "bio",
-
   "shop_name",
   "shop_description",
-
   "country",
   "province",
   "district",
@@ -108,11 +103,13 @@ export default function ProfilePage() {
   /* ================= LOAD PROFILE ================= */
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading) return;
+    if (!user) return;
 
     const loadProfile = async () => {
       try {
         const token = await getPiAccessToken();
+        if (!token) return;
 
         let res = await fetch("/api/profile", {
           headers: { Authorization: `Bearer ${token}` },
@@ -121,6 +118,8 @@ export default function ProfilePage() {
         if (res.status === 401) {
           clearPiToken();
           const newToken = await getPiAccessToken();
+          if (!newToken) return;
+
           res = await fetch("/api/profile", {
             headers: { Authorization: `Bearer ${newToken}` },
           });
@@ -136,25 +135,25 @@ export default function ProfilePage() {
             : null;
 
         const safeProfile: ProfileData = {
-  full_name: profileData?.full_name ?? null,
-  email: profileData?.email ?? null,
-  phone: profileData?.phone ?? null,
-  bio: profileData?.bio ?? null,
+          full_name: profileData?.full_name ?? null,
+          email: profileData?.email ?? null,
+          phone: profileData?.phone ?? null,
+          bio: profileData?.bio ?? null,
 
-  country: profileData?.country ?? "VN",
-  province: profileData?.province ?? null,
-  district: profileData?.district ?? null,
-  ward: profileData?.ward ?? null,
-  address_line: profileData?.address_line ?? null,
-  postal_code: profileData?.postal_code ?? null,
+          country: profileData?.country ?? "VN",
+          province: profileData?.province ?? null,
+          district: profileData?.district ?? null,
+          ward: profileData?.ward ?? null,
+          address_line: profileData?.address_line ?? null,
+          postal_code: profileData?.postal_code ?? null,
 
-  avatar_url: profileData?.avatar_url ?? null,
+          avatar_url: profileData?.avatar_url ?? null,
 
-  shop_name: profileData?.shop_name ?? null,
-  shop_slug: profileData?.shop_slug ?? null,
-  shop_description: profileData?.shop_description ?? null,
-  shop_banner: profileData?.shop_banner ?? null,
-};
+          shop_name: profileData?.shop_name ?? null,
+          shop_slug: profileData?.shop_slug ?? null,
+          shop_description: profileData?.shop_description ?? null,
+          shop_banner: profileData?.shop_banner ?? null,
+        };
 
         setProfile(safeProfile);
         setForm(safeProfile);
@@ -173,8 +172,10 @@ export default function ProfilePage() {
   const handleAvatarChange = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
+    if (authLoading || !user) return;
+
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file) return;
 
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
@@ -183,6 +184,8 @@ export default function ProfilePage() {
 
     try {
       const token = await getPiAccessToken();
+      if (!token) return;
+
       const formData = new FormData();
       formData.append("file", file);
 
@@ -217,56 +220,60 @@ export default function ProfilePage() {
     }
   };
 
-/* ================= SHOP BANNER ================= */
+  /* ================= SHOP BANNER ================= */
 
-const handleBannerUpload = async (
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
+  const handleBannerUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (authLoading || !user) return;
 
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  try {
+    try {
+      const token = await getPiAccessToken();
+      if (!token) return;
 
-    const token = await getPiAccessToken();
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const formData = new FormData();
-    formData.append("file", file);
+      const res = await fetch("/api/uploadShopBanner", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
-    const res = await fetch("/api/uploadShopBanner", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+      if (!res.ok) throw new Error();
 
-    if (!res.ok) throw new Error();
+      const data = await res.json();
 
-    const data = await res.json();
+      setProfile((prev) => ({
+        ...prev,
+        shop_banner: data.banner,
+      }));
 
-    setProfile((prev) => ({
-      ...prev,
-      shop_banner: data.banner,
-    }));
+      setForm((prev) => ({
+        ...prev,
+        shop_banner: data.banner,
+      }));
+    } catch {
+      setError("Upload failed");
+    }
+  };
 
-    setForm((prev) => ({
-      ...prev,
-      shop_banner: data.banner,
-    }));
-
-  } catch {
-    setError("Upload failed");
-  }
-};
   /* ================= SAVE ================= */
 
   const handleSave = async () => {
+    if (authLoading || !user) return;
+
     setSaving(true);
     setError(null);
 
     try {
       const token = await getPiAccessToken();
+      if (!token) return;
 
       const res = await fetch("/api/profile", {
         method: "POST",
@@ -281,6 +288,7 @@ const handleBannerUpload = async (
 
       setProfile(form);
       setEditMode(false);
+
       setSuccess(t.saved_successfully);
       setTimeout(() => setSuccess(null), 2000);
     } catch {
