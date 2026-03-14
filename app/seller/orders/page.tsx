@@ -79,7 +79,7 @@ export default function SellerOrdersPage() {
 
   const router = useRouter();
   const { t } = useTranslation();
-  const { loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
