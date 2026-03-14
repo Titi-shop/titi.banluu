@@ -211,14 +211,47 @@ const { user, loading: authLoading } = useAuth();
               </div>
 
               {/* SHIPPING INFO */}
-              <div className="px-4 py-3 text-xs text-gray-600 border-t">
-                <p>{order.shipping_name}</p>
-                <p>{order.shipping_phone}</p>
-                <p>{order.shipping_address}</p>
+               <div className="px-4 py-3 text-sm space-y-1 border-b">
+
                 <p>
-                  {order.shipping_country} {order.shipping_postal_code}
+                  <span className="text-gray-500">
+                    {t.customer ?? "Customer"}:
+                  </span>{" "}
+                  {o.shipping_name}
                 </p>
-                <p>{order.shipping_provider}</p>
+
+                <p>
+                  <span className="text-gray-500">
+                    {t.phone ?? "Phone"}:
+                  </span>{" "}
+                  {o.shipping_phone}
+                </p>
+
+                <p className="text-gray-600 text-xs">
+                  {o.shipping_address}
+                </p>
+
+                {(o.shipping_provider ||
+                  o.shipping_country ||
+                  o.shipping_postal_code) && (
+
+                  <p className="text-xs text-gray-500">
+
+                    {o.shipping_provider && (
+                      <span>{o.shipping_provider}</span>
+                    )}
+
+                    {o.shipping_country && (
+                      <span> · {o.shipping_country}</span>
+                    )}
+
+                    {o.shipping_postal_code && (
+                      <span> · {o.shipping_postal_code}</span>
+                    )}
+
+                  </p>
+                )}
+
               </div>
 
               {/* FOOTER */}
