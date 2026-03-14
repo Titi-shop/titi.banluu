@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
-
+import { useAuth } from "@/context/AuthContext";
 
 type OrderStatus =
   | "pending"
@@ -39,6 +39,7 @@ export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const orderId = params.id as string;
+  const { loading: authLoading } = useAuth();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
