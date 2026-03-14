@@ -372,9 +372,10 @@
   "profile_shop_name": "商店名称",
   "profile_shop_description": "商店描述",
   "upload_banner": "上传店铺横幅",
-  "no_banner": "暂无横幅"
+  "no_banner": "暂无横幅",
 
 
-
+  "request_return": "申请退货",
+  "view_return_status": "查看退货状态"
   
 }
