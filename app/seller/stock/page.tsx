@@ -55,7 +55,7 @@ interface ShopProfile {
 export default function SellerStockPage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [pageLoading, setPageLoading] = useState<boolean>(true);
@@ -277,12 +277,13 @@ setShop({
   <div className="relative w-full h-40 rounded-xl overflow-hidden">
 
   <Image
-    src={shop.shop_banner || "/banners/default-shop.png"}
-    alt="Shop banner"
-    fill
-    priority
-    className="object-cover"
-  />
+  src={shop.shop_banner || "/banners/default-shop.png"}
+  alt="Shop banner"
+  fill
+  priority
+  unoptimized
+  className="object-cover"
+/>
 
   {/* CHANGE BANNER */}
   <label className="absolute top-3 left-3 bg-black/60 hover:bg-black/70 text-white text-xs px-3 py-1 rounded cursor-pointer flex items-center gap-1">
@@ -306,16 +307,6 @@ setShop({
   </button>
 
 </div>
-
-    {/* POST BUTTON */}
-    <button
-      onClick={() => router.push("/seller/post")}
-      className="absolute top-3 right-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg"
-    >
-      <Plus size={20} />
-    </button>
-
-  </div>
 
   {/* AVATAR */}
 
@@ -452,7 +443,7 @@ setShop({
                   </span>
                 )}
 
-                {product.images.length > 0 ? (
+                {product.images?.length ? (
                   <Image
                     src={product.images[0]}
                     alt={product.name}
