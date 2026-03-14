@@ -538,7 +538,7 @@ setShop({
                     }}
                     className="text-red-600 underline"
                   >
-                    {t.delete}
+                      {t.delete}
                   </button>
 
                 </div>
@@ -546,10 +546,10 @@ setShop({
               </div>
 
             </div>
-          );
-        })}
+          ))}
 
       </div>
+
     </main>
   );
 }
