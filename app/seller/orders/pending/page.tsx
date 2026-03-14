@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 /* ================= TYPES ================= */
 
@@ -49,8 +50,6 @@ interface Order {
 
 /* ================= HELPERS ================= */
 
-
-
 function formatDate(date: string): string {
   const d = new Date(date);
   return Number.isNaN(d.getTime())
@@ -63,6 +62,10 @@ function formatDate(date: string): string {
 export default function SellerPendingOrdersPage() {
   const router = useRouter();
   const { t } = useTranslation();
+
+  /* ===== AUTH CONTEXT ===== */
+
+  const { user, loading: authLoading } = useAuth();
 
   const SELLER_CANCEL_REASONS: string[] = [
     t.cancel_reason_out_of_stock ?? "Out of stock",
@@ -87,6 +90,8 @@ export default function SellerPendingOrdersPage() {
   /* ================= LOAD ================= */
 
   const loadOrders = useCallback(async () => {
+    if (authLoading) return;
+
     try {
       const res = await apiAuthFetch(
         "/api/seller/orders?status=pending",
@@ -110,11 +115,12 @@ export default function SellerPendingOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     void loadOrders();
-  }, [loadOrders]);
+  }, [authLoading, loadOrders]);
 
   const totalPi = useMemo(
     () => orders.reduce((sum, o) => sum + o.total, 0),
@@ -189,7 +195,7 @@ export default function SellerPendingOrdersPage() {
 
   /* ================= LOADING ================= */
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <p className="text-center mt-10 text-gray-400">
         {t.loading ?? "Đang tải..."}
@@ -197,6 +203,41 @@ export default function SellerPendingOrdersPage() {
     );
   }
 
+  /* ================= UI ================= */
+
+  return (
+    <main className="min-h-screen bg-gray-100 pb-24">
+      {/* HEADER */}
+      <header className="bg-gray-600 text-white px-4 py-4">
+        <div className="bg-gray-500 rounded-lg p-4">
+          <p className="text-sm opacity-90">
+            {t.pending_orders ?? "Đơn chờ xác nhận"}
+          </p>
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders ?? "Đơn hàng"}: {orders.length} · π
+            {formatPi(totalPi)}
+          </p>
+        </div>
+      </header>
+
+      <section className="mt-6 px-4 space-y-4">
+        {orders.length === 0 ? (
+          <p className="text-center text-gray-400">
+            {t.no_pending_orders ?? "Không có đơn chờ"}
+          </p>
+        ) : (
+          orders.map((o) => (
+            <div
+              key={o.id}
+              onClick={() => {
+                if (expandedId === o.id) {
+                  router.push(`/seller/orders/${o.id}`);
+                } else {
+                  setExpandedId(o.id);
+                }
+              }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden border"
+            >
   /* ================= UI ================= */
 
   return (
