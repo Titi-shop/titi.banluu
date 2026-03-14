@@ -64,10 +64,12 @@ export default function ShippingOrdersPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
+
     if (authLoading) return;
     if (!user) return;
 
     void loadOrders();
+
   }, [authLoading, user]);
 
   /* =========================
@@ -196,7 +198,7 @@ export default function ShippingOrdersPage() {
 
       <section className="mt-6 px-4">
 
-        {loading ? (
+        {loading || authLoading ? (
 
           <p className="text-center text-gray-400">
             {t.loading_orders}
