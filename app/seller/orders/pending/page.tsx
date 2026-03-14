@@ -26,7 +26,13 @@ interface OrderItem {
   status: string;
 }
 
-type OrderStatus = "pending" | "confirmed" | "cancelled";
+type OrderStatus =
+  | "pending"
+  | "pickup"
+  | "shipping"
+  | "completed"
+  | "cancelled"
+  | "refunded";
 
 interface Order {
   id: string;
@@ -34,7 +40,14 @@ interface Order {
 
   status: OrderStatus;
 
+  subtotal: number;
+  shipping_fee: number;
+  discount: number;
+  tax: number;
   total: number;
+
+  currency: string;
+
   created_at: string;
 
   shipping_name: string;
@@ -72,25 +85,11 @@ export default function SellerPendingOrdersPage() {
 
   const { user, loading: authLoading } = useAuth();
 
-  const SELLER_CANCEL_REASONS: string[] = [
-    t.cancel_reason_out_of_stock ?? "Out of stock",
-    t.cancel_reason_discontinued ?? "Product discontinued",
-    t.cancel_reason_wrong_price ?? "Wrong price",
-    t.cancel_reason_other ?? "Other",
-  ];
-
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [processingId, setProcessingId] = useState<string | null>(null);
-
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
-  const [sellerMessage, setSellerMessage] = useState<string>("");
-
-  const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
-  const [selectedReason, setSelectedReason] = useState<string>("");
-  const [customReason, setCustomReason] = useState<string>("");
 
   /* ================= LOAD ================= */
 
@@ -127,76 +126,11 @@ export default function SellerPendingOrdersPage() {
     void loadOrders();
   }, [authLoading, loadOrders]);
 
-  const totalPi = useMemo(
-    () => orders.reduce((sum, o) => sum + o.total, 0),
-    [orders]
-  );
+  /* ================= TOTAL PI ================= */
 
-  /* ================= CONFIRM ================= */
-
-  async function handleConfirm(orderId: string): Promise<void> {
-    if (!sellerMessage.trim()) return;
-
-    try {
-      setProcessingId(orderId);
-
-      const res = await apiAuthFetch(
-        `/api/seller/orders/${orderId}/confirm`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            seller_message: sellerMessage,
-          }),
-        }
-      );
-
-      if (!res.ok) return;
-
-      setShowConfirmFor(null);
-      setSellerMessage("");
-      await loadOrders();
-    } catch {
-    } finally {
-      setProcessingId(null);
-    }
-  }
-
-  /* ================= CANCEL ================= */
-
-  async function handleCancel(orderId: string): Promise<void> {
-    const finalReason =
-      selectedReason === (t.cancel_reason_other ?? "Other")
-        ? customReason
-        : selectedReason;
-
-    if (!finalReason.trim()) return;
-
-    try {
-      setProcessingId(orderId);
-
-      const res = await apiAuthFetch(
-        `/api/seller/orders/${orderId}/cancel`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cancel_reason: finalReason,
-          }),
-        }
-      );
-
-      if (!res.ok) return;
-
-      setShowCancelFor(null);
-      setSelectedReason("");
-      setCustomReason("");
-      await loadOrders();
-    } catch {
-    } finally {
-      setProcessingId(null);
-    }
-  }
+  const totalPi = useMemo(() => {
+    return orders.reduce((sum, o) => sum + o.total, 0);
+  }, [orders]);
 
   /* ================= LOADING ================= */
 
@@ -217,6 +151,7 @@ export default function SellerPendingOrdersPage() {
           <p className="text-sm opacity-90">
             {t.pending_orders ?? "Pending orders"}
           </p>
+
           <p className="text-xs opacity-80 mt-1">
             {t.orders ?? "Orders"}: {orders.length} · π
             {formatPi(totalPi)}
@@ -242,11 +177,14 @@ export default function SellerPendingOrdersPage() {
               }}
               className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
+              {/* ORDER HEADER */}
+
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
                 <div>
                   <p className="font-semibold text-sm">
                     #{o.order_number}
                   </p>
+
                   <p className="text-xs text-gray-500">
                     {formatDate(o.created_at)}
                   </p>
@@ -256,6 +194,8 @@ export default function SellerPendingOrdersPage() {
                   {t.status_pending ?? "Pending"}
                 </span>
               </div>
+
+              {/* SHIPPING INFO */}
 
               <div className="px-4 py-3 text-sm space-y-1 border-b">
                 <p>
@@ -276,13 +216,22 @@ export default function SellerPendingOrdersPage() {
                   {o.shipping_address}
                 </p>
 
-                {o.shipping_provider && (
+                {(o.shipping_provider ||
+                  o.shipping_country ||
+                  o.shipping_postal_code) && (
                   <p className="text-xs text-gray-500">
-                    {o.shipping_provider} · {o.shipping_country} ·{" "}
-                    {o.shipping_postal_code}
+                    {o.shipping_provider ?? ""}
+                    {o.shipping_country
+                      ? ` · ${o.shipping_country}`
+                      : ""}
+                    {o.shipping_postal_code
+                      ? ` · ${o.shipping_postal_code}`
+                      : ""}
                   </p>
                 )}
               </div>
+
+              {/* PRODUCTS */}
 
               <div className="divide-y">
                 {o.order_items.map((item) => (
@@ -313,6 +262,8 @@ export default function SellerPendingOrdersPage() {
                 ))}
               </div>
 
+              {/* TOTAL */}
+
               <div
                 className="px-4 py-3 border-t bg-gray-50 text-sm"
                 onClick={(e) => e.stopPropagation()}
@@ -322,33 +273,15 @@ export default function SellerPendingOrdersPage() {
                     {t.total ?? "Total"}: π{formatPi(o.total)}
                   </span>
 
-                  <div className="flex gap-2">
-                    <button
-                      disabled={processingId === o.id}
-                      onClick={() => {
-                        setSellerMessage(
-                          t.confirm_default_message ??
-                            "Thank you for your order."
-                        );
-                        setShowConfirmFor(o.id);
-                        setShowCancelFor(null);
-                      }}
-                      className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
-                    >
-                      {t.confirm ?? "Confirm"}
-                    </button>
-
-                    <button
-                      disabled={processingId === o.id}
-                      onClick={() => {
-                        setShowCancelFor(o.id);
-                        setShowConfirmFor(null);
-                      }}
-                      className="px-3 py-1.5 text-xs border border-gray-400 rounded-lg"
-                    >
-                      {t.cancel ?? "Cancel"}
-                    </button>
-                  </div>
+                  <button
+                    disabled={processingId === o.id}
+                    onClick={() =>
+                      router.push(`/seller/orders/${o.id}`)
+                    }
+                    className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg"
+                  >
+                    {t.view ?? "View"}
+                  </button>
                 </div>
               </div>
             </div>
