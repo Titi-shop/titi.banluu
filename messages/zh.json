@@ -426,25 +426,6 @@
 
   "refund_processing": "退款处理中",
 
-  "refund_completed": "退款完成",
-  
-  "loading_order": "正在加载订单...",
-  "order_not_found": "未找到订单",
-
-  "order_detail": "订单详情",
-  "order_id": "订单编号",
-  "status": "状态",
-  "created_at": "创建时间",
-  "total": "总金额",
-
-  "request_return": "申请退货",
-  "view_return_status": "查看退货状态",
-
-  "order_status_pending": "等待确认",
-  "order_status_confirmed": "已确认",
-  "order_status_shipping": "运输中",
-  "order_status_completed": "已完成",
-  "order_status_cancelled": "已取消",
-  "order_status_return_requested": "已申请退货"
+  "refund_completed": "退款完成"
   
 }
