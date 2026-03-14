@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useAuth } from "@/context/AuthContext";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 type ReturnRecord = {
   id: string;
@@ -26,8 +29,12 @@ const STATUS_STEPS = [
 ];
 
 export default function ReturnDetailPage() {
-  const { id } = useParams();
+
+  const { t } = useTranslation();
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
+
+  const { user, loading: authLoading } = useAuth();
 
   const [data, setData] = useState<ReturnRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,29 +42,101 @@ export default function ReturnDetailPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/returns/${id}`)
-      .then((res) => res.json())
-      .then((res) => {
-        setData(res);
-        setTrackingCode(res.return_tracking_code || "");
-      })
-      .finally(() => setLoading(false));
-  }, [id]);
 
-  async function handleSubmitTracking() {
-    if (!trackingCode) return;
+    if (authLoading) return;
+    if (!user) return;
 
-    setSaving(true);
-    await fetch(`/api/returns/${id}/ship`, {
-      method: "POST",
-      body: JSON.stringify({ trackingCode }),
-    });
+    void loadReturn();
 
-    location.reload();
+  }, [authLoading, user, id]);
+
+  /* =========================
+  LOAD RETURN
+  ========================= */
+
+  async function loadReturn(): Promise<void> {
+
+    if (authLoading) return;
+    if (!user) return;
+
+    try {
+
+      const token = await getPiAccessToken();
+      if (!token) return;
+
+      const res = await fetch(`/api/returns/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+
+      if (!res.ok) throw new Error("LOAD_FAILED");
+
+      const result = await res.json();
+
+      setData(result);
+      setTrackingCode(result.return_tracking_code || "");
+
+    } catch (err) {
+
+      console.error("Load return detail error:", err);
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
   }
 
-  if (loading) return <div className="p-6">Loading...</div>;
-  if (!data) return <div className="p-6">Not found</div>;
+  /* =========================
+  SUBMIT TRACKING
+  ========================= */
+
+  async function handleSubmitTracking() {
+
+    if (!trackingCode) return;
+    if (authLoading) return;
+    if (!user) return;
+
+    try {
+
+      setSaving(true);
+
+      const token = await getPiAccessToken();
+      if (!token) return;
+
+      const res = await fetch(`/api/returns/${id}/ship`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ trackingCode }),
+      });
+
+      if (!res.ok) throw new Error("SUBMIT_FAILED");
+
+      await loadReturn();
+
+    } catch (err) {
+
+      console.error("Submit tracking error:", err);
+
+    } finally {
+
+      setSaving(false);
+
+    }
+
+  }
+
+  if (loading || authLoading)
+    return <div className="p-6">{t.loading}</div>;
+
+  if (!data)
+    return <div className="p-6">{t.not_found}</div>;
 
   const currentStepIndex = STATUS_STEPS.indexOf(data.status);
 
@@ -70,7 +149,7 @@ export default function ReturnDetailPage() {
           <ArrowLeft size={22} />
         </button>
         <h1 className="mx-auto font-semibold text-lg">
-          Return #{data.id}
+          {t.return} #{data.id}
         </h1>
       </div>
 
@@ -97,8 +176,8 @@ export default function ReturnDetailPage() {
 
         {/* BASIC INFO */}
         <div className="bg-white p-4 rounded-xl shadow-sm space-y-3">
-          <p><b>Order:</b> {data.order_id}</p>
-          <p><b>Reason:</b> {data.reason}</p>
+          <p><b>{t.order}:</b> {data.order_id}</p>
+          <p><b>{t.reason}:</b> {data.reason}</p>
 
           {data.images?.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
@@ -118,7 +197,7 @@ export default function ReturnDetailPage() {
         {data.status === "pending" && (
           <div className="bg-white p-4 rounded-xl shadow-sm">
             <p className="text-orange-600 font-medium">
-              Waiting for seller approval...
+              {t.waiting_seller_approval}
             </p>
           </div>
         )}
@@ -126,11 +205,11 @@ export default function ReturnDetailPage() {
         {data.status === "rejected" && (
           <div className="bg-white p-4 rounded-xl shadow-sm">
             <p className="text-red-600 font-medium">
-              Request rejected
+              {t.request_rejected}
             </p>
             {data.seller_note && (
               <p className="text-sm text-gray-600 mt-2">
-                Seller note: {data.seller_note}
+                {t.seller_note}: {data.seller_note}
               </p>
             )}
           </div>
@@ -139,17 +218,17 @@ export default function ReturnDetailPage() {
         {data.status === "approved" && (
           <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
             <p className="font-semibold text-green-600">
-              Approved - Please ship the item back
+              {t.return_approved}
             </p>
 
             <div className="bg-gray-100 p-3 rounded text-sm">
-              <b>Return Address:</b><br />
+              <b>{t.return_address}:</b><br />
               {data.return_shipping_address}
             </div>
 
             <input
               type="text"
-              placeholder="Enter tracking code"
+              placeholder={t.enter_tracking_code}
               value={trackingCode}
               onChange={(e) => setTrackingCode(e.target.value)}
               className="w-full border p-3 rounded-lg"
@@ -160,7 +239,7 @@ export default function ReturnDetailPage() {
               disabled={saving}
               className="w-full bg-orange-500 text-white py-2 rounded-lg"
             >
-              Confirm Shipment
+              {saving ? t.processing : t.confirm_shipment}
             </button>
           </div>
         )}
@@ -168,13 +247,13 @@ export default function ReturnDetailPage() {
         {data.status === "shipped" && (
           <div className="bg-white p-4 rounded-xl shadow-sm">
             <p className="font-semibold text-blue-600">
-              Item shipped
+              {t.item_shipped}
             </p>
             <p className="text-sm mt-2">
-              Tracking code: {data.return_tracking_code}
+              {t.tracking_code}: {data.return_tracking_code}
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              Waiting seller to confirm receipt...
+              {t.waiting_seller_receive}
             </p>
           </div>
         )}
@@ -182,10 +261,10 @@ export default function ReturnDetailPage() {
         {data.status === "received" && (
           <div className="bg-white p-4 rounded-xl shadow-sm">
             <p className="font-semibold text-purple-600">
-              Seller received item
+              {t.seller_received_item}
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              Refund is being processed...
+              {t.refund_processing}
             </p>
           </div>
         )}
@@ -193,13 +272,14 @@ export default function ReturnDetailPage() {
         {data.status === "refunded" && (
           <div className="bg-white p-4 rounded-xl shadow-sm">
             <p className="font-semibold text-green-700">
-              Refund completed
+              {t.refund_completed}
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              Refunded at: {data.refunded_at}
+              {t.refunded_at}: {data.refunded_at}
             </p>
           </div>
         )}
+
       </div>
     </main>
   );
