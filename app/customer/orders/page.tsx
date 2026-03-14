@@ -58,7 +58,7 @@ export default function CustomerOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
  const router = useRouter();
-const { user, piReady } = useAuth();
+const { user, loading: authLoading } = useAuth();
   
   /* =========================
   LOAD ORDERS
