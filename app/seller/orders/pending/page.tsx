@@ -128,9 +128,13 @@ const { user, loading: authLoading } = useAuth();
 
 
   const totalPi = useMemo(
-    () => orders.reduce((sum, o) => sum + o.total, 0),
-    [orders]
-  );
+  () =>
+    orders.reduce(
+      (sum, o) => sum + Number(o.total ?? 0),
+      0
+    ),
+  [orders]
+);
 
   /* ================= CONFIRM ================= */
 
