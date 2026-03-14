@@ -56,7 +56,7 @@ export default function CompletedOrdersPage() {
 
   const { t } = useTranslation();
   const router = useRouter();
-  const { loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
