@@ -6,6 +6,7 @@ import { countries } from "@/data/countries";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { useAuth } from "@/context/AuthContext";
+
 /* =========================
    TYPES
 ========================= */
@@ -32,7 +33,7 @@ const emptyForm = {
 export default function CustomerAddressPage() {
   const router = useRouter();
   const { t } = useTranslation();
-const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -49,6 +50,9 @@ const { user, loading: authLoading } = useAuth();
      LOAD
   ========================= */
   const loadAddresses = async () => {
+    if (authLoading) return;
+    if (!user) return;
+
     const token = await getPiAccessToken();
     if (!token) return;
 
@@ -61,8 +65,11 @@ const { user, loading: authLoading } = useAuth();
   };
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+
     loadAddresses();
-  }, []);
+  }, [authLoading, user]);
 
   /* =========================
      HANDLERS
@@ -78,6 +85,8 @@ const { user, loading: authLoading } = useAuth();
   };
 
   const handleSave = async () => {
+    if (authLoading) return;
+
     if (
       !form.full_name ||
       !form.phone ||
@@ -106,7 +115,9 @@ const { user, loading: authLoading } = useAuth();
 
       setShowForm(false);
       setForm(emptyForm);
+
       await loadAddresses();
+
       setMessage("✅ " + t.address_saved);
     } finally {
       setSaving(false);
@@ -114,6 +125,8 @@ const { user, loading: authLoading } = useAuth();
   };
 
   const setDefault = async (id: string) => {
+    if (authLoading) return;
+
     const token = await getPiAccessToken();
     if (!token) return;
 
@@ -126,10 +139,12 @@ const { user, loading: authLoading } = useAuth();
       body: JSON.stringify({ id }),
     });
 
-    loadAddresses();
+    await loadAddresses();
   };
 
   const deleteAddress = async (id: string) => {
+    if (authLoading) return;
+
     if (!confirm(t.confirm_delete || "Xoá địa chỉ này?")) return;
 
     const token = await getPiAccessToken();
@@ -140,7 +155,7 @@ const { user, loading: authLoading } = useAuth();
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    loadAddresses();
+    await loadAddresses();
   };
 
   /* =========================
@@ -190,10 +205,9 @@ const { user, loading: authLoading } = useAuth();
                   {getCountryDisplay(a.country)}
                 </p>
 
-            
-  <p className="text-sm text-gray-500">
-    {a.postal_code}
-  </p>
+                <p className="text-sm text-gray-500">
+                  {a.postal_code}
+                </p>
               </div>
 
               {a.is_default && (
@@ -312,14 +326,14 @@ const { user, loading: authLoading } = useAuth();
             }
           />
 
-           <input
-  className="w-full border rounded-lg p-2 mb-3"
-  placeholder="Postal Code (optional)"
-  value={form.postal_code}
-  onChange={(e) =>
-    setForm({ ...form, postal_code: e.target.value })
-  }
-/>
+          <input
+            className="w-full border rounded-lg p-2 mb-3"
+            placeholder="Postal Code (optional)"
+            value={form.postal_code}
+            onChange={(e) =>
+              setForm({ ...form, postal_code: e.target.value })
+            }
+          />
 
           <textarea
             className="w-full border rounded-lg p-2 mb-4"
