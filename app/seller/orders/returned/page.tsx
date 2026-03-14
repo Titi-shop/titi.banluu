@@ -3,54 +3,81 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { formatPi } from "@/lib/pi";
 
 /* ================= TYPES ================= */
 
+interface OrderItem {
+  id: string;
+  product_id: string | null;
+  product_name: string;
+
+  thumbnail?: string;
+  images?: string[];
+
+  quantity: number;
+  unit_price: number | string;
+  total_price: number | string;
+}
+
 interface Order {
   id: string;
-  total: number | null;
+  order_number?: string;
+
   status: string;
-  created_at: string;
+  total: number | string;
+
+  created_at?: string;
+
+  shipping_name?: string;
+  shipping_phone?: string;
+  shipping_address?: string;
+
+  shipping_provider?: string | null;
+  shipping_country?: string | null;
+  shipping_postal_code?: string | null;
+
+  order_items: OrderItem[];
 }
 
 /* ================= HELPERS ================= */
 
-function formatPi(v: number | null): string {
-  const n = Number(v ?? 0);
-  return Number.isFinite(n) ? n.toFixed(6) : "0.000000";
-}
+function formatDate(date?: string): string {
+  if (!date) return "—";
 
-function formatDate(date: string): string {
   const d = new Date(date);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleDateString("vi-VN");
+
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
 /* ================= PAGE ================= */
 
-export default function ReturnedOrdersPage() {
+export default function SellerReturnedOrdersPage() {
+
   const router = useRouter();
   const { t } = useTranslation();
-  const { loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* ================= LOAD ================= */
 
-  useEffect(() => {
-    if (authLoading) return;
-    void fetchOrders();
-  }, [authLoading]);
+  const loadOrders = useCallback(async () => {
 
-  async function fetchOrders(): Promise<void> {
     try {
+
       const res = await apiAuthFetch(
         "/api/seller/orders?status=returned",
         { cache: "no-store" }
@@ -61,30 +88,44 @@ export default function ReturnedOrdersPage() {
         return;
       }
 
-      const data: unknown = await res.json();
-      setOrders(Array.isArray(data) ? (data as Order[]) : []);
+      const data = await res.json();
+
+      setOrders(Array.isArray(data) ? data : []);
+
     } catch {
+
       setOrders([]);
+
     } finally {
+
       setLoading(false);
+
     }
-  }
+
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    void loadOrders();
+  }, [authLoading, loadOrders]);
 
   /* ================= TOTAL ================= */
 
-  const totalPi = useMemo(() => {
-    return orders.reduce(
-      (sum, o) => sum + (Number(o.total) || 0),
-      0
-    );
-  }, [orders]);
+  const totalPi = useMemo(
+    () =>
+      orders.reduce(
+        (sum, o) => sum + Number(o.total ?? 0),
+        0
+      ),
+    [orders]
+  );
 
   /* ================= LOADING ================= */
 
-  if (loading || authLoading) {
+  if (loading) {
     return (
-      <p className="text-center mt-10 text-gray-500">
-        ⏳ {t.loading ?? "Loading..."}
+      <p className="text-center mt-10 text-gray-400">
+        {t.loading ?? "Loading..."}
       </p>
     );
   }
@@ -93,62 +134,170 @@ export default function ReturnedOrdersPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
-      {/* ===== HEADER XÁM MỜ ===== */}
-      <header className="bg-gray-600/90 backdrop-blur-lg text-white px-4 py-5 shadow-md">
-        <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-          <p className="text-sm font-medium opacity-90">
-            {t.returned_orders ?? "Returned Orders"}
+
+      {/* HEADER */}
+
+      <header className="bg-gray-600 text-white px-4 py-4">
+
+        <div className="bg-gray-500 rounded-lg p-4">
+
+          <p className="text-sm opacity-90">
+            {t.returned_orders ?? "Returned orders"}
           </p>
 
-          <p className="text-xs mt-1 text-white/80">
-            {t.orders ?? "Orders"}: {orders.length} · π
-            {formatPi(totalPi)}
+          <p className="text-xs opacity-80 mt-1">
+            {t.orders ?? "Orders"}: {orders.length} · π{formatPi(totalPi)}
           </p>
+
         </div>
+
       </header>
 
-      {/* ===== CONTENT ===== */}
-      <section className="px-4 mt-5 space-y-4">
+      {/* LIST */}
+
+      <section className="mt-6 px-4 space-y-4">
+
         {orders.length === 0 ? (
           <p className="text-center text-gray-400">
-            {t.no_return_orders ?? "No returned orders"}
+            {t.no_returned_orders ?? "No returned orders"}
           </p>
         ) : (
+
           orders.map((order) => (
+
             <div
               key={order.id}
               onDoubleClick={() =>
                 router.push(`/seller/orders/${order.id}`)
               }
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden active:scale-[0.99] transition"
+              className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
+
               {/* ORDER HEADER */}
+
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
+
                 <div>
+
                   <p className="font-semibold text-sm">
-                    #{order.id.slice(0, 8)}
+                    #{order.order_number ?? order.id.slice(0, 8)}
                   </p>
+
                   <p className="text-xs text-gray-500">
                     {formatDate(order.created_at)}
                   </p>
+
                 </div>
 
-                <span className="text-xs font-medium px-3 py-1 rounded-full bg-red-100 text-red-700">
+                <span className="text-red-600 text-sm font-medium">
                   {t.status_returned ?? "Returned"}
                 </span>
+
+              </div>
+
+              {/* SHIPPING INFO */}
+
+              <div className="px-4 py-3 text-sm space-y-1 border-b">
+
+                <p>
+                  <span className="text-gray-500">
+                    {t.customer ?? "Customer"}:
+                  </span>{" "}
+                  {order.shipping_name}
+                </p>
+
+                <p>
+                  <span className="text-gray-500">
+                    {t.phone ?? "Phone"}:
+                  </span>{" "}
+                  {order.shipping_phone}
+                </p>
+
+                <p className="text-gray-600 text-xs">
+                  {order.shipping_address}
+                </p>
+
+                {(order.shipping_provider ||
+                  order.shipping_country ||
+                  order.shipping_postal_code) && (
+
+                  <p className="text-xs text-gray-500">
+
+                    {order.shipping_provider && (
+                      <span>{order.shipping_provider}</span>
+                    )}
+
+                    {order.shipping_country && (
+                      <span> · {order.shipping_country}</span>
+                    )}
+
+                    {order.shipping_postal_code && (
+                      <span> · {order.shipping_postal_code}</span>
+                    )}
+
+                  </p>
+
+                )}
+
+              </div>
+
+              {/* PRODUCTS */}
+
+              <div className="divide-y">
+
+                {order.order_items.map((item) => (
+
+                  <div key={item.id} className="flex gap-3 p-4">
+
+                    <img
+                      src={
+                        item.thumbnail ??
+                        item.images?.[0] ??
+                        "/placeholder.png"
+                      }
+                      alt={item.product_name}
+                      className="w-14 h-14 rounded-lg object-cover bg-gray-100"
+                    />
+
+                    <div className="flex-1 min-w-0">
+
+                      <p className="text-sm font-medium line-clamp-1">
+                        {item.product_name}
+                      </p>
+
+                      <p className="text-xs text-gray-500 mt-1">
+                        x{item.quantity} · π{formatPi(Number(item.unit_price))}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                ))}
+
               </div>
 
               {/* FOOTER */}
-              <div className="px-4 py-3 border-t bg-gray-50 text-sm">
+
+              <div
+                className="px-4 py-3 border-t bg-gray-50"
+                onClick={(e) => e.stopPropagation()}
+              >
+
                 <span className="font-semibold">
-                  {t.total ?? "Total"}: π
-                  {formatPi(order.total)}
+                  {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
                 </span>
+
               </div>
+
             </div>
+
           ))
+
         )}
+
       </section>
+
     </main>
   );
 }
