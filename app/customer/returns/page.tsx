@@ -1,9 +1,11 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/app/context/AuthContext";
 
 type ReturnRecord = {
   id: string;
@@ -17,29 +19,29 @@ type ReturnRecord = {
 };
 
 export default function ReturnsPage() {
+
   const { t } = useTranslation();
   const router = useRouter();
-
   const { accessToken, authLoading } = useAuth();
 
   const [returns, setReturns] = useState<ReturnRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /* =========================
-     LOAD RETURNS
-  ========================= */
-
   useEffect(() => {
+
     if (authLoading) return;
     if (!accessToken) return;
 
     void loadReturns();
+
   }, [authLoading, accessToken]);
 
   async function loadReturns(): Promise<void> {
+
     if (!accessToken) return;
 
     try {
+
       const res = await fetch("/api/returns", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -52,20 +54,24 @@ export default function ReturnsPage() {
       const data: ReturnRecord[] = await res.json();
 
       setReturns(Array.isArray(data) ? data : []);
+
     } catch (err) {
+
       console.error("Load returns error:", err);
       setReturns([]);
+
     } finally {
+
       setLoading(false);
+
     }
+
   }
 
-  /* =========================
-     STATUS COLOR
-  ========================= */
-
   function getStatusColor(status: string) {
+
     switch (status) {
+
       case "pending":
         return "bg-yellow-100 text-yellow-700";
 
@@ -90,26 +96,17 @@ export default function ReturnsPage() {
       default:
         return "bg-gray-100 text-gray-600";
     }
-  }
 
-  /* =========================
-     LOADING
-  ========================= */
+  }
 
   if (loading || authLoading) {
-    return (
-      <div className="p-6">
-        {t("loading")}
-      </div>
-    );
+    return <div className="p-6">{t("loading")}</div>;
   }
 
-  /* =========================
-     UI
-  ========================= */
-
   return (
+
     <main className="min-h-screen bg-gray-50 pb-16">
+
       <div className="max-w-xl mx-auto p-4 space-y-4">
 
         <h1 className="text-lg font-semibold">
@@ -117,17 +114,18 @@ export default function ReturnsPage() {
         </h1>
 
         {returns.length === 0 && (
+
           <div className="bg-white p-6 rounded-xl shadow-sm text-center text-gray-500">
             {t("no_return_requests")}
           </div>
+
         )}
 
         {returns.map((r) => (
+
           <div
             key={r.id}
-            onClick={() =>
-              router.push(`/customer/returns/${r.id}`)
-            }
+            onClick={() => router.push(`/customer/returns/${r.id}`)}
             className="bg-white rounded-xl shadow-sm p-4 cursor-pointer hover:shadow-md transition space-y-3"
           >
 
@@ -143,6 +141,7 @@ export default function ReturnsPage() {
                 )}
 
                 <div>
+
                   <p className="font-medium">
                     {r.product_name}
                   </p>
@@ -150,6 +149,7 @@ export default function ReturnsPage() {
                   <p className="text-xs text-gray-400">
                     {t("order")}: {r.order_id}
                   </p>
+
                 </div>
 
               </div>
@@ -181,9 +181,13 @@ export default function ReturnsPage() {
             </div>
 
           </div>
+
         ))}
 
       </div>
+
     </main>
+
   );
+
 }
