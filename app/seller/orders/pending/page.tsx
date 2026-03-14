@@ -283,13 +283,17 @@ const { user, loading: authLoading } = useAuth();
                   o.shipping_country ||
                   o.shipping_postal_code) && (
                   <p className="text-xs text-gray-500">
-                    {o.shipping_provider ?? ""}
-                    {o.shipping_country
-                      ? ` · ${o.shipping_country}`
-                      : ""}
-                    {o.shipping_postal_code
-                      ? ` · ${o.shipping_postal_code}`
-                      : ""}
+                  {o.shipping_provider && (
+  <span>{o.shipping_provider}</span>
+)}
+
+{o.shipping_country && (
+  <span> · {o.shipping_country}</span>
+)}
+
+{o.shipping_postal_code && (
+  <span> · {o.shipping_postal_code}</span>
+)}
                   </p>
                 )}
               </div>
