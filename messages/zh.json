@@ -376,6 +376,56 @@
 
 
   "request_return": "申请退货",
-  "view_return_status": "查看退货状态"
+  "view_return_status": "查看退货状态",
+
+  
+  "loading": "加载中...",
+  "not_found": "未找到数据",
+
+  "my_returns": "我的退货",
+  "no_return_requests": "暂无退货申请",
+
+  "return": "退货",
+  "order": "订单",
+
+  "pending": "待处理",
+  "approved": "已批准",
+  "shipped": "已发货",
+  "received": "已收货",
+  "refunded": "已退款",
+  "rejected": "已拒绝",
+
+  "tracking": "物流单号",
+  "tracking_code": "物流单号",
+
+  "refunded_at": "退款时间",
+
+  "reason": "原因",
+
+  "seller_note": "卖家备注",
+
+  "return_address": "退货地址",
+
+  "enter_tracking_code": "输入物流单号",
+
+  "confirm_shipment": "确认已寄出",
+
+  "processing": "处理中",
+
+  "waiting_seller_approval": "等待卖家审核",
+
+  "request_rejected": "申请被拒绝",
+
+  "return_approved": "已批准 - 请寄回商品",
+
+  "item_shipped": "商品已寄出",
+
+  "waiting_seller_receive": "等待卖家确认收货",
+
+  "seller_received_item": "卖家已收到商品",
+
+  "refund_processing": "退款处理中",
+
+  "refund_completed": "退款完成"
   
 }
