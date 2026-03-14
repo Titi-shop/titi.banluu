@@ -64,8 +64,10 @@ export default function PendingOrdersPage() {
 
   
   useEffect(() => {
+  if (!authLoading && user) {
     void loadOrders();
-  }, []);
+  }
+}, [authLoading, user]);
 
   /* =========================
   LOAD ORDERS
@@ -157,6 +159,14 @@ export default function PendingOrdersPage() {
     0
   );
 
+
+  if (authLoading) {
+  return <main className="p-8 text-center">Loading...</main>;
+}
+
+if (!user) {
+  return <main className="p-8 text-center">Please login</main>;
+}
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
 
