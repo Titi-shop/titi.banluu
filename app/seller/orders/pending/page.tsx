@@ -279,10 +279,17 @@ const { user, loading: authLoading } = useAuth();
                   {o.shipping_address}
                 </p>
 
-                {o.shipping_provider && (
+               {(o.shipping_provider ||
+                  o.shipping_country ||
+                  o.shipping_postal_code) && (
                   <p className="text-xs text-gray-500">
-                    {o.shipping_provider} · {o.shipping_country} ·{" "}
-                    {o.shipping_postal_code}
+                    {o.shipping_provider ?? ""}
+                    {o.shipping_country
+                      ? ` · ${o.shipping_country}`
+                      : ""}
+                    {o.shipping_postal_code
+                      ? ` · ${o.shipping_postal_code}`
+                      : ""}
                   </p>
                 )}
               </div>
@@ -320,7 +327,6 @@ const { user, loading: authLoading } = useAuth();
                 ))}
               </div>
 
-              {/* FOOTER */}
                {/* FOOTER */}
               <div
                 className="px-4 py-3 border-t bg-gray-50 text-sm"
