@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
@@ -23,67 +23,52 @@ type ReturnStatus =
   | "rejected";
 
 /* =========================
-TYPES (MATCH API)
+TYPES
 ========================= */
 
 interface ReturnRecord {
-
   id: string;
-
   order_id: string;
-
   product_name: string;
-
   product_thumbnail: string | null;
-
   quantity: number;
-
   refund_amount: number;
-
   status: ReturnStatus;
-
+  reason?: string;
   created_at: string;
-
 }
 
 /* =========================
 PAGE
 ========================= */
 
-export default function ReturnsPage() {
-
+export default function ReturnDetailPage() {
   const { t } = useTranslation();
 
   const router = useRouter();
+  const params = useParams<{ id: string }>();
+
+  const returnId = params?.id;
 
   const { user, loading: authLoading } = useAuth();
 
-  const [returns, setReturns] = useState<ReturnRecord[]>([]);
-
+  const [data, setData] = useState<ReturnRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-
     if (authLoading) return;
-
     if (!user) return;
+    if (!returnId) return;
 
-    void loadReturns();
-
-  }, [authLoading, user]);
+    void loadReturn();
+  }, [authLoading, user, returnId]);
 
   /* =========================
-  LOAD RETURNS
+  LOAD RETURN
   ========================= */
 
-  async function loadReturns(): Promise<void> {
-
-    if (authLoading) return;
-
-    if (!user) return;
-
+  async function loadReturn(): Promise<void> {
     try {
-
       const token = await getPiAccessToken();
 
       if (!token) return;
@@ -95,26 +80,19 @@ export default function ReturnsPage() {
         cache: "no-store",
       });
 
-      if (!res.ok) throw new Error("UNAUTHORIZED");
+      if (!res.ok) throw new Error("API_ERROR");
 
-      const data = await res.json();
+      const list: ReturnRecord[] = await res.json();
 
-      const rawReturns: ReturnRecord[] = data ?? [];
+      const record = list.find((r) => r.id === returnId) ?? null;
 
-      setReturns(rawReturns);
-
+      setData(record);
     } catch (err) {
-
-      console.error("Load returns error:", err);
-
-      setReturns([]);
-
+      console.error("Load return error:", err);
+      setData(null);
     } finally {
-
       setLoading(false);
-
     }
-
   }
 
   /* =========================
@@ -122,9 +100,7 @@ export default function ReturnsPage() {
   ========================= */
 
   function getStatusColor(status: ReturnStatus) {
-
     switch (status) {
-
       case "pending":
         return "text-yellow-600";
 
@@ -149,7 +125,28 @@ export default function ReturnsPage() {
       default:
         return "text-gray-500";
     }
+  }
 
+  /* =========================
+  LOADING
+  ========================= */
+
+  if (loading) {
+    return (
+      <main className="p-4">
+        <p>{t.loading ?? "Loading..."}</p>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="p-4">
+        <p className="text-red-500">
+          {t.return_not_found ?? "Return not found"}
+        </p>
+      </main>
+    );
   }
 
   /* =========================
@@ -157,121 +154,118 @@ export default function ReturnsPage() {
   ========================= */
 
   return (
+    <main className="min-h-screen bg-gray-100 pb-24">
 
-<main className="min-h-screen bg-gray-100 pb-24">
+      {/* HEADER */}
 
-  {/* HEADER */}
+      <header className="bg-orange-500 text-white px-4 py-4">
+        <div className="bg-orange-400 rounded-lg p-4">
 
-  <header className="bg-orange-500 text-white px-4 py-4">
+          <p className="text-sm opacity-90">
+            {t.return_detail ?? "Return Detail"}
+          </p>
 
-    <div className="bg-orange-400 rounded-lg p-4">
+          <p className="text-xs opacity-80 mt-1">
+            {t.order ?? "Order"}: #{data.order_id}
+          </p>
 
-      <p className="text-sm opacity-90">
-        {t.return_detail || "Return Detail"}
-      </p>
+        </div>
+      </header>
 
-      <p className="text-xs opacity-80 mt-1">
-        {t.order || "Order"}: #{data.order_id}
-      </p>
+      {/* CONTENT */}
 
-    </div>
+      <section className="mt-6 px-4 space-y-4">
 
-  </header>
+        {/* PRODUCT */}
 
-  {/* CONTENT */}
+        <div className="bg-white rounded-xl shadow-sm p-4 flex gap-3">
 
-  <section className="mt-6 px-4 space-y-4">
+          <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden">
 
-    {/* PRODUCT */}
+            <img
+              src={data.product_thumbnail ?? "/placeholder.png"}
+              alt={data.product_name}
+              className="w-full h-full object-cover"
+            />
 
-    <div className="bg-white rounded-xl shadow-sm p-4 flex gap-3">
+          </div>
 
-      <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden">
+          <div className="flex-1">
 
-        <img
-          src={data.product_thumbnail || "/placeholder.png"}
-          alt={data.product_name}
-          className="w-full h-full object-cover"
-        />
+            <p className="font-medium text-sm">
+              {data.product_name}
+            </p>
 
-      </div>
+            <p className="text-xs text-gray-500">
+              {t.quantity ?? "Quantity"}: {data.quantity}
+            </p>
 
-      <div className="flex-1">
+          </div>
 
-        <p className="font-medium text-sm">
-          {data.product_name}
-        </p>
+        </div>
 
-        <p className="text-xs text-gray-500">
-          {t.quantity || "Quantity"}: {data.quantity}
-        </p>
+        {/* STATUS */}
 
-      </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
 
-    </div>
+          <span className="text-sm">
+            {t.status ?? "Status"}
+          </span>
 
-    {/* STATUS */}
+          <span className={`text-sm ${getStatusColor(data.status)}`}>
+            {t[data.status as keyof typeof t] ?? data.status}
+          </span>
 
-    <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
+        </div>
 
-      <span className="text-sm">
-        {t.status || "Status"}
-      </span>
+        {/* REFUND */}
 
-      <span className={`text-sm ${getStatusColor(data.status)}`}>
-        {t[data.status as keyof typeof t] || data.status}
-      </span>
+        <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
 
-    </div>
+          <span className="text-sm">
+            {t.refund_amount ?? "Refund"}
+          </span>
 
-    {/* REFUND */}
+          <span className="font-semibold">
+            π{data.refund_amount}
+          </span>
 
-    <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
+        </div>
 
-      <span className="text-sm">
-        {t.refund_amount || "Refund"}
-      </span>
+        {/* REASON */}
 
-      <span className="font-semibold">
-        π{data.refund_amount}
-      </span>
+        {data.reason && (
 
-    </div>
+          <div className="bg-white rounded-xl shadow-sm p-4">
 
-    {/* REASON */}
+            <p className="text-sm font-medium mb-1">
+              {t.return_reason ?? "Reason"}
+            </p>
 
-    {data.reason && (
+            <p className="text-sm text-gray-600">
+              {data.reason}
+            </p>
 
-      <div className="bg-white rounded-xl shadow-sm p-4">
+          </div>
 
-        <p className="text-sm font-medium mb-1">
-          {t.return_reason || "Reason"}
-        </p>
+        )}
 
-        <p className="text-sm text-gray-600">
-          {data.reason}
-        </p>
+        {/* DATE */}
 
-      </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
 
-    )}
+          <span className="text-sm">
+            {t.created_at ?? "Created"}
+          </span>
 
-    {/* DATE */}
+          <span className="text-xs text-gray-500">
+            {new Date(data.created_at).toLocaleDateString()}
+          </span>
 
-    <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
+        </div>
 
-      <span className="text-sm">
-        {t.created_at || "Created"}
-      </span>
+      </section>
 
-      <span className="text-xs text-gray-500">
-        {new Date(data.created_at).toLocaleDateString()}
-      </span>
-
-    </div>
-
-  </section>
-
-</main>
-);
+    </main>
+  );
 }
