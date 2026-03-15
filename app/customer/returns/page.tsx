@@ -2,12 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useAuth } from "@/context/AuthContext";
+import { getPiAccessToken } from "@/lib/piAuth";
 
 type ReturnRecord = {
   id: string;
@@ -20,39 +17,45 @@ type ReturnRecord = {
 
 export default function ReturnsPage() {
   const router = useRouter();
+  const { t } = useTranslation();
+  const { user, loading: authLoading } = useAuth();
+
   const [returns, setReturns] = useState<ReturnRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    if (authLoading) return;
 
-      const token = session?.access_token;
+    async function loadReturns() {
+      try {
+        const token = await getPiAccessToken();
 
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+        if (!token) {
+          setLoading(false);
+          return;
+        }
 
-      const res = await fetch("/api/returns", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+        const res = await fetch("/api/returns", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        setReturns(data);
+        if (res.ok) {
+          const data = await res.json();
+          setReturns(data);
+        }
+      } catch (err) {
+        console.error("Load returns error:", err);
       }
 
       setLoading(false);
-    };
+    }
 
-    load();
-  }, []);
+    loadReturns();
+  }, [authLoading, user]);
 
   function getStatusColor(status: string) {
     switch (status) {
@@ -73,16 +76,44 @@ export default function ReturnsPage() {
     }
   }
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  function getStatusText(status: string) {
+    switch (status) {
+      case "pending":
+        return t.return_pending ?? "Pending";
+      case "approved":
+        return t.return_approved ?? "Approved";
+      case "shipped":
+        return t.return_shipped ?? "Shipped";
+      case "received":
+        return t.return_received ?? "Received";
+      case "refunded":
+        return t.return_refunded ?? "Refunded";
+      case "rejected":
+        return t.return_rejected ?? "Rejected";
+      default:
+        return status;
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 text-center">
+        {t.loading ?? "Loading..."}
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 pb-16">
       <div className="max-w-xl mx-auto p-4 space-y-4">
-        <h1 className="text-lg font-semibold">My Returns</h1>
+
+        <h1 className="text-lg font-semibold">
+          {t.my_returns ?? "My Returns"}
+        </h1>
 
         {returns.length === 0 && (
           <div className="bg-white p-6 rounded-xl shadow-sm text-center text-gray-500">
-            No return requests yet
+            {t.no_returns ?? "No return requests yet"}
           </div>
         )}
 
@@ -92,11 +123,15 @@ export default function ReturnsPage() {
             onClick={() => router.push(`/customer/returns/${r.id}`)}
             className="bg-white rounded-xl shadow-sm p-4 cursor-pointer hover:shadow-md transition space-y-3"
           >
+
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-medium">Return #{r.id}</p>
+                <p className="font-medium">
+                  {t.return_label ?? "Return"} #{r.id}
+                </p>
+
                 <p className="text-xs text-gray-400">
-                  Order: {r.order_id}
+                  {t.order ?? "Order"}: {r.order_id}
                 </p>
               </div>
 
@@ -105,33 +140,36 @@ export default function ReturnsPage() {
                   r.status
                 )}`}
               >
-                {r.status}
+                {getStatusText(r.status)}
               </span>
             </div>
 
             <div className="flex items-center gap-2 text-[10px] text-gray-400">
-              <span>Pending</span>
+              <span>{t.return_pending ?? "Pending"}</span>
               <span>→</span>
-              <span>Approved</span>
+              <span>{t.return_approved ?? "Approved"}</span>
               <span>→</span>
-              <span>Shipped</span>
+              <span>{t.return_shipped ?? "Shipped"}</span>
               <span>→</span>
-              <span>Refunded</span>
+              <span>{t.return_refunded ?? "Refunded"}</span>
             </div>
 
             {r.return_tracking_code && (
               <div className="text-xs text-blue-600">
-                Tracking: {r.return_tracking_code}
+                {t.tracking ?? "Tracking"}: {r.return_tracking_code}
               </div>
             )}
 
             {r.refunded_at && (
               <div className="text-xs text-green-600">
-                Refunded at: {new Date(r.refunded_at).toLocaleString()}
+                {t.refunded_at ?? "Refunded at"}:{" "}
+                {new Date(r.refunded_at).toLocaleString()}
               </div>
             )}
+
           </div>
         ))}
+
       </div>
     </main>
   );
