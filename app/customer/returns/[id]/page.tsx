@@ -46,9 +46,11 @@ export default function ReturnDetailPage() {
   const { t } = useTranslation();
 
   const router = useRouter();
-  const params = useParams<{ id: string }>();
+  const params = useParams();
 
-  const returnId = params?.id;
+const returnId = Array.isArray(params?.id)
+  ? params.id[0]
+  : params?.id;
 
   const { user, loading: authLoading } = useAuth();
 
@@ -71,16 +73,25 @@ export default function ReturnDetailPage() {
     try {
       const token = await getPiAccessToken();
 
-      if (!token) return;
+if (!token) {
+  console.error("Pi token missing");
+  setLoading(false);
+  return;
+}
 
       const res = await fetch("/api/returns", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
+  method: "GET",
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+  cache: "no-store",
+});
 
-      if (!res.ok) throw new Error("API_ERROR");
+      if (!res.ok) {
+  console.error("Return API error:", res.status);
+  setData(null);
+  return;
+}
 
       const list: ReturnRecord[] = await res.json();
 
