@@ -1,4 +1,4 @@
-{
+
   "order_pending": "待确认",
   "order_pickup": "待取货",
   "order_shipping": "运输中",
@@ -27,7 +27,6 @@
   "saving": "保存中...",
   "save_changes": "保存修改",
   "save_success": "保存成功！",
-  "save_failed": "保存失败！",
   "full_name": "姓名",
   "phone_number": "电话号码",
   "enter_phone": "输入电话号码",
@@ -71,7 +70,6 @@
   "transaction_failed": "交易失败或已取消。",
   "checkout": "结算",
   "add_shipping": "添加收货地址",
-  "edit": "编辑",
   "products": "商品",
   "no_products": "没有商品。",
   "total_label": "总计：",
@@ -119,9 +117,6 @@
   "receive": "接收 Pi",
   "transactions": "交易记录",
   "recent_transactions": "最近交易",
-  "notifications": "通知",
-  "no_notifications": "没有新的通知。",
-  "fetch_error": "无法加载通知。",
   "search_placeholder": "输入关键词进行搜索...",
   "recent_searches": "最近搜索",
   "clear_all": "清除全部",
@@ -155,9 +150,6 @@
   "app_name": "应用内名称",
   "select_option": "-- 请选择 --",
   "saving_profile": "正在保存...",
-  "profile_error_loading": "无法加载个人资料。",
-  "profile_avatar_updated": "头像已更新！",
-  "upload_failed": "无法上传图片",
   "logout_success": "您已成功登出！",
   "uploading_image": "正在上传图片",
   "login_again": "重新登录",
@@ -238,7 +230,6 @@
   "sale_price_optional": "促销价（可选）",
   "product_detail": "商品详细描述",
   "register_seller": "注册成为卖家",
-  "seller_note": "您可以注册成为卖家以开启自己的店铺。",
   "product_images": "商品图片",
   "order_returned": "已退货",
   "order_cancelled": "已取消",
@@ -271,7 +262,6 @@
   "cancel_reason_other": "其他",
   "loading_orders": "加载中...",
   "no_shipping_orders": "暂无配送中的订单",
-  "received": "已收到",
   "confirm_failed": "无法确认订单。",
   "no_name": "无名称",
   "order_status_confirmed": "已确认",
@@ -280,7 +270,6 @@
   "return_request": "退货申请",
   "select": "选择",
   "no_returnable_orders": "暂无可退货订单",
-  "reason": "原因",
   "select_reason": "选择原因",
   "upload_image": "上传图片",
   "submit_request": "提交申请",
@@ -305,7 +294,6 @@
   "invalid_date": "日期无效",
   "shop_orders": "店铺订单",
   "all": "全部",
-  "loading": "加载中...",
   "no_orders": "暂无订单",
   "no_address": "暂无地址",
   "order_status_pending": "待确认",
@@ -328,7 +316,6 @@
   "total": "总计",
   "start_shipping": "开始配送",
   "loading_order": "正在加载订单...",
-  "order_not_found": "未找到订单",
   "order": "订单",
   "created_at": "创建时间",
   "receiver": "收件人",
@@ -342,11 +329,6 @@
   "phone": "电话",
   "seller_dashboard": "卖家控制台",
   "order_status": "订单状态",
-  "default_review_comment": "商品质量很好，发货速度快，包装也很仔细。",
-
-
-
-  
   "profile_full_name": "姓名",
   "profile_email": "电子邮箱",
   "profile_phone": "电话号码",
@@ -364,88 +346,51 @@
   "saved_successfully": "保存成功",
   "save_failed": "保存失败",
   "loading_profile": "正在加载个人资料...",
-  "uploading": "正在上传...",
-  "saving": "正在保存...",
   "save": "保存",
-  "cancel": "取消",
   "edit": "编辑",
   "profile_shop_name": "商店名称",
   "profile_shop_description": "商店描述",
   "upload_banner": "上传店铺横幅",
   "no_banner": "暂无横幅",
-
-
   "request_return": "申请退货",
   "view_return_status": "查看退货状态",
-
-  
   "loading": "加载中...",
   "not_found": "未找到数据",
-
   "my_returns": "我的退货",
   "no_return_requests": "暂无退货申请",
-
   "return": "退货",
   "order": "订单",
-
   "pending": "待处理",
   "approved": "已批准",
   "shipped": "已发货",
   "received": "已收货",
   "refunded": "已退款",
   "rejected": "已拒绝",
-
   "tracking": "物流单号",
   "tracking_code": "物流单号",
-
-  "refunded_at": "退款时间",
-
   "reason": "原因",
-
   "seller_note": "卖家备注",
-
   "return_address": "退货地址",
-
   "enter_tracking_code": "输入物流单号",
-
   "confirm_shipment": "确认已寄出",
-
-  "processing": "处理中",
-
   "waiting_seller_approval": "等待卖家审核",
-
   "request_rejected": "申请被拒绝",
-
   "return_approved": "已批准 - 请寄回商品",
-
   "item_shipped": "商品已寄出",
-
   "waiting_seller_receive": "等待卖家确认收货",
-
   "seller_received_item": "卖家已收到商品",
-
   "refund_processing": "退款处理中",
-
   "refund_completed": "退款完成",
-  
   "order_not_found": "未找到订单",
-
   "submit_return": "提交退货申请",
   "submitting": "正在提交...",
-
   "max_images": "最多3张",
-
   "choose_file": "选择文件",
   "no_file": "尚未选择文件",
-  
-  "choose_file": "选择文件",
   "no_file_selected": "未选择文件",
   "photos_selected": "张已选择",
- 
   "upload_images": "上传商品图片",
-  
   "notifications": "通知",
-  "loading": "加载中...",
   "no_notifications": "暂无通知",
   "fetch_error": "加载通知失败",
   "unknown_time": "未知时间",
@@ -453,9 +398,6 @@
   "session_expired": "登录已过期",
   "register_failed": "注册失败",
   "system_error": "系统错误，请重试",
-  "seller_note": "您可以申请成为卖家来开设自己的店铺。",
-  
-  "my_returns": "退货订单",
   "no_returns": "暂无退货申请",
   "return_label": "退货",
   "return_pending": "待审核",
@@ -464,16 +406,9 @@
   "return_received": "已收到",
   "return_refunded": "已退款",
   "return_rejected": "已拒绝",
-  "tracking": "退货运单",
   "refunded_at": "退款时间",
-  "order": "订单",
     "province_city": "省 / 城市",
   "postal_code_optional": "邮政编码（可选）"
-
-
-
-
-
 
 
 
