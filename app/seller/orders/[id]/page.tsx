@@ -50,7 +50,9 @@ function formatDate(date: string) {
 export default function SellerOrderDetailPage() {
 
   const params = useParams();
-  const id = params?.id as string;
+  const id = Array.isArray(params?.id)
+  ? params.id[0]
+  : params?.id;
 
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -100,8 +102,8 @@ export default function SellerOrderDetailPage() {
           total: Number(data?.total ?? 0),
 
           order_items: Array.isArray(data?.order_items)
-            ? data.order_items.map((i: any) => ({
-                id: String(i?.id ?? crypto.randomUUID()),
+  ? data.order_items.map((i: any) => ({
+      id: String(i?.id ?? `${Date.now()}-${Math.random()}`),
                 product_id: i?.product_id ?? null,
                 product_name: i?.product_name ?? "",
                 quantity: Number(i?.quantity ?? 0),
