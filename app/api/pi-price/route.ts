@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
     const res = await fetch(
@@ -36,11 +36,17 @@ export async function GET() {
     }
 
     const data = (json as {
-      data?: { last?: string }[];
+      data?: {
+        last?: string;
+        sodUtc8?: string;
+      }[];
     }).data;
 
     const priceStr = data?.[0]?.last;
+    const changeStr = data?.[0]?.sodUtc8;
+
     const price = priceStr ? Number(priceStr) : null;
+    const change = changeStr ? Number(changeStr) : null;
 
     if (!price || Number.isNaN(price)) {
       return NextResponse.json(
@@ -52,6 +58,7 @@ export async function GET() {
     return NextResponse.json({
       symbol: "PI/USDT",
       price_usd: price,
+      change_24h: change,
       source: "OKX",
       updated_at: new Date().toISOString(),
     });
