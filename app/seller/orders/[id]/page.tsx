@@ -3,12 +3,12 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* ================= TYPES ================= */
 
@@ -16,57 +16,35 @@ interface OrderItem {
   id: string;
   product_id: string | null;
   product_name: string;
-
   quantity: number;
-  unit_price: number | string;
-  total_price: number | string;
+  unit_price: number;
+  total_price: number;
 }
 
 interface Order {
   id: string;
   order_number?: string;
-
   created_at: string;
 
   shipping_name?: string;
   shipping_phone?: string;
   shipping_address?: string;
-
   shipping_provider?: string | null;
   shipping_country?: string | null;
   shipping_postal_code?: string | null;
 
-  total?: number | string;
-
+  total: number;
   order_items: OrderItem[];
 }
 
 /* ================= HELPERS ================= */
 
-function formatDate(date: string): string {
+function formatDate(date: string) {
   const d = new Date(date);
 
   if (Number.isNaN(d.getTime())) return "—";
 
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function downloadText(filename: string, content: string): void {
-  const blob = new Blob([content], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-
-  URL.revokeObjectURL(url);
+  return d.toLocaleString();
 }
 
 /* ================= PAGE ================= */
@@ -77,72 +55,77 @@ export default function SellerOrderDetailPage({
   params: { id: string };
 }) {
   const router = useRouter();
-  const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
 
-const [order, setOrder] = useState<Order | null>(null);
-const [loading, setLoading] = useState(true);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
 
   /* ================= LOAD ORDER ================= */
 
-  const loadOrder = useCallback(async () => {
-    try {
-      const res = await apiAuthFetch(
-        `/api/seller/orders/${params.id}`,
-        { cache: "no-store" }
-      );
-
-      if (!res.ok) {
-        setOrder(null);
-        return;
-      }
-
-      const data: unknown = await res.json();
-
-      if (data && typeof data === "object") {
-        const safe = data as Partial<Order>;
-
-        setOrder({
-          id: safe.id ?? "",
-          order_number: safe.order_number,
-          created_at: safe.created_at ?? "",
-
-          shipping_name: safe.shipping_name ?? "",
-          shipping_phone: safe.shipping_phone ?? "",
-          shipping_address: safe.shipping_address ?? "",
-
-          shipping_provider: safe.shipping_provider ?? null,
-          shipping_country: safe.shipping_country ?? null,
-          shipping_postal_code: safe.shipping_postal_code ?? null,
-
-          total: safe.total ?? 0,
-
-          order_items: Array.isArray(safe.order_items)
-  ? safe.order_items.filter(Boolean)
-  : [],
-        });
-      } else {
-        setOrder(null);
-      }
-    } catch {
-      setOrder(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [params.id]);
-
   useEffect(() => {
-  if (authLoading) return;
-  if (!user) return;
+    if (authLoading) return;
+    if (!user) return;
 
-  void loadOrder();
-}, [authLoading, user, loadOrder]);
+    const load = async () => {
+      try {
+        const res = await apiAuthFetch(
+          `/api/seller/orders/${params.id}`,
+          { cache: "no-store" }
+        );
+
+        if (!res.ok) {
+          setOrder(null);
+          setLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+
+        const safe: Order = {
+          id: String(data?.id ?? ""),
+          order_number: data?.order_number ?? "",
+          created_at: data?.created_at ?? "",
+
+          shipping_name: data?.shipping_name ?? "",
+          shipping_phone: data?.shipping_phone ?? "",
+          shipping_address: data?.shipping_address ?? "",
+          shipping_provider: data?.shipping_provider ?? "",
+          shipping_country: data?.shipping_country ?? "",
+          shipping_postal_code: data?.shipping_postal_code ?? "",
+
+          total: Number(data?.total ?? 0),
+
+          order_items: Array.isArray(data?.order_items)
+            ? data.order_items.map((i: any) => ({
+                id: String(i?.id ?? crypto.randomUUID()),
+                product_id: i?.product_id ?? null,
+                product_name: i?.product_name ?? "",
+                quantity: Number(i?.quantity ?? 0),
+                unit_price: Number(i?.unit_price ?? 0),
+                total_price: Number(i?.total_price ?? 0),
+              }))
+            : [],
+        };
+
+        setOrder(safe);
+      } catch (err) {
+        console.error("ORDER LOAD ERROR", err);
+        setOrder(null);
+      }
+
+      setLoading(false);
+    };
+
+    load();
+  }, [authLoading, user, params.id]);
+
   /* ================= LOADING ================= */
 
   if (loading) {
     return (
       <p className="text-center mt-10 text-gray-500">
-        {t.loading_order ?? "Loading order..."}
+        {t.loading ?? "Loading..."}
       </p>
     );
   }
@@ -158,86 +141,37 @@ const [loading, setLoading] = useState(true);
   /* ================= TOTAL ================= */
 
   const total = useMemo(() => {
-    if (order.total) return Number(order.total);
+    if (order.total) return order.total;
 
     return order.order_items.reduce(
-      (sum, i) => sum + Number(i.total_price ?? 0),
+      (sum, i) => sum + i.total_price,
       0
     );
   }, [order]);
 
-  /* ================= DOWNLOAD TEXT ================= */
-
-  const downloadContent = `
-${t.order ?? "ORDER"}: ${order.order_number ?? order.id}
-${t.created_at ?? "Created at"}: ${formatDate(order.created_at)}
-
-${t.receiver ?? "Receiver"}:
-${t.name ?? "Name"}: ${order.shipping_name}
-${t.phone ?? "Phone"}: ${order.shipping_phone}
-${t.address ?? "Address"}: ${order.shipping_address}
-${t.country ?? "Country"}: ${order.shipping_country ?? ""}
-${t.postal_code ?? "Postal code"}: ${order.shipping_postal_code ?? ""}
-${t.shipping_provider ?? "Shipping"}: ${order.shipping_provider ?? ""}
-
-${t.products ?? "Products"}:
-${(order.order_items ?? []).map(
-    (item, idx) =>
-      `${idx + 1}. ${item.product_name} x${item.quantity} · π${formatPi(
-        Number(item.unit_price ?? 0)
-      )}`
-  )
-  .join("\n")}
-
-${t.total ?? "Total"}: π${formatPi(total)}
-`;
-
   /* ================= UI ================= */
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6 print:bg-white">
+    <main className="min-h-screen bg-gray-100 p-6">
 
-      {/* ACTION BAR */}
-
-      <div className="flex justify-end gap-2 mb-6 print:hidden">
-
-        <button
-          onClick={() =>
-            downloadText(
-              `order-${order.order_number ?? order.id}.txt`,
-              downloadContent
-            )
-          }
-          className="px-4 py-2 border border-gray-600 text-gray-700 rounded"
-        >
-          {t.download ?? "Download"}
-        </button>
-
-        <button
-          onClick={() => window.print()}
-          className="px-4 py-2 bg-gray-700 text-white rounded"
-        >
-          {t.print ?? "Print"}
-        </button>
+      <div className="flex justify-end mb-6">
 
         <button
           onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-400 rounded"
+          className="px-4 py-2 border rounded"
         >
           {t.back ?? "Back"}
         </button>
 
       </div>
 
-      {/* ORDER PAPER */}
+      <section className="max-w-2xl mx-auto bg-white p-6 border shadow">
 
-      <section className="max-w-2xl mx-auto bg-white p-6 border shadow print:shadow-none">
-
-        <h1 className="text-xl font-semibold text-center mb-6">
+        <h1 className="text-xl font-semibold mb-6 text-center">
           {t.delivery_note ?? "Delivery Note"}
         </h1>
 
-        {/* SHIPPING INFO */}
+        {/* SHIPPING */}
 
         <div className="space-y-1 text-sm mb-6">
 
@@ -272,7 +206,7 @@ ${t.total ?? "Total"}: π${formatPi(total)}
           </p>
 
           <p>
-            <b>{t.created_at ?? "Created at"}:</b>{" "}
+            <b>{t.created_at ?? "Created"}:</b>{" "}
             {formatDate(order.created_at)}
           </p>
 
@@ -283,31 +217,35 @@ ${t.total ?? "Total"}: π${formatPi(total)}
         <table className="w-full border text-sm">
 
           <thead className="bg-gray-100">
-
             <tr>
               <th className="border px-2 py-1 text-left">#</th>
-
               <th className="border px-2 py-1 text-left">
                 {t.product ?? "Product"}
               </th>
-
               <th className="border px-2 py-1 text-center">
                 {t.quantity ?? "Qty"}
               </th>
-
               <th className="border px-2 py-1 text-right">
                 π
               </th>
-
             </tr>
-
           </thead>
 
-         <tbody>
-  {(order.order_items ?? []).map((item, i) => (
+          <tbody>
 
-    <tr key={item.id}>
+            {order.order_items.length === 0 && (
+              <tr>
+                <td
+                  colSpan={4}
+                  className="text-center py-4 text-gray-400"
+                >
+                  No items
+                </td>
+              </tr>
+            )}
 
+            {order.order_items.map((item, i) => (
+              <tr key={item.id}>
                 <td className="border px-2 py-1">
                   {i + 1}
                 </td>
@@ -321,23 +259,17 @@ ${t.total ?? "Total"}: π${formatPi(total)}
                 </td>
 
                 <td className="border px-2 py-1 text-right">
-                  π{formatPi(Number(item.total_price ?? 0))}
+                  π{formatPi(item.total_price)}
                 </td>
-
               </tr>
-
             ))}
 
           </tbody>
 
         </table>
 
-        {/* TOTAL */}
-
         <div className="mt-4 text-right font-semibold">
-
           {t.total ?? "Total"}: π{formatPi(total)}
-
         </div>
 
       </section>
