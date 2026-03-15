@@ -432,6 +432,16 @@
 
   "refund_completed": "Đã hoàn tiền",
 
-  "order_not_found": "Không tìm thấy đơn hàng"
+  "order_not_found": "Không tìm thấy đơn hàng",
+  
+  "submit_return": "Gửi yêu cầu trả hàng",
+  "submitting": "Đang gửi...",
+
+  "upload_images": "Tải ảnh sản phẩm",
+  "max_images": "tối đa 3 ảnh",
+
+  "choose_file": "Chọn tệp",
+  "no_file": "Chưa có tệp nào"
+
 
 }
