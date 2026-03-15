@@ -165,7 +165,7 @@ formData.append("description", description);
         return;
       }
 
-      router.push("/customer/returns");
+      router.push(`/customer/returns/${orderId}`);
 
     } catch {
 
