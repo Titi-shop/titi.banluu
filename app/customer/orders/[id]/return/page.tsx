@@ -15,12 +15,13 @@ type OrderStatus =
 
 type OrderItem = {
   id: string;
+  product_name: string;
 };
 
 type OrderDetail = {
   id: string;
   status: OrderStatus;
-  order_items?: OrderItem[];
+  order_items: OrderItem[];
 };
 
 export default function OrderReturnPage() {
