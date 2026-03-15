@@ -129,8 +129,9 @@ export default function OrderReturnPage() {
       const formData = new FormData();
 
       formData.append("order_id", orderId);
-      formData.append("reason", reason);
-      formData.append("description", description);
+formData.append("order_item_id", orderItemId);
+formData.append("reason", reason);
+formData.append("description", description);
 
       images.forEach((img) => {
         formData.append("images", img);
