@@ -96,6 +96,9 @@ export default function OrderReturnPage() {
         }
 
         setOrder(data);
+        if (data.order_items && data.order_items.length > 0) {
+  setOrderItemId(data.order_items[0].id);
+}
         setLoading(false);
 
       } catch {
@@ -107,6 +110,7 @@ export default function OrderReturnPage() {
     }
 
     loadOrder();
+    
 
   }, [authLoading, user, orderId, t]);
 
