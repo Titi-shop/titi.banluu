@@ -470,7 +470,9 @@
   "return_rejected": "Bị từ chối",
   "tracking": "Mã vận đơn",
   "refunded_at": "Hoàn tiền lúc",
-  "order": "Đơn hàng"
+  "order": "Đơn hàng",
+    "province_city": "Tỉnh / Thành phố",
+  "postal_code_optional": "Mã bưu điện (không bắt buộc)"
 
 
 
