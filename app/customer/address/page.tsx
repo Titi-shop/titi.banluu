@@ -270,18 +270,6 @@ export default function CustomerAddressPage() {
         />
 
         <div className="px-4 overflow-y-auto h-full pb-20 pt-2">
-          <div className="relative mb-4">
-            <button
-              onClick={() => setShowForm(false)}
-              className="absolute left-0 top-0 text-orange-600 font-semibold"
-            >
-              ← {t.back}
-            </button>
-
-            <h2 className="text-lg font-semibold text-center">
-              {t.add_address || "Thêm địa chỉ"}
-            </h2>
-          </div>
 
           <label className="block text-sm font-medium mb-1">
             {t.country}
@@ -301,7 +289,7 @@ export default function CustomerAddressPage() {
 
           <input
             className="w-full border rounded-lg p-2 mb-3"
-            placeholder="Province / City"
+            placeholder={t.province_city}
             value={form.province}
             onChange={(e) =>
               setForm({ ...form, province: e.target.value })
@@ -328,7 +316,7 @@ export default function CustomerAddressPage() {
 
           <input
             className="w-full border rounded-lg p-2 mb-3"
-            placeholder="Postal Code (optional)"
+            placeholder={t.postal_code_optional}
             value={form.postal_code}
             onChange={(e) =>
               setForm({ ...form, postal_code: e.target.value })
