@@ -3,33 +3,86 @@
 import { useState, useEffect } from "react";
 import { languageFiles } from "../i18n";
 
-export function useTranslationClient() {
- const [lang, setLang] = useState("en");
-  const [t, setT] = useState<Record<string, string>>({});
+type TranslationMap = Record<string, string>;
 
-  // Lấy ngôn ngữ đã lưu
+export function useTranslationClient() {
+  const [lang, setLang] = useState<string>("en");
+  const [t, setT] = useState<TranslationMap>({});
+
+  // Load ngôn ngữ đã lưu
   useEffect(() => {
-    const saved = localStorage.getItem("lang") || "en";
-    setLang(saved);
+    if (typeof window === "undefined") return;
+
+    const saved = localStorage.getItem("lang");
+    if (saved) {
+      setLang(saved);
+    }
   }, []);
 
-  // Load JSON tương ứng
+  // Load file JSON
   useEffect(() => {
-    languageFiles[lang]?.().then((mod) => setT(mod.default));
+    let active = true;
+
+    async function load() {
+      try {
+        const loader = languageFiles[lang];
+
+        if (!loader) {
+          setT({});
+          return;
+        }
+
+        const mod = await loader();
+
+        if (active) {
+          const data = mod.default;
+
+          if (data && typeof data === "object") {
+            setT(data as TranslationMap);
+          } else {
+            setT({});
+          }
+        }
+      } catch {
+        if (active) {
+          setT({});
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      active = false;
+    };
   }, [lang]);
 
-  // Lắng nghe sự kiện đổi ngôn ngữ
+  // Lắng nghe event đổi ngôn ngữ
   useEffect(() => {
-    const handler = (e: CustomEvent) => setLang(e.detail);
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      if (typeof custom.detail === "string") {
+        setLang(custom.detail);
+      }
+    };
+
     window.addEventListener("language-change", handler);
-    return () => window.removeEventListener("language-change", handler);
+
+    return () => {
+      window.removeEventListener("language-change", handler);
+    };
   }, []);
 
-  // Hàm đổi ngôn ngữ
+  // Đổi ngôn ngữ
   const setLanguage = (newLang: string) => {
+    if (typeof window === "undefined") return;
+
     localStorage.setItem("lang", newLang);
     setLang(newLang);
-    window.dispatchEvent(new CustomEvent("language-change", { detail: newLang }));
+
+    window.dispatchEvent(
+      new CustomEvent("language-change", { detail: newLang })
+    );
   };
 
   return {
