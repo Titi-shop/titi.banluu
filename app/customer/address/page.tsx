@@ -262,14 +262,14 @@ export default function CustomerAddressPage() {
         className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl
           transition-transform duration-300
           ${showForm ? "translate-y-0" : "translate-y-full"}`}
-        style={{ height: "70vh" }}
+        style={{ height: "80vh" }}
       >
         <div
           className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-4"
           onClick={() => setShowForm(false)}
         />
 
-        <div className="px-4 overflow-y-auto h-full pb-28">
+        <div className="px-4 overflow-y-auto h-full pb-20 pt-2">
           <div className="relative mb-4">
             <button
               onClick={() => setShowForm(false)}
