@@ -443,7 +443,13 @@
   
   "choose_file": "Chọn tệp",
   "no_file_selected": "Chưa chọn tệp nào",
-  "photos_selected": "ảnh đã chọn"
+  "photos_selected": "ảnh đã chọn",
+
+  "notifications": "Thông báo",
+  "loading": "Đang tải...",
+  "no_notifications": "Không có thông báo mới",
+  "fetch_error": "Lỗi tải thông báo",
+  "unknown_time": "Không rõ thời gian"
 
 
 
