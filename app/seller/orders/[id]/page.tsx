@@ -38,7 +38,9 @@ interface Order {
 
   total?: number | string;
 
-  order_items: OrderItem[];
+  order_items: Array.isArray(safe.order_items)
+  ? safe.order_items.filter(Boolean)
+  : [],
 }
 
 /* ================= HELPERS ================= */
@@ -132,10 +134,11 @@ const [loading, setLoading] = useState(true);
   }, [params.id]);
 
   useEffect(() => {
-    if (authLoading) return;
-    void loadOrder();
-  }, [authLoading, loadOrder]);
+  if (authLoading) return;
+  if (!user) return;
 
+  void loadOrder();
+}, [authLoading, user, loadOrder]);
   /* ================= LOADING ================= */
 
   if (loading) {
@@ -302,11 +305,10 @@ ${t.total ?? "Total"}: π${formatPi(total)}
 
           </thead>
 
-          <tbody>
+         <tbody>
+  {(order.order_items ?? []).map((item, i) => (
 
-            {order.order_items ?? []).map((item, i) => (
-
-              <tr key={item.id}>
+    <tr key={item.id}>
 
                 <td className="border px-2 py-1">
                   {i + 1}
