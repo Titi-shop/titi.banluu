@@ -1,4 +1,4 @@
-
+{
   "order_pending": "待确认",
   "order_pickup": "待取货",
   "order_shipping": "运输中",
@@ -289,7 +289,6 @@
   "select_rating": "请选择评分",
   "review_success": "评价成功",
   "review_failed": "评价失败，请稍后再试",
-  "submitting": "提交中...",
   "submit_review": "提交评价",
   "invalid_date": "日期无效",
   "shop_orders": "店铺订单",
@@ -359,7 +358,6 @@
   "my_returns": "我的退货",
   "no_return_requests": "暂无退货申请",
   "return": "退货",
-  "order": "订单",
   "pending": "待处理",
   "approved": "已批准",
   "shipped": "已发货",
@@ -375,7 +373,6 @@
   "confirm_shipment": "确认已寄出",
   "waiting_seller_approval": "等待卖家审核",
   "request_rejected": "申请被拒绝",
-  "return_approved": "已批准 - 请寄回商品",
   "item_shipped": "商品已寄出",
   "waiting_seller_receive": "等待卖家确认收货",
   "seller_received_item": "卖家已收到商品",
@@ -413,5 +410,11 @@
 
 
 
+
+
+
+
+
   
 }
+ 
