@@ -27,7 +27,7 @@ type OrderItemRow = {
   quantity: number;
   product_name: string;
   product_thumbnail: string | null;
-  price: number;
+  unit_price: number;
 };
 
 /* =========================
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   try {
     /* 1️⃣ AUTH */
 
-    const user = await getUserFromBearer();
+    const user = await getUserFromBearer(req);
 
     if (!user) {
       return NextResponse.json(
@@ -47,9 +47,25 @@ export async function POST(req: Request) {
       );
     }
 
-    /* 2️⃣ PARSE BODY */
+    /* 2️⃣ PARSE BODY (JSON OR FORM DATA) */
 
-    const raw = (await req.json()) as ReturnPayload;
+    let raw: ReturnPayload;
+
+    const contentType = req.headers.get("content-type") ?? "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const form = await req.formData();
+
+      raw = {
+        order_id: form.get("order_id"),
+        order_item_id: form.get("order_item_id"),
+        reason: form.get("reason"),
+        description: form.get("description"),
+        images: form.getAll("images"),
+      };
+    } else {
+      raw = (await req.json()) as ReturnPayload;
+    }
 
     const orderId =
       typeof raw.order_id === "string" ? raw.order_id : null;
@@ -82,7 +98,14 @@ export async function POST(req: Request) {
       );
     }
 
-    /* 3️⃣ GET DB USER */
+    if (images.length > 3) {
+      return NextResponse.json(
+        { error: "Maximum 3 images allowed" },
+        { status: 400 }
+      );
+    }
+
+    /* 3️⃣ VERIFY USER EXISTS */
 
     const { data: dbUser } = await supabaseAdmin
       .from("users")
@@ -97,7 +120,7 @@ export async function POST(req: Request) {
       );
     }
 
-    /* 4️⃣ CHECK ORDER */
+    /* 4️⃣ GET ORDER */
 
     const { data: order } = await supabaseAdmin
       .from("orders")
@@ -125,7 +148,7 @@ export async function POST(req: Request) {
     const { data: item } = await supabaseAdmin
       .from("order_items")
       .select(
-        "id,product_id,quantity,product_name,product_thumbnail,price"
+        "id,product_id,quantity,product_name,product_thumbnail,unit_price"
       )
       .eq("id", orderItemId)
       .eq("order_id", orderId)
@@ -155,7 +178,7 @@ export async function POST(req: Request) {
 
     /* 7️⃣ CALCULATE REFUND */
 
-    const refundAmount = item.price * item.quantity;
+    const refundAmount = item.unit_price * item.quantity;
 
     /* 8️⃣ INSERT RETURN */
 
@@ -206,12 +229,12 @@ export async function POST(req: Request) {
 }
 
 /* =========================
-   GET – LIST BUYER RETURNS
+   GET – BUYER RETURNS
 ========================= */
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const user = await getUserFromBearer();
+    const user = await getUserFromBearer(req);
 
     if (!user) {
       return NextResponse.json(
