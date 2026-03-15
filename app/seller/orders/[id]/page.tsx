@@ -23,15 +23,15 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  order_number?: string;
+  order_number: string;
   created_at: string;
 
-  shipping_name?: string;
-  shipping_phone?: string;
-  shipping_address?: string;
-  shipping_provider?: string | null;
-  shipping_country?: string | null;
-  shipping_postal_code?: string | null;
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_address: string;
+  shipping_provider: string | null;
+  shipping_country: string | null;
+  shipping_postal_code: string | null;
 
   total: number;
   order_items: OrderItem[];
@@ -45,21 +45,48 @@ function formatDate(date: string) {
   return d.toLocaleString();
 }
 
+function safeNumber(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function safeString(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
 /* ================= PAGE ================= */
 
 export default function SellerOrderDetailPage() {
 
   const params = useParams();
-  const id = Array.isArray(params?.id)
-  ? params.id[0]
-  : params?.id;
-
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { t } = useTranslation();
 
+  const id =
+    typeof params?.id === "string"
+      ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
+      : undefined;
+
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+
+  /* ================= TOTAL ================= */
+
+  const total = useMemo(() => {
+
+    if (!order) return 0;
+
+    if (order.total) return order.total;
+
+    return order.order_items.reduce(
+      (sum, i) => sum + i.total_price,
+      0
+    );
+
+  }, [order]);
 
   /* ================= LOAD ORDER ================= */
 
@@ -84,45 +111,87 @@ export default function SellerOrderDetailPage() {
           return;
         }
 
-        const data = await res.json();
+        const data: unknown = await res.json();
 
-        const safe: Order = {
-          id: String(data?.id ?? ""),
-          order_number: data?.order_number ?? "",
-          created_at: data?.created_at ?? "",
+        if (!data || typeof data !== "object") {
+          setOrder(null);
+          setLoading(false);
+          return;
+        }
 
-          shipping_name: data?.shipping_name ?? "",
-          shipping_phone: data?.shipping_phone ?? "",
-          shipping_address: data?.shipping_address ?? "",
+        const raw = data as Record<string, unknown>;
 
-          shipping_provider: data?.shipping_provider ?? "",
-          shipping_country: data?.shipping_country ?? "",
-          shipping_postal_code: data?.shipping_postal_code ?? "",
+        const itemsRaw = Array.isArray(raw.order_items)
+          ? raw.order_items
+          : [];
 
-          total: Number(data?.total ?? 0),
+        const items: OrderItem[] = itemsRaw
+          .map((item) => {
 
-          order_items: Array.isArray(data?.order_items)
-  ? data.order_items.map((i: any) => ({
-      id: String(i?.id ?? `${Date.now()}-${Math.random()}`),
-                product_id: i?.product_id ?? null,
-                product_name: i?.product_name ?? "",
-                quantity: Number(i?.quantity ?? 0),
-                unit_price: Number(i?.unit_price ?? 0),
-                total_price: Number(i?.total_price ?? 0),
-              }))
-            : [],
+            if (!item || typeof item !== "object") return null;
+
+            const i = item as Record<string, unknown>;
+
+            return {
+              id:
+                typeof i.id === "string"
+                  ? i.id
+                  : `${Date.now()}-${Math.random()}`,
+              product_id:
+                typeof i.product_id === "string"
+                  ? i.product_id
+                  : null,
+              product_name: safeString(i.product_name),
+              quantity: safeNumber(i.quantity),
+              unit_price: safeNumber(i.unit_price),
+              total_price: safeNumber(i.total_price),
+            };
+
+          })
+          .filter((i): i is OrderItem => i !== null);
+
+        const safeOrder: Order = {
+          id: safeString(raw.id),
+          order_number: safeString(raw.order_number),
+          created_at: safeString(raw.created_at),
+
+          shipping_name: safeString(raw.shipping_name),
+          shipping_phone: safeString(raw.shipping_phone),
+          shipping_address: safeString(raw.shipping_address),
+
+          shipping_provider:
+            typeof raw.shipping_provider === "string"
+              ? raw.shipping_provider
+              : null,
+
+          shipping_country:
+            typeof raw.shipping_country === "string"
+              ? raw.shipping_country
+              : null,
+
+          shipping_postal_code:
+            typeof raw.shipping_postal_code === "string"
+              ? raw.shipping_postal_code
+              : null,
+
+          total: safeNumber(raw.total),
+
+          order_items: items,
         };
 
-        setOrder(safe);
+        setOrder(safeOrder);
 
       } catch (err) {
 
-        console.error("ORDER LOAD ERROR", err);
+        console.error("ORDER LOAD ERROR:", err);
         setOrder(null);
+
+      } finally {
+
+        setLoading(false);
 
       }
 
-      setLoading(false);
     };
 
     loadOrder();
@@ -147,22 +216,10 @@ export default function SellerOrderDetailPage() {
     );
   }
 
-  /* ================= TOTAL ================= */
-
-  const total = useMemo(() => {
-
-    if (order.total) return order.total;
-
-    return order.order_items.reduce(
-      (sum, i) => sum + i.total_price,
-      0
-    );
-
-  }, [order]);
-
   /* ================= UI ================= */
 
   return (
+
     <main className="min-h-screen bg-gray-100 p-6">
 
       <div className="flex justify-end mb-6">
@@ -201,33 +258,52 @@ export default function SellerOrderDetailPage() {
         <table className="w-full border text-sm">
 
           <thead className="bg-gray-100">
+
             <tr>
               <th className="border px-2 py-1 text-left">#</th>
-              <th className="border px-2 py-1 text-left">{t.product ?? "Product"}</th>
-              <th className="border px-2 py-1 text-center">{t.quantity ?? "Qty"}</th>
+              <th className="border px-2 py-1 text-left">
+                {t.product ?? "Product"}
+              </th>
+              <th className="border px-2 py-1 text-center">
+                {t.quantity ?? "Qty"}
+              </th>
               <th className="border px-2 py-1 text-right">π</th>
             </tr>
+
           </thead>
 
           <tbody>
 
             {order.order_items.length === 0 && (
+
               <tr>
                 <td colSpan={4} className="text-center py-4 text-gray-400">
                   No items
                 </td>
               </tr>
+
             )}
 
-            {order.order_items.map((item, i) => (
+            {order.order_items.map((item, index) => (
 
               <tr key={item.id}>
-                <td className="border px-2 py-1">{i + 1}</td>
-                <td className="border px-2 py-1">{item.product_name}</td>
-                <td className="border px-2 py-1 text-center">{item.quantity}</td>
+
+                <td className="border px-2 py-1">
+                  {index + 1}
+                </td>
+
+                <td className="border px-2 py-1">
+                  {item.product_name}
+                </td>
+
+                <td className="border px-2 py-1 text-center">
+                  {item.quantity}
+                </td>
+
                 <td className="border px-2 py-1 text-right">
                   π{formatPi(item.total_price)}
                 </td>
+
               </tr>
 
             ))}
@@ -243,5 +319,7 @@ export default function SellerOrderDetailPage() {
       </section>
 
     </main>
+
   );
+
 }
