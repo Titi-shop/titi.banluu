@@ -13,9 +13,14 @@ type OrderStatus =
   | "completed"
   | "cancelled";
 
+type OrderItem = {
+  id: string;
+};
+
 type OrderDetail = {
   id: string;
   status: OrderStatus;
+  order_items?: OrderItem[];
 };
 
 export default function OrderReturnPage() {
