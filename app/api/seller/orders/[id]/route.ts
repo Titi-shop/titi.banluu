@@ -6,7 +6,6 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-
   try {
 
     const user = await getUserFromBearer();
@@ -32,23 +31,26 @@ export async function GET(
         o.shipping_country,
         o.shipping_postal_code,
 
-        json_agg(
-          json_build_object(
-            'id', oi.id,
-            'product_id', oi.product_id,
-            'product_name', oi.product_name,
-            'thumbnail', oi.thumbnail,
-            'images', oi.images,
-            'quantity', oi.quantity,
-            'unit_price', oi.unit_price,
-            'total_price', oi.total_price,
-            'status', oi.status,
-            'tracking_code', oi.tracking_code,
-            'seller_message', oi.seller_message
-          )
+        coalesce(
+          json_agg(
+            json_build_object(
+              'id', oi.id,
+              'product_id', oi.product_id,
+              'product_name', oi.product_name,
+              'thumbnail', oi.thumbnail,
+              'images', oi.images,
+              'quantity', oi.quantity,
+              'unit_price', oi.unit_price,
+              'total_price', oi.total_price,
+              'status', oi.status,
+              'tracking_code', oi.tracking_code,
+              'seller_message', oi.seller_message
+            )
+          ) filter (where oi.id is not null),
+          '[]'
         ) as order_items,
 
-        sum(oi.total_price) as total
+        coalesce(sum(oi.total_price),0) as total
 
       from orders o
 
@@ -58,7 +60,16 @@ export async function GET(
       where o.id = $1
       and oi.seller_id = $2
 
-      group by o.id
+      group by
+        o.id,
+        o.order_number,
+        o.created_at,
+        o.shipping_name,
+        o.shipping_phone,
+        o.shipping_address,
+        o.shipping_provider,
+        o.shipping_country,
+        o.shipping_postal_code
       `,
       [params.id, user.pi_uid]
     );
@@ -72,7 +83,9 @@ export async function GET(
 
     return NextResponse.json(rows[0]);
 
-  } catch {
+  } catch (error) {
+
+    console.error("SELLER ORDER ERROR:", error);
 
     return NextResponse.json(
       { error: "Server error" },
@@ -80,5 +93,4 @@ export async function GET(
     );
 
   }
-
 }
