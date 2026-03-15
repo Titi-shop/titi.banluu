@@ -49,11 +49,12 @@ function formatDate(date: string) {
 
 /* ================= PAGE ================= */
 
-export default function SellerOrderDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+import { useParams } from "next/navigation";
+
+export default function SellerOrderDetailPage() {
+
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { t } = useTranslation();
@@ -70,7 +71,7 @@ export default function SellerOrderDetailPage({
     const load = async () => {
       try {
         const res = await apiAuthFetch(
-          `/api/seller/orders/${params.id}`,
+          `/api/seller/orders/${id}`,
           { cache: "no-store" }
         );
 
@@ -118,7 +119,7 @@ export default function SellerOrderDetailPage({
     };
 
     load();
-  }, [authLoading, user, params.id]);
+}, [authLoading, user, id]);
 
   /* ================= LOADING ================= */
 
