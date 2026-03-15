@@ -65,8 +65,14 @@ export default function SellerOrderDetailPage() {
   /* ================= LOAD ORDER ================= */
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) return;
+
+  if (authLoading) return;
+  if (!user) return;
+  if (!id) return;
+
+  loadOrder();
+
+}, [authLoading, user, id]);
 
     const load = async () => {
       try {
