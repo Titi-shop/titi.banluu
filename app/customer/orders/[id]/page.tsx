@@ -163,7 +163,8 @@ export default function OrderDetailPage() {
         {/* TOTAL */}
         <div className="bg-white rounded-xl shadow-sm p-4">
           <p className="text-base font-bold">
-            {t.total}: π{formatPi(order.total)}
+             {t.total ?? "Total"}: π
+                  {formatPi(order.total)}
           </p>
         </div>
 
