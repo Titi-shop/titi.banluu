@@ -468,7 +468,34 @@
   "refunded_at": "退款时间",
   "order": "订单",
     "province_city": "省 / 城市",
-  "postal_code_optional": "邮政编码（可选）"
+  "postal_code_optional": "邮政编码（可选）",
+
+
+
+
+  
+  "shipping_address": "收货地址",
+  "add_address": "添加地址",
+  "save_address": "保存地址",
+  "saving": "保存中...",
+  "back": "返回",
+
+  "country": "国家",
+  "province_city": "省 / 城市",
+  "postal_code_optional": "邮政编码（可选）",
+
+  "full_name": "姓名",
+  "phone_number": "电话号码",
+  "address": "详细地址",
+
+  "default": "默认",
+  "set_default": "设为默认",
+  "delete": "删除",
+
+  "fill_all_fields": "请填写所有字段",
+  "address_saved": "地址已保存",
+  "confirm_delete": "删除这个地址？"
+
 
 
 
