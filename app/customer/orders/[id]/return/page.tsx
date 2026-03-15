@@ -39,42 +39,37 @@ export default function OrderReturnPage() {
       : "";
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [reason, setReason] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
+  const [orderItemId, setOrderItemId] = useState("");
+
+  const [reason, setReason] = useState("");
+  const [description, setDescription] = useState("");
 
   const [images, setImages] = useState<File[]>([]);
-const [orderItemId, setOrderItemId] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [previews, setPreviews] = useState<string[]>([]);
 
-  /* =========================
-     IMAGE HANDLER
-  ========================= */
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
 
-  const files = e.target.files;
+    const files = e.target.files;
+    if (!files) return;
 
-  if (!files) return;
+    const selected = Array.from(files).slice(0, 3);
 
-  const selected = Array.from(files).slice(0, 3);
-
-  for (const file of selected) {
-
-    if (file.size > 2 * 1024 * 1024) {
-      setError("Image must be under 2MB");
-      return;
+    for (const file of selected) {
+      if (file.size > 2 * 1024 * 1024) {
+        setError("Image must be under 2MB");
+        return;
+      }
     }
 
+    setImages(selected);
+
+    const urls = selected.map((file) => URL.createObjectURL(file));
+    setPreviews(urls);
   }
-
-  setImages(selected);
-}
-
-  /* =========================
-     LOAD ORDER
-  ========================= */
 
   useEffect(() => {
 
@@ -106,9 +101,11 @@ const [orderItemId, setOrderItemId] = useState<string>("");
         }
 
         setOrder(data);
+
         if (data.order_items && data.order_items.length > 0) {
-  setOrderItemId(data.order_items[0].id);
-}
+          setOrderItemId(data.order_items[0].id);
+        }
+
         setLoading(false);
 
       } catch {
@@ -120,22 +117,22 @@ const [orderItemId, setOrderItemId] = useState<string>("");
     }
 
     loadOrder();
-    
 
   }, [authLoading, user, orderId, t]);
 
-  /* =========================
-     SUBMIT RETURN
-  ========================= */
-
   async function handleSubmit() {
+
+    if (!orderItemId) {
+      setError("Order item not found");
+      return;
+    }
 
     if (!reason.trim()) {
       setError(t.return_reason_required ?? "Return reason required");
       return;
     }
 
-    if (images.length < 1) {
+    if (images.length === 0) {
       setError(t.return_image_required ?? "Please upload product images");
       return;
     }
@@ -148,9 +145,9 @@ const [orderItemId, setOrderItemId] = useState<string>("");
       const formData = new FormData();
 
       formData.append("order_id", orderId);
-formData.append("order_item_id", orderItemId);
-formData.append("reason", reason);
-formData.append("description", description);
+      formData.append("order_item_id", orderItemId);
+      formData.append("reason", reason);
+      formData.append("description", description);
 
       images.forEach((img) => {
         formData.append("images", img);
@@ -167,11 +164,10 @@ formData.append("description", description);
 
         setError(
           data?.error ??
-            t.return_submit_failed ??
-            "Failed to submit return request"
+          t.return_submit_failed ??
+          "Failed to submit return request"
         );
 
-        setSubmitting(false);
         return;
       }
 
@@ -188,10 +184,6 @@ formData.append("description", description);
     }
   }
 
-  /* =========================
-     LOADING
-  ========================= */
-
   if (loading) {
     return (
       <main className="p-4">
@@ -207,10 +199,6 @@ formData.append("description", description);
       </main>
     );
   }
-
-  /* =========================
-     UI
-  ========================= */
 
   return (
 
@@ -232,8 +220,6 @@ formData.append("description", description);
 
       </div>
 
-      {/* REASON */}
-
       <div className="space-y-2">
 
         <label className="block text-sm font-medium">
@@ -248,8 +234,6 @@ formData.append("description", description);
         />
 
       </div>
-
-      {/* DESCRIPTION */}
 
       <div className="space-y-2">
 
@@ -266,8 +250,6 @@ formData.append("description", description);
 
       </div>
 
-      {/* IMAGE UPLOAD */}
-
       <div className="space-y-2">
 
         <label className="block text-sm font-medium">
@@ -282,16 +264,16 @@ formData.append("description", description);
           className="w-full text-sm"
         />
 
-        {images.length > 0 && (
+        {previews.length > 0 && (
 
           <div className="flex gap-2">
 
-            {images.map((img, i) => (
+            {previews.map((src, i) => (
 
               <div key={i} className="w-20 h-20 border rounded overflow-hidden">
 
                 <img
-                  src={URL.createObjectURL(img)}
+                  src={src}
                   alt="preview"
                   className="object-cover w-full h-full"
                 />
