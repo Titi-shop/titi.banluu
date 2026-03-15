@@ -441,7 +441,7 @@
   "choose_file": "选择文件",
   "no_file_selected": "未选择文件",
   "photos_selected": "张已选择",
-
+ "fetch_error": "加载通知失败",
   "upload_images": "上传商品图片"
 
 
