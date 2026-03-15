@@ -54,14 +54,23 @@ const [orderItemId, setOrderItemId] = useState<string>("");
 
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
 
-    const files = e.target.files;
+  const files = e.target.files;
 
-    if (!files) return;
+  if (!files) return;
 
-    const selected = Array.from(files).slice(0, 3);
+  const selected = Array.from(files).slice(0, 3);
 
-    setImages(selected);
+  for (const file of selected) {
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Image must be under 2MB");
+      return;
+    }
+
   }
+
+  setImages(selected);
+}
 
   /* =========================
      LOAD ORDER
