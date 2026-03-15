@@ -6,6 +6,10 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
+/* =========================
+TYPES
+========================= */
+
 type OrderStatus =
   | "pending"
   | "pickup"
@@ -13,16 +17,26 @@ type OrderStatus =
   | "completed"
   | "cancelled";
 
+type OrderItem = {
+  id: string;
+  product_name: string;
+};
+
 type OrderDetail = {
   id: string;
   status: OrderStatus;
+  order_items: OrderItem[];
 };
 
-export default function OrderReturnPage() {
+/* =========================
+PAGE
+========================= */
 
-  const params = useParams<{ id: string }>();
-  const router = useRouter();
+export default function OrderReturnPage() {
   const { t } = useTranslation();
+  const params = useParams();
+  const router = useRouter();
+
   const { user, loading: authLoading } = useAuth();
 
   const orderId =
@@ -33,21 +47,24 @@ export default function OrderReturnPage() {
       : "";
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [reason, setReason] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
+
+  const [selectedItemId, setSelectedItemId] = useState<string>("");
+
+  const [reason, setReason] = useState("");
+  const [description, setDescription] = useState("");
 
   const [images, setImages] = useState<File[]>([]);
 
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   /* =========================
-     IMAGE HANDLER
+  IMAGE SELECT
   ========================= */
 
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
-
     const files = e.target.files;
 
     if (!files) return;
@@ -58,19 +75,16 @@ export default function OrderReturnPage() {
   }
 
   /* =========================
-     LOAD ORDER
+  LOAD ORDER
   ========================= */
 
   useEffect(() => {
-
     if (authLoading) return;
     if (!user) return;
     if (!orderId) return;
 
     async function loadOrder() {
-
       try {
-
         const res = await apiAuthFetch(`/api/orders/${orderId}`);
 
         if (!res.ok) {
@@ -91,25 +105,30 @@ export default function OrderReturnPage() {
         }
 
         setOrder(data);
+
+        if (data.order_items?.length) {
+          setSelectedItemId(data.order_items[0].id);
+        }
+
         setLoading(false);
-
       } catch {
-
         setError(t.system_error ?? "System error");
         setLoading(false);
-
       }
     }
 
     loadOrder();
-
   }, [authLoading, user, orderId, t]);
 
   /* =========================
-     SUBMIT RETURN
+  SUBMIT RETURN
   ========================= */
 
   async function handleSubmit() {
+    if (!selectedItemId) {
+      setError("Invalid order item");
+      return;
+    }
 
     if (!reason.trim()) {
       setError(t.return_reason_required ?? "Return reason required");
@@ -122,13 +141,13 @@ export default function OrderReturnPage() {
     }
 
     try {
-
       setSubmitting(true);
       setError(null);
 
       const formData = new FormData();
 
       formData.append("order_id", orderId);
+      formData.append("order_item_id", selectedItemId);
       formData.append("reason", reason);
       formData.append("description", description);
 
@@ -142,7 +161,6 @@ export default function OrderReturnPage() {
       });
 
       if (!res.ok) {
-
         const data = await res.json().catch(() => null);
 
         setError(
@@ -155,21 +173,22 @@ export default function OrderReturnPage() {
         return;
       }
 
-      router.push(`/customer/returns/${orderId}`);
+      const result: { return_id?: string } = await res.json();
 
+      if (result?.return_id) {
+        router.push(`/customer/returns/${result.return_id}`);
+      } else {
+        router.push("/customer/returns");
+      }
     } catch {
-
       setError(t.system_error ?? "System error");
-
     } finally {
-
       setSubmitting(false);
-
     }
   }
 
   /* =========================
-     LOADING
+  LOADING
   ========================= */
 
   if (loading) {
@@ -189,11 +208,10 @@ export default function OrderReturnPage() {
   }
 
   /* =========================
-     UI
+  UI
   ========================= */
 
   return (
-
     <main className="p-4 max-w-xl mx-auto space-y-4">
 
       <h1 className="text-xl font-bold">
@@ -201,7 +219,6 @@ export default function OrderReturnPage() {
       </h1>
 
       <div className="border p-3 rounded-md text-sm">
-
         <p>
           {t.order_id ?? "Order"}: {order?.id}
         </p>
@@ -209,6 +226,31 @@ export default function OrderReturnPage() {
         <p>
           {t.status ?? "Status"}: {order?.status}
         </p>
+      </div>
+
+      {/* ORDER ITEMS */}
+
+      <div className="space-y-2">
+
+        <label className="block text-sm font-medium">
+          {t.product ?? "Product"}
+        </label>
+
+        <select
+          value={selectedItemId}
+          onChange={(e) => setSelectedItemId(e.target.value)}
+          className="w-full border rounded-md p-2 text-sm"
+        >
+
+          {order?.order_items.map((item) => (
+
+            <option key={item.id} value={item.id}>
+              {item.product_name}
+            </option>
+
+          ))}
+
+        </select>
 
       </div>
 
@@ -246,7 +288,7 @@ export default function OrderReturnPage() {
 
       </div>
 
-      {/* IMAGE UPLOAD */}
+      {/* IMAGE */}
 
       <div className="space-y-2">
 
@@ -268,7 +310,10 @@ export default function OrderReturnPage() {
 
             {images.map((img, i) => (
 
-              <div key={i} className="w-20 h-20 border rounded overflow-hidden">
+              <div
+                key={i}
+                className="w-20 h-20 border rounded overflow-hidden"
+              >
 
                 <img
                   src={URL.createObjectURL(img)}
@@ -303,6 +348,5 @@ export default function OrderReturnPage() {
       </button>
 
     </main>
-
   );
 }
