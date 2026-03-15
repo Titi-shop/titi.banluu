@@ -18,70 +18,76 @@ export async function GET(
     }
 
     const { rows } = await query(
-      `
-      select
-        o.id,
-        o.order_number,
-        o.created_at,
+`
+select
+  o.id,
+  o.order_number,
+  o.created_at,
 
-        o.shipping_name,
-        o.shipping_phone,
-        o.shipping_address,
-        o.shipping_provider,
-        o.shipping_country,
-        o.shipping_postal_code,
+  o.shipping_name,
+  o.shipping_phone,
+  o.shipping_address,
+  o.shipping_provider,
+  o.shipping_country,
+  o.shipping_postal_code,
 
-        coalesce(
-          json_agg(
-            json_build_object(
-              'id', oi.id,
-              'product_id', oi.product_id,
-              'product_name', oi.product_name,
-              'thumbnail', oi.thumbnail,
-              'images', oi.images,
-              'quantity', oi.quantity,
-              'unit_price', oi.unit_price,
-              'total_price', oi.total_price,
-              'status', oi.status,
-              'tracking_code', oi.tracking_code,
-              'seller_message', oi.seller_message
-            )
-          ) filter (where oi.id is not null),
-          '[]'
-        ) as order_items,
+  coalesce(
+    json_agg(
+      json_build_object(
+        'id', oi.id,
+        'product_id', oi.product_id,
+        'product_name', oi.product_name,
+        'thumbnail', oi.thumbnail,
+        'images', oi.images,
+        'quantity', oi.quantity,
+        'unit_price', oi.unit_price,
+        'total_price', oi.total_price,
+        'status', oi.status,
+        'tracking_code', oi.tracking_code,
+        'seller_message', oi.seller_message
+      )
+    ) filter (where oi.id is not null),
+    '[]'::json
+  ) as order_items,
 
-        coalesce(sum(oi.total_price),0) as total
+  coalesce(sum(oi.total_price),0) as total
 
-      from orders o
+from orders o
 
-      join order_items oi
-      on oi.order_id = o.id
+left join order_items oi
+on oi.order_id = o.id
+and oi.seller_id = $2
 
-      where o.id = $1
-      and oi.seller_id = $2
+where o.id = $1
 
-      group by
-        o.id,
-        o.order_number,
-        o.created_at,
-        o.shipping_name,
-        o.shipping_phone,
-        o.shipping_address,
-        o.shipping_provider,
-        o.shipping_country,
-        o.shipping_postal_code
-      `,
-      [params.id, user.pi_uid]
-    );
+group by
+  o.id,
+  o.order_number,
+  o.created_at,
+  o.shipping_name,
+  o.shipping_phone,
+  o.shipping_address,
+  o.shipping_provider,
+  o.shipping_country,
+  o.shipping_postal_code
+`,
+[params.id, user.pi_uid]
+);
 
     if (!rows.length) {
-      return NextResponse.json(
-        { error: "Not found" },
-        { status: 404 }
-      );
-    }
+  return NextResponse.json(
+    { error: "Not found" },
+    { status: 404 }
+  );
+}
 
-    return NextResponse.json(rows[0]);
+const order = rows[0];
+
+if (!Array.isArray(order.order_items)) {
+  order.order_items = [];
+}
+
+return NextResponse.json(order);
 
   } catch (error) {
 
