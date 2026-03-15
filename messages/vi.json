@@ -449,7 +449,29 @@
   "loading": "Đang tải...",
   "no_notifications": "Không có thông báo mới",
   "fetch_error": "Lỗi tải thông báo",
-  "unknown_time": "Không rõ thời gian"
+  "unknown_time": "Không rõ thời gian",
+  
+  
+  "seller_request_sent": "Đã gửi yêu cầu đăng ký bán hàng. Vui lòng chờ duyệt.",
+  "session_expired": "Phiên đăng nhập đã hết hạn",
+  "register_failed": "Đăng ký thất bại",
+  "system_error": "Có lỗi xảy ra, vui lòng thử lại",
+  "seller_note": "Bạn có thể đăng ký bán hàng để mở gian hàng của mình.",
+
+
+  "my_returns": "Đơn trả hàng",
+  "no_returns": "Chưa có yêu cầu trả hàng",
+  "return_label": "Trả hàng",
+  "return_pending": "Chờ duyệt",
+  "return_approved": "Đã duyệt",
+  "return_shipped": "Đã gửi trả",
+  "return_received": "Đã nhận hàng",
+  "return_refunded": "Đã hoàn tiền",
+  "return_rejected": "Bị từ chối",
+  "tracking": "Mã vận đơn",
+  "refunded_at": "Hoàn tiền lúc",
+  "order": "Đơn hàng"
+
 
 
 
