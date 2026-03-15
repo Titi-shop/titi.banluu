@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
 
-    const user = await getUserFromBearer();
+    const user = await getUserFromBearer(req);
 
     if (!user) {
       return NextResponse.json(
