@@ -439,9 +439,12 @@
 
   "upload_images": "Tải ảnh sản phẩm",
   "max_images": "tối đa 3 ảnh",
-
+  "no_file": "Chưa có tệp nào",
+  
   "choose_file": "Chọn tệp",
-  "no_file": "Chưa có tệp nào"
+  "no_file_selected": "Chưa chọn tệp nào",
+  "photos_selected": "ảnh đã chọn"
+
 
 
 }
