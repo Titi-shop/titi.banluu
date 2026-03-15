@@ -43,7 +43,7 @@ export default function CustomerMenu() {
 
     const token = await getPiAccessToken();
     if (!token) {
-      setSellerMessage("⚠️ Phiên đăng nhập đã hết hạn");
+      setSellerMessage(`⚠️ ${t.session_expired ?? "Session expired"}`);
       await pilogin();
       return;
     }
@@ -64,18 +64,17 @@ export default function CustomerMenu() {
         data !== null &&
         "error" in data
           ? String((data as { error: string }).error)
-          : "Đăng ký thất bại";
+          : t.register_failed ?? "Register failed";
 
       setSellerMessage(`❌ ${err}`);
       return;
     }
 
-    setSellerMessage(
-      "✅ Đã gửi yêu cầu đăng ký bán hàng. Vui lòng chờ duyệt."
-    );
+    setSellerMessage(`✅ ${t.seller_request_sent ?? "Seller request sent. Please wait for approval."}`);
+    
   } catch (err) {
     console.error("SELLER REGISTER ERROR:", err);
-    setSellerMessage("❌ Có lỗi xảy ra, vui lòng thử lại");
+    setSellerMessage(`❌ ${t.system_error ?? "System error, please try again"}`);
   } finally {
     setSellerLoading(false);
   }
