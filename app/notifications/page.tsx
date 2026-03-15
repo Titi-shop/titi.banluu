@@ -76,10 +76,10 @@ export default function NotificationsPage() {
               <p className="font-semibold">{n.title}</p>
               <p className="text-gray-600 text-sm">{n.message}</p>
               <p className="text-xs text-gray-400 mt-1">
-                {n.date
-                  ? new Date(n.date).toLocaleString()
-                  : t.unknown_time ?? "Unknown time"
-              </p>
+  {n.date
+    ? new Date(n.date).toLocaleString()
+    : (t.unknown_time ?? "Unknown time")}
+</p>
             </li>
           ))}
         </ul>
