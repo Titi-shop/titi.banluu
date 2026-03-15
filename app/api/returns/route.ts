@@ -55,19 +55,39 @@ export async function POST(req: Request) {
 
     const contentType = req.headers.get("content-type") ?? "";
 
-    if (contentType.includes("multipart/form-data")) {
-      const form = await req.formData();
+    let imageStrings: string[] = [];
 
-      raw = {
-        order_id: form.get("order_id"),
-        order_item_id: form.get("order_item_id"),
-        reason: form.get("reason"),
-        description: form.get("description"),
-        images: form.getAll("images"),
-      };
-    } else {
-      raw = (await req.json()) as ReturnPayload;
-    }
+if (contentType.includes("multipart/form-data")) {
+  const form = await req.formData();
+
+  raw = {
+    order_id: form.get("order_id"),
+    order_item_id: form.get("order_item_id"),
+    reason: form.get("reason"),
+    description: form.get("description"),
+    images: form.getAll("images"),
+  };
+
+  const files = form.getAll("images");
+
+  imageStrings = [];
+
+  for (const file of files) {
+
+    if (!(file instanceof File)) continue;
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const base64 = buffer.toString("base64");
+
+    const mime = file.type || "image/jpeg";
+
+    imageStrings.push(`data:${mime};base64,${base64}`);
+  }
+
+} else {
+  raw = (await req.json()) as ReturnPayload;
+}
 
     const orderId =
       typeof raw.order_id === "string" ? raw.order_id : null;
@@ -87,7 +107,7 @@ export async function POST(req: Request) {
         ? raw.description.trim()
         : null;
 
-    const images =
+    const images = imageStrings;
       Array.isArray(raw.images) &&
       raw.images.every((i) => typeof i === "string")
         ? raw.images
@@ -100,7 +120,12 @@ export async function POST(req: Request) {
       );
     }
 
-    if (images.length > 3) {
+    if (images.length > 3) if (images.some(img => img.length > 2_000_000)) {
+  return NextResponse.json(
+    { error: "Image too large" },
+    { status: 400 }
+  );
+}{
       return NextResponse.json(
         { error: "Maximum 3 images allowed" },
         { status: 400 }
