@@ -433,11 +433,17 @@
   "submit_return": "提交退货申请",
   "submitting": "正在提交...",
 
-  "upload_images": "上传商品图片",
   "max_images": "最多3张",
 
   "choose_file": "选择文件",
-  "no_file": "尚未选择文件"
+  "no_file": "尚未选择文件",
+  
+  "choose_file": "选择文件",
+  "no_file_selected": "未选择文件",
+  "photos_selected": "张已选择",
+
+  "upload_images": "上传商品图片"
+
 
 
   
