@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 /* =========================
    TYPES
 ========================= */
@@ -11,7 +14,6 @@ type ReturnPayload = {
   order_item_id?: unknown;
   reason?: unknown;
   description?: unknown;
-  images?: unknown;
 };
 
 type OrderRow = {
@@ -37,9 +39,6 @@ type OrderItemRow = {
 export async function POST(req: Request) {
   try {
 
-    console.log("AUTH HEADER:", req.headers.get("authorization"));
-    /* 1️⃣ AUTH */
-
     const user = await getUserFromBearer(req);
 
     if (!user) {
@@ -49,69 +48,91 @@ export async function POST(req: Request) {
       );
     }
 
-    /* 2️⃣ PARSE BODY (JSON OR FORM DATA) */
-
-    let raw: ReturnPayload;
-
     const contentType = req.headers.get("content-type") ?? "";
 
-    let imageStrings: string[] = [];
+    let orderId: string | null = null;
+    let orderItemId: string | null = null;
+    let reason: string | null = null;
+    let description: string | null = null;
 
-if (contentType.includes("multipart/form-data")) {
-  const form = await req.formData();
+    let images: string[] = [];
 
-  raw = {
-    order_id: form.get("order_id"),
-    order_item_id: form.get("order_item_id"),
-    reason: form.get("reason"),
-    description: form.get("description"),
-    images: form.getAll("images"),
-  };
+    /* =========================
+       PARSE FORM DATA
+    ========================= */
 
-  const files = form.getAll("images");
+    if (contentType.includes("multipart/form-data")) {
 
-  imageStrings = [];
+      const form = await req.formData();
 
-  for (const file of files) {
+      orderId =
+        typeof form.get("order_id") === "string"
+          ? (form.get("order_id") as string)
+          : null;
 
-    if (!(file instanceof File)) continue;
+      orderItemId =
+        typeof form.get("order_item_id") === "string"
+          ? (form.get("order_item_id") as string)
+          : null;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+      reason =
+        typeof form.get("reason") === "string"
+          ? (form.get("reason") as string).trim()
+          : null;
 
-    const base64 = buffer.toString("base64");
+      description =
+        typeof form.get("description") === "string"
+          ? (form.get("description") as string).trim()
+          : null;
 
-    const mime = file.type || "image/jpeg";
+      const files = form.getAll("images");
 
-    imageStrings.push(`data:${mime};base64,${base64}`);
-  }
+      for (const file of files) {
 
-} else {
-  raw = (await req.json()) as ReturnPayload;
-}
+        if (!(file instanceof File)) continue;
 
-    const orderId =
-      typeof raw.order_id === "string" ? raw.order_id : null;
+        if (file.size > 2 * 1024 * 1024) {
+          return NextResponse.json(
+            { error: "Image must be under 2MB" },
+            { status: 400 }
+          );
+        }
 
-    const orderItemId =
-      typeof raw.order_item_id === "string"
-        ? raw.order_item_id
-        : null;
+        const buffer = Buffer.from(await file.arrayBuffer());
 
-    const reason =
-      typeof raw.reason === "string"
-        ? raw.reason.trim()
-        : null;
+        const base64 = buffer.toString("base64");
 
-    const description =
-      typeof raw.description === "string"
-        ? raw.description.trim()
-        : null;
+        const mime = file.type || "image/jpeg";
 
-    const images = imageStrings;
-      Array.isArray(raw.images) &&
-      raw.images.every((i) => typeof i === "string")
-        ? raw.images
-        : [];
+        images.push(`data:${mime};base64,${base64}`);
+      }
+
+    } else {
+
+      const body = (await req.json()) as ReturnPayload;
+
+      orderId =
+        typeof body.order_id === "string" ? body.order_id : null;
+
+      orderItemId =
+        typeof body.order_item_id === "string"
+          ? body.order_item_id
+          : null;
+
+      reason =
+        typeof body.reason === "string"
+          ? body.reason.trim()
+          : null;
+
+      description =
+        typeof body.description === "string"
+          ? body.description.trim()
+          : null;
+    }
+
+    /* =========================
+       VALIDATE
+    ========================= */
 
     if (!orderId || !orderItemId || !reason) {
       return NextResponse.json(
@@ -120,19 +141,16 @@ if (contentType.includes("multipart/form-data")) {
       );
     }
 
-    if (images.length > 3) if (images.some(img => img.length > 2_000_000)) {
-  return NextResponse.json(
-    { error: "Image too large" },
-    { status: 400 }
-  );
-}{
+    if (images.length > 3) {
       return NextResponse.json(
         { error: "Maximum 3 images allowed" },
         { status: 400 }
       );
     }
 
-    /* 3️⃣ VERIFY USER EXISTS */
+    /* =========================
+       VERIFY USER
+    ========================= */
 
     const { data: dbUser } = await supabaseAdmin
       .from("users")
@@ -147,7 +165,9 @@ if (contentType.includes("multipart/form-data")) {
       );
     }
 
-    /* 4️⃣ GET ORDER */
+    /* =========================
+       GET ORDER
+    ========================= */
 
     const { data: order } = await supabaseAdmin
       .from("orders")
@@ -170,13 +190,20 @@ if (contentType.includes("multipart/form-data")) {
       );
     }
 
-    /* 5️⃣ GET ORDER ITEM */
+    /* =========================
+       GET ORDER ITEM
+    ========================= */
 
     const { data: item } = await supabaseAdmin
       .from("order_items")
-      .select(
-        "id,product_id,quantity,product_name,product_thumbnail,unit_price"
-      )
+      .select(`
+        id,
+        product_id,
+        quantity,
+        product_name,
+        product_thumbnail,
+        unit_price
+      `)
       .eq("id", orderItemId)
       .eq("order_id", orderId)
       .single<OrderItemRow>();
@@ -188,7 +215,9 @@ if (contentType.includes("multipart/form-data")) {
       );
     }
 
-    /* 6️⃣ CHECK EXISTING RETURN */
+    /* =========================
+       CHECK DUPLICATE RETURN
+    ========================= */
 
     const { data: existing } = await supabaseAdmin
       .from("returns")
@@ -203,11 +232,15 @@ if (contentType.includes("multipart/form-data")) {
       );
     }
 
-    /* 7️⃣ CALCULATE REFUND */
+    /* =========================
+       CALCULATE REFUND
+    ========================= */
 
     const refundAmount = item.unit_price * item.quantity;
 
-    /* 8️⃣ INSERT RETURN */
+    /* =========================
+       INSERT RETURN
+    ========================= */
 
     const { error: insertError } = await supabaseAdmin
       .from("returns")
@@ -234,6 +267,7 @@ if (contentType.includes("multipart/form-data")) {
       });
 
     if (insertError) {
+
       console.error(insertError);
 
       return NextResponse.json(
@@ -245,7 +279,9 @@ if (contentType.includes("multipart/form-data")) {
     return NextResponse.json({
       success: true,
     });
+
   } catch (err) {
+
     console.error("RETURN API ERROR:", err);
 
     return NextResponse.json(
@@ -261,6 +297,7 @@ if (contentType.includes("multipart/form-data")) {
 
 export async function GET(req: Request) {
   try {
+
     const user = await getUserFromBearer(req);
 
     if (!user) {
@@ -293,7 +330,9 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json(data ?? []);
+
   } catch (err) {
+
     console.error(err);
 
     return NextResponse.json(
