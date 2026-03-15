@@ -43,7 +43,7 @@ export default function NotificationsPage() {
         setNotifications(data);
       } catch (err) {
         console.error("❌ Load notifications error:", err);
-        setError(t.fetch_error || "Lỗi tải thông báo.");
+        setError(t.fetch_error ?? "Load notifications error");
       } finally {
         setLoading(false);
       }
@@ -55,16 +55,16 @@ export default function NotificationsPage() {
   return (
     <main className="p-4 max-w-2xl mx-auto pb-24">
       <h1 className="text-2xl font-bold text-purple-600 mb-4">
-        🔔 {t.notifications || "Thông báo của bạn"}
+       🔔 {t.notifications ?? "Notifications"}
       </h1>
 
       {loading ? (
-        <p> {t.loading || "Đang tải..."}</p>
+        <p> {t.loading ?? "Loading..."}</p>
       ) : error ? (
         <p className="text-red-500">{error}</p>
       ) : notifications.length === 0 ? (
         <p className="text-gray-500">
-          {t.no_notifications || "Không có thông báo mới."}
+          {t.no_notifications ?? "No notifications"}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -78,7 +78,7 @@ export default function NotificationsPage() {
               <p className="text-xs text-gray-400 mt-1">
                 {n.date
                   ? new Date(n.date).toLocaleString()
-                  : t.unknown_time || "—"}
+                  : t.unknown_time ?? "Unknown time"
               </p>
             </li>
           ))}
