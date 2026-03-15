@@ -38,9 +38,7 @@ interface Order {
 
   total?: number | string;
 
-  order_items: Array.isArray(safe.order_items)
-  ? safe.order_items.filter(Boolean)
-  : [],
+  order_items: OrderItem[];
 }
 
 /* ================= HELPERS ================= */
@@ -120,8 +118,8 @@ const [loading, setLoading] = useState(true);
           total: safe.total ?? 0,
 
           order_items: Array.isArray(safe.order_items)
-            ? safe.order_items
-            : [],
+  ? safe.order_items.filter(Boolean)
+  : [],
         });
       } else {
         setOrder(null);
