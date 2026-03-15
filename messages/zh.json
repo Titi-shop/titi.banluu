@@ -466,7 +466,9 @@
   "return_rejected": "已拒绝",
   "tracking": "退货运单",
   "refunded_at": "退款时间",
-  "order": "订单"
+  "order": "订单",
+    "province_city": "省 / 城市",
+  "postal_code_optional": "邮政编码（可选）"
 
 
 
