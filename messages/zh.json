@@ -441,8 +441,15 @@
   "choose_file": "选择文件",
   "no_file_selected": "未选择文件",
   "photos_selected": "张已选择",
- "fetch_error": "加载通知失败",
-  "upload_images": "上传商品图片"
+ 
+  "upload_images": "上传商品图片",
+  
+  "notifications": "通知",
+  "loading": "加载中...",
+  "no_notifications": "暂无通知",
+  "fetch_error": "加载通知失败",
+  "unknown_time": "未知时间"
+
 
 
 
