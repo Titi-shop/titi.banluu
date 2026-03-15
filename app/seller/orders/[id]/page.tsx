@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
@@ -41,20 +41,17 @@ interface Order {
 
 function formatDate(date: string) {
   const d = new Date(date);
-
   if (Number.isNaN(d.getTime())) return "—";
-
   return d.toLocaleString();
 }
 
 /* ================= PAGE ================= */
 
-import { useParams } from "next/navigation";
-
 export default function SellerOrderDetailPage() {
 
   const params = useParams();
   const id = params?.id as string;
+
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { t } = useTranslation();
@@ -66,16 +63,14 @@ export default function SellerOrderDetailPage() {
 
   useEffect(() => {
 
-  if (authLoading) return;
-  if (!user) return;
-  if (!id) return;
+    if (authLoading) return;
+    if (!user) return;
+    if (!id) return;
 
-  loadOrder();
+    const loadOrder = async () => {
 
-}, [authLoading, user, id]);
-
-    const load = async () => {
       try {
+
         const res = await apiAuthFetch(
           `/api/seller/orders/${id}`,
           { cache: "no-store" }
@@ -97,6 +92,7 @@ export default function SellerOrderDetailPage() {
           shipping_name: data?.shipping_name ?? "",
           shipping_phone: data?.shipping_phone ?? "",
           shipping_address: data?.shipping_address ?? "",
+
           shipping_provider: data?.shipping_provider ?? "",
           shipping_country: data?.shipping_country ?? "",
           shipping_postal_code: data?.shipping_postal_code ?? "",
@@ -116,16 +112,20 @@ export default function SellerOrderDetailPage() {
         };
 
         setOrder(safe);
+
       } catch (err) {
+
         console.error("ORDER LOAD ERROR", err);
         setOrder(null);
+
       }
 
       setLoading(false);
     };
 
-    load();
-}, [authLoading, user, id]);
+    loadOrder();
+
+  }, [authLoading, user, id]);
 
   /* ================= LOADING ================= */
 
@@ -148,12 +148,14 @@ export default function SellerOrderDetailPage() {
   /* ================= TOTAL ================= */
 
   const total = useMemo(() => {
+
     if (order.total) return order.total;
 
     return order.order_items.reduce(
       (sum, i) => sum + i.total_price,
       0
     );
+
   }, [order]);
 
   /* ================= UI ================= */
@@ -182,40 +184,13 @@ export default function SellerOrderDetailPage() {
 
         <div className="space-y-1 text-sm mb-6">
 
-          <p>
-            <b>{t.receiver ?? "Receiver"}:</b>{" "}
-            {order.shipping_name}
-          </p>
-
-          <p>
-            <b>{t.phone ?? "Phone"}:</b>{" "}
-            {order.shipping_phone}
-          </p>
-
-          <p>
-            <b>{t.address ?? "Address"}:</b>{" "}
-            {order.shipping_address}
-          </p>
-
-          <p>
-            <b>{t.country ?? "Country"}:</b>{" "}
-            {order.shipping_country}
-          </p>
-
-          <p>
-            <b>{t.postal_code ?? "Postal code"}:</b>{" "}
-            {order.shipping_postal_code}
-          </p>
-
-          <p>
-            <b>{t.shipping_provider ?? "Shipping"}:</b>{" "}
-            {order.shipping_provider}
-          </p>
-
-          <p>
-            <b>{t.created_at ?? "Created"}:</b>{" "}
-            {formatDate(order.created_at)}
-          </p>
+          <p><b>{t.receiver ?? "Receiver"}:</b> {order.shipping_name}</p>
+          <p><b>{t.phone ?? "Phone"}:</b> {order.shipping_phone}</p>
+          <p><b>{t.address ?? "Address"}:</b> {order.shipping_address}</p>
+          <p><b>{t.country ?? "Country"}:</b> {order.shipping_country}</p>
+          <p><b>{t.postal_code ?? "Postal code"}:</b> {order.shipping_postal_code}</p>
+          <p><b>{t.shipping_provider ?? "Shipping"}:</b> {order.shipping_provider}</p>
+          <p><b>{t.created_at ?? "Created"}:</b> {formatDate(order.created_at)}</p>
 
         </div>
 
@@ -226,15 +201,9 @@ export default function SellerOrderDetailPage() {
           <thead className="bg-gray-100">
             <tr>
               <th className="border px-2 py-1 text-left">#</th>
-              <th className="border px-2 py-1 text-left">
-                {t.product ?? "Product"}
-              </th>
-              <th className="border px-2 py-1 text-center">
-                {t.quantity ?? "Qty"}
-              </th>
-              <th className="border px-2 py-1 text-right">
-                π
-              </th>
+              <th className="border px-2 py-1 text-left">{t.product ?? "Product"}</th>
+              <th className="border px-2 py-1 text-center">{t.quantity ?? "Qty"}</th>
+              <th className="border px-2 py-1 text-right">π</th>
             </tr>
           </thead>
 
@@ -242,33 +211,23 @@ export default function SellerOrderDetailPage() {
 
             {order.order_items.length === 0 && (
               <tr>
-                <td
-                  colSpan={4}
-                  className="text-center py-4 text-gray-400"
-                >
+                <td colSpan={4} className="text-center py-4 text-gray-400">
                   No items
                 </td>
               </tr>
             )}
 
             {order.order_items.map((item, i) => (
+
               <tr key={item.id}>
-                <td className="border px-2 py-1">
-                  {i + 1}
-                </td>
-
-                <td className="border px-2 py-1">
-                  {item.product_name}
-                </td>
-
-                <td className="border px-2 py-1 text-center">
-                  {item.quantity}
-                </td>
-
+                <td className="border px-2 py-1">{i + 1}</td>
+                <td className="border px-2 py-1">{item.product_name}</td>
+                <td className="border px-2 py-1 text-center">{item.quantity}</td>
                 <td className="border px-2 py-1 text-right">
                   π{formatPi(item.total_price)}
                 </td>
               </tr>
+
             ))}
 
           </tbody>
