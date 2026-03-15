@@ -428,7 +428,17 @@
 
   "refund_completed": "退款完成",
   
-  "order_not_found": "未找到订单"
+  "order_not_found": "未找到订单",
+
+  "submit_return": "提交退货申请",
+  "submitting": "正在提交...",
+
+  "upload_images": "上传商品图片",
+  "max_images": "最多3张",
+
+  "choose_file": "选择文件",
+  "no_file": "尚未选择文件"
+
 
   
 }
