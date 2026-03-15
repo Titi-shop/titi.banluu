@@ -80,7 +80,8 @@ export default function SellerOrderDetailPage({
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
 
-  const [order, setOrder] = useState<Order | null>(null);
+const [order, setOrder] = useState<Order | null>(null);
+const [loading, setLoading] = useState(true);
 
   /* ================= LOAD ORDER ================= */
 
@@ -179,8 +180,7 @@ ${t.postal_code ?? "Postal code"}: ${order.shipping_postal_code ?? ""}
 ${t.shipping_provider ?? "Shipping"}: ${order.shipping_provider ?? ""}
 
 ${t.products ?? "Products"}:
-${order.order_items
-  .map(
+${(order.order_items ?? []).map(
     (item, idx) =>
       `${idx + 1}. ${item.product_name} x${item.quantity} · π${formatPi(
         Number(item.unit_price ?? 0)
@@ -304,7 +304,7 @@ ${t.total ?? "Total"}: π${formatPi(total)}
 
           <tbody>
 
-            {order.order_items.map((item, i) => (
+            {order.order_items ?? []).map((item, i) => (
 
               <tr key={item.id}>
 
