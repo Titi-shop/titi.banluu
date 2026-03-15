@@ -1,7 +1,3 @@
-Chỉ sửa file này lổi 400.
-
-app/customer/orders/[id]/return/page.tsx
-
 "use client";
 
 import { useEffect, useState, ChangeEvent } from "react";
