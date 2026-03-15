@@ -1,3 +1,6 @@
+Chỉ sửa file này lổi 400.
+
+app/customer/orders/[id]/return/page.tsx
 
 "use client";
 
@@ -14,14 +17,9 @@ type OrderStatus =
   | "completed"
   | "cancelled";
 
-type OrderItem = {
-  id: string;
-};
-
 type OrderDetail = {
   id: string;
   status: OrderStatus;
-  order_items?: OrderItem[];
 };
 
 export default function OrderReturnPage() {
@@ -43,7 +41,7 @@ export default function OrderReturnPage() {
   const [description, setDescription] = useState<string>("");
 
   const [images, setImages] = useState<File[]>([]);
-const [orderItemId, setOrderItemId] = useState<string>("");
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -108,9 +106,6 @@ const [orderItemId, setOrderItemId] = useState<string>("");
     }
 
     loadOrder();
-    if (data.order_items && data.order_items.length > 0) {
-  setOrderItemId(data.order_items[0].id);
-}
 
   }, [authLoading, user, orderId, t]);
 
@@ -138,9 +133,8 @@ const [orderItemId, setOrderItemId] = useState<string>("");
       const formData = new FormData();
 
       formData.append("order_id", orderId);
-formData.append("order_item_id", orderItemId);
-formData.append("reason", reason);
-formData.append("description", description);
+      formData.append("reason", reason);
+      formData.append("description", description);
 
       images.forEach((img) => {
         formData.append("images", img);
@@ -165,7 +159,7 @@ formData.append("description", description);
         return;
       }
 
-      router.push(`/customer/returns/${orderId}`);
+      router.push("/customer/returns");
 
     } catch {
 
