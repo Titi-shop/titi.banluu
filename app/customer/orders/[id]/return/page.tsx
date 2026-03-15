@@ -256,13 +256,31 @@ export default function OrderReturnPage() {
           {t.upload_images ?? "Upload product images"} (max 3)
         </label>
 
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleImageChange}
-          className="w-full text-sm"
-        />
+<div className="space-y-2">
+
+  <input
+    id="fileUpload"
+    type="file"
+    accept="image/*"
+    multiple
+    onChange={handleImageChange}
+    className="hidden"
+  />
+
+  <label
+    htmlFor="fileUpload"
+    className="inline-block bg-gray-200 px-3 py-2 rounded cursor-pointer text-sm"
+  >
+    {t.choose_file ?? "Choose file"}
+  </label>
+
+  <p className="text-sm text-gray-500">
+    {images.length === 0
+      ? t.no_file_selected ?? "No file selected"
+      : `${images.length} ${t.photos_selected ?? "photos selected"}`}
+  </p>
+
+</div>
 
         {previews.length > 0 && (
 
