@@ -36,6 +36,8 @@ type OrderItemRow = {
 
 export async function POST(req: Request) {
   try {
+
+    console.log("AUTH HEADER:", req.headers.get("authorization"));
     /* 1️⃣ AUTH */
 
     const user = await getUserFromBearer(req);
