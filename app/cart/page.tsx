@@ -23,6 +23,15 @@ interface ShippingInfo {
   postal_code?: string | null;
 }
 
+interface AddressItem {
+  is_default: boolean;
+  full_name: string;
+  phone: string;
+  address_line: string;
+  country?: string;
+  postal_code?: string | null;
+}
+
 /* =========================
 PAGE
 ========================= */
@@ -47,19 +56,17 @@ SELECT ITEMS
   }, [cart, selectedIds]);
 
   /* =========================
-PRICE
+PRICE (UI ONLY)
 ========================= */
 
   const total = useMemo(() => {
     return selectedItems.reduce((sum, item) => {
-
       const unit =
         typeof item.sale_price === "number"
           ? item.sale_price
           : item.price;
 
       return sum + unit * item.quantity;
-
     }, 0);
   }, [selectedItems]);
 
@@ -68,11 +75,8 @@ LOAD ADDRESS
 ========================= */
 
   useEffect(() => {
-
     async function loadAddress() {
-
       try {
-
         const token = await getPiAccessToken();
 
         const res = await fetch("/api/address", {
@@ -83,9 +87,9 @@ LOAD ADDRESS
 
         if (!res.ok) return;
 
-        const data = await res.json();
+        const data: { items?: AddressItem[] } = await res.json();
 
-        const def = data.items?.find((a: any) => a.is_default);
+        const def = data.items?.find((a) => a.is_default);
 
         if (!def) return;
 
@@ -96,13 +100,12 @@ LOAD ADDRESS
           country: def.country,
           postal_code: def.postal_code ?? null,
         });
-
-      } catch {}
-
+      } catch {
+        // silent fail
+      }
     }
 
     if (user) loadAddress();
-
   }, [user]);
 
   /* =========================
@@ -110,13 +113,51 @@ TOGGLE
 ========================= */
 
   const toggleItem = (id: string) => {
-
     setSelectedIds((prev) =>
       prev.includes(id)
         ? prev.filter((x) => x !== id)
         : [...prev, id]
     );
+  };
 
+  /* =========================
+VALIDATION
+========================= */
+
+  const validateBeforePay = () => {
+    if (!window.Pi || !piReady) {
+      alert("Pi chưa sẵn sàng");
+      return false;
+    }
+
+    if (!user) {
+      router.push("/pilogin");
+      return false;
+    }
+
+    if (!shipping) {
+      alert("Vui lòng thêm địa chỉ giao hàng");
+      return false;
+    }
+
+    if (selectedItems.length === 0) {
+      alert("Vui lòng chọn sản phẩm");
+      return false;
+    }
+
+    if (selectedItems.length > 1) {
+      alert("Hiện chỉ hỗ trợ 1 sản phẩm mỗi lần");
+      return false;
+    }
+
+    const item = selectedItems[0];
+
+    if (!item || item.quantity < 1 || item.quantity > 100) {
+      alert("Số lượng không hợp lệ");
+      return false;
+    }
+
+    return true;
   };
 
   /* =========================
@@ -124,33 +165,7 @@ PAY WITH PI
 ========================= */
 
   const handlePay = async () => {
-
-    if (!window.Pi || !piReady) {
-      alert("Pi chưa sẵn sàng");
-      return;
-    }
-
-    if (!user) {
-      router.push("/pilogin");
-      return;
-    }
-
-    if (!shipping) {
-      alert("Vui lòng thêm địa chỉ giao hàng");
-      return;
-    }
-
-    if (selectedItems.length === 0) {
-      alert("Vui lòng chọn sản phẩm");
-      return;
-    }
-
-    /* API chỉ hỗ trợ 1 product */
-
-    if (selectedItems.length > 1) {
-      alert("Hiện chỉ thanh toán 1 sản phẩm mỗi lần");
-      return;
-    }
+    if (!validateBeforePay()) return;
 
     const item = selectedItems[0];
 
@@ -168,22 +183,16 @@ PAY WITH PI
     setProcessing(true);
 
     try {
-
       await window.Pi.createPayment(
         {
-          amount: Number(totalPrice.toFixed(6)),
+          amount: totalPrice,
           memo: "Thanh toán đơn hàng TiTi",
 
+          // ⚠️ metadata chỉ để hiển thị, KHÔNG tin server
           metadata: {
-         shipping,
-       product: {
-       id: item.id,
-    name: item.name,
-    image: item.image || item.images?.[0] || "",
-    price: unit
-       },
-       quantity
-       },
+            product_id: item.id,
+            quantity,
+          },
         },
 
         {
@@ -192,9 +201,7 @@ PAY WITH PI
           ========================= */
 
           onReadyForServerApproval: async (paymentId, callback) => {
-
             try {
-
               const token = await getPiAccessToken();
 
               const res = await fetch("/api/pi/approve", {
@@ -207,70 +214,56 @@ PAY WITH PI
               });
 
               if (!res.ok) {
-
-                console.error("APPROVE FAIL", await res.text());
-
                 setProcessing(false);
-
                 alert("Approve thất bại");
-
                 return;
               }
 
               callback();
-
-            } catch (err) {
-
-              console.error(err);
-
+            } catch {
               setProcessing(false);
             }
-
           },
 
           /* =========================
           COMPLETE
           ========================= */
+
           onReadyForServerCompletion: async (paymentId, txid) => {
+            try {
+              const token = await getPiAccessToken();
 
-  const token = await getPiAccessToken();
+              const res = await fetch("/api/pi/complete", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  paymentId,
+                  txid,
+                  product_id: item.id,
+                  quantity,
+                  // ❌ KHÔNG gửi total
+                  // ❌ KHÔNG gửi user
+                  // ❌ KHÔNG gửi shipping
+                }),
+              });
 
-  const res = await fetch("/api/pi/complete", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      paymentId,
-      txid,
-      product_id: item.id,
-      quantity,
-      total: totalPrice,
-      shipping,
-      user: {
-        pi_uid: user.pi_uid
-      }
-    }),
-  });
+              if (!res.ok) {
+                setProcessing(false);
+                alert("Complete thất bại");
+                return;
+              }
 
-  if (!res.ok) {
-
-    console.error("COMPLETE FAIL", await res.text());
-
-    setProcessing(false);
-
-    alert("Complete thất bại");
-
-    return;
-  }
-
-  clearCart();
-  setSelectedIds([]);
-  router.push("/customer/pending");
-},
-
-          
+              clearCart();
+              setSelectedIds([]);
+              router.push("/customer/pending");
+            } catch {
+              setProcessing(false);
+              alert("Thanh toán lỗi");
+            }
+          },
 
           onCancel: () => setProcessing(false),
 
@@ -280,16 +273,10 @@ PAY WITH PI
           },
         }
       );
-
-    } catch (err) {
-
-      console.error(err);
-
+    } catch {
       setProcessing(false);
-
       alert("Thanh toán lỗi");
     }
-
   };
 
   /* =========================
@@ -297,7 +284,6 @@ UI
 ========================= */
 
   if (cart.length === 0) {
-
     return (
       <main className="p-8 text-center">
         <p className="text-gray-500 mb-3">{t.empty_cart}</p>
@@ -310,20 +296,15 @@ UI
 
   return (
     <main className="min-h-screen bg-gray-50 pb-36">
-
       <div className="bg-white divide-y">
-
         {cart.map((item) => {
-
           const unit =
             typeof item.sale_price === "number"
               ? item.sale_price
               : item.price;
 
           return (
-
             <div key={item.id} className="flex gap-3 p-4 items-center">
-
               <input
                 type="checkbox"
                 checked={selectedIds.includes(item.id)}
@@ -336,13 +317,11 @@ UI
               />
 
               <div className="flex-1">
-
                 <p className="text-sm font-medium line-clamp-2">
                   {item.name}
                 </p>
 
                 <div className="flex items-center gap-2 mt-1">
-
                   <input
                     type="number"
                     min="1"
@@ -357,13 +336,10 @@ UI
                   <span className="text-xs text-gray-500">
                     × {formatPi(unit)} π
                   </span>
-
                 </div>
-
               </div>
 
               <div className="text-right">
-
                 <p className="text-orange-600 font-semibold">
                   {formatPi(unit * item.quantity)} π
                 </p>
@@ -374,28 +350,21 @@ UI
                 >
                   {t.delete}
                 </button>
-
               </div>
-
             </div>
           );
-
         })}
-
       </div>
 
       {/* FOOTER */}
 
-          <div className="fixed bottom-7 left-0 right-0 bg-white border-t p-5 pb-8">
-
+      <div className="fixed bottom-7 left-0 right-0 bg-white border-t p-5 pb-8">
         <div className="flex justify-between mb-3">
-
           <span>{t.total}</span>
 
           <span className="font-bold text-orange-600">
             {formatPi(total)} π
           </span>
-
         </div>
 
         <button
@@ -405,9 +374,7 @@ UI
         >
           {processing ? t.processing : t.pay_now}
         </button>
-
       </div>
-
     </main>
   );
 }
