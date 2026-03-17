@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
 export const dynamic = "force-dynamic";
 
@@ -7,147 +8,172 @@ const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
 
 /* =========================
-   UTILS
+UTILS
 ========================= */
-
-function safeNumber(v: unknown) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
 
 function safeQuantity(v: unknown) {
   const n = Number(v);
   if (!Number.isInteger(n)) return 1;
   if (n < 1) return 1;
-  if (n > 99) return 99;
+  if (n > 100) return 100;
   return n;
 }
 
 /* =========================
-   API
+API
 ========================= */
 
 export async function POST(req: Request) {
   try {
-
     const body = await req.json();
-
-console.log("COMPLETE BODY", body);
 
     const paymentId = body.paymentId;
     const txid = body.txid;
     const productId = body.product_id;
+    const quantity = safeQuantity(body.quantity);
 
     if (!paymentId || !txid || !productId) {
       return NextResponse.json(
-        { error: "MISSING_PAYMENT_DATA" },
+        { error: "INVALID_BODY" },
         { status: 400 }
       );
     }
 
-     /* =========================
-   CHECK ORDER EXISTS
-========================= */
-
-const { rows: existingOrder } = await query(
-  `select id from orders where pi_payment_id=$1`,
-  [paymentId]
-);
-
-if (existingOrder.length > 0) {
-  return NextResponse.json({
-    success: true,
-    order_id: existingOrder[0].id
-  });
-}
     /* =========================
-       LOAD PRODUCT
+    AUTH (NETWORK FIRST)
     ========================= */
 
-    const { rows } = await query(
+    const authUser = await getUserFromBearer(req);
+
+    if (!authUser) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const pi_uid = authUser.pi_uid;
+
+    /* =========================
+    IDEMPOTENT (ANTI DUPLICATE)
+    ========================= */
+
+    const { rows: existing } = await query(
+      `select id from orders where pi_payment_id=$1`,
+      [paymentId]
+    );
+
+    if (existing.length > 0) {
+      return NextResponse.json({
+        success: true,
+        order_id: existing[0].id,
+      });
+    }
+
+    /* =========================
+    LOAD PRODUCT
+    ========================= */
+
+    const { rows: productRows } = await query(
       `
-      select id,name,seller_id,images,price,sale_price,sale_start,sale_end
-from products
-where id=$1
+      select id,name,seller_id,images,price,sale_price,
+             sale_start,sale_end,is_active
+      from products
+      where id=$1
       `,
       [productId]
     );
 
-    const product = rows[0];
+    const product = productRows[0];
 
-    if (!product) {
+    if (!product || product.is_active === false) {
       return NextResponse.json(
-        { error: "PRODUCT_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
-    /* =========================
-       VALIDATE INPUT
-    ========================= */
-
-    const shipping = body.shipping ?? {};
-    const user = body.user ?? {};
-
-    const quantity = safeQuantity(body.quantity);
-    const clientTotal = safeNumber(body.total);
-
-    if (!user.pi_uid) {
-      return NextResponse.json(
-        { error: "INVALID_USER" },
+        { error: "PRODUCT_NOT_AVAILABLE" },
         { status: 400 }
       );
     }
 
     /* =========================
-       CALCULATE PRICE
+    CALCULATE PRICE (SERVER ONLY)
     ========================= */
 
-    const now = Date.now()
+    const now = Date.now();
 
-const start = product.sale_start
-  ? new Date(product.sale_start).getTime()
-  : null
+    const start = product.sale_start
+      ? new Date(product.sale_start).getTime()
+      : null;
 
-const end = product.sale_end
-  ? new Date(product.sale_end).getTime()
-  : null
+    const end = product.sale_end
+      ? new Date(product.sale_end).getTime()
+      : null;
 
-const isSale =
-  product.sale_price !== null &&
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end
+    const isSale =
+      product.sale_price !== null &&
+      start !== null &&
+      end !== null &&
+      now >= start &&
+      now <= end;
 
-const unitPrice = Number(
-  isSale ? product.sale_price : product.price
-);
+    const unitPrice = Number(
+      isSale ? product.sale_price : product.price
+    );
 
-const expectedTotal =
-  Number((unitPrice * quantity).toFixed(6))
-    /* =========================
-       CLIENT PRICE CHECK
-    ========================= */
-
-    if (Math.abs(clientTotal - expectedTotal) > 0.00001) {
-
-      console.error("CLIENT PRICE MISMATCH", {
-        clientTotal,
-        expectedTotal
-      });
-
-      return NextResponse.json(
-        { error: "INVALID_PRICE" },
-        { status: 400 }
-      );
-    }
+    const expectedTotal = Number(
+      (unitPrice * quantity).toFixed(6)
+    );
 
     /* =========================
-       COMPLETE PI PAYMENT
+    VERIFY PAYMENT WITH PI
     ========================= */
 
     const piRes = await fetch(
+      `${PI_API}/payments/${paymentId}`,
+      {
+        headers: {
+          Authorization: `Key ${PI_KEY}`,
+        },
+        cache: "no-store",
+      }
+    );
+
+    const payment = await piRes.json();
+
+    if (!piRes.ok) {
+      return NextResponse.json(
+        { error: "PI_PAYMENT_NOT_FOUND" },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+    VERIFY OWNER
+    ========================= */
+
+    if (payment.user_uid !== pi_uid) {
+      return NextResponse.json(
+        { error: "INVALID_PAYMENT_OWNER" },
+        { status: 403 }
+      );
+    }
+
+    /* =========================
+    VERIFY AMOUNT
+    ========================= */
+
+    const piAmount = Number(payment.amount);
+
+    if (Math.abs(piAmount - expectedTotal) > 0.00001) {
+      return NextResponse.json(
+        { error: "INVALID_AMOUNT" },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+    COMPLETE PAYMENT
+    ========================= */
+
+    const completeRes = await fetch(
       `${PI_API}/payments/${paymentId}/complete`,
       {
         method: "POST",
@@ -160,49 +186,40 @@ const expectedTotal =
       }
     );
 
-    const payment = await piRes.json();
+    const completed = await completeRes.json();
 
-    if (!piRes.ok) {
-
-      console.error("PI COMPLETE FAIL:", payment);
-
+    if (!completeRes.ok || !completed.status?.developer_completed) {
       return NextResponse.json(
-        { error: "PI_PAYMENT_FAILED" },
+        { error: "PI_COMPLETE_FAILED" },
         { status: 400 }
       );
     }
 
     /* =========================
-       VERIFY PI PAYMENT
+    LOAD SHIPPING (SERVER SIDE)
     ========================= */
 
-    const piAmount = safeNumber(payment.amount);
+    const { rows: addrRows } = await query(
+      `
+      select full_name, phone, address_line, country, postal_code
+      from addresses
+      where user_id=$1 and is_default=true
+      limit 1
+      `,
+      [pi_uid]
+    );
 
-    if (Math.abs(piAmount - expectedTotal) > 0.00001) {
+    const addr = addrRows[0];
 
-      console.error("PI AMOUNT MISMATCH", {
-        piAmount,
-        expectedTotal
-      });
-
+    if (!addr) {
       return NextResponse.json(
-        { error: "INVALID_PI_AMOUNT" },
+        { error: "NO_SHIPPING_ADDRESS" },
         { status: 400 }
       );
     }
 
-    if (!payment.status?.developer_completed) {
-
-  console.error("PAYMENT NOT COMPLETED", payment);
-
-  return NextResponse.json(
-    { error: "PAYMENT_NOT_COMPLETED" },
-    { status: 400 }
-  );
-}
-
     /* =========================
-       CREATE ORDER
+    CREATE ORDER
     ========================= */
 
     const { rows: orderRows } = await query(
@@ -228,16 +245,16 @@ const expectedTotal =
       returning id
       `,
       [
-        user.pi_uid,
+        pi_uid,
         paymentId,
         txid,
         expectedTotal,
         expectedTotal,
-        shipping.name ?? "",
-        shipping.phone ?? "",
-        shipping.address_line ?? "",
-        shipping.country ?? "",
-        shipping.postal_code ?? "",
+        addr.full_name,
+        addr.phone,
+        addr.address_line,
+        addr.country ?? "",
+        addr.postal_code ?? "",
       ]
     );
 
@@ -245,13 +262,13 @@ const expectedTotal =
 
     if (!orderId) {
       return NextResponse.json(
-        { error: "ORDER_ALREADY_EXISTS" },
+        { error: "ORDER_EXISTS" },
         { status: 409 }
       );
     }
 
     /* =========================
-       CREATE ORDER ITEM
+    CREATE ORDER ITEM
     ========================= */
 
     await query(
@@ -278,35 +295,34 @@ const expectedTotal =
         product.images ?? [],
         unitPrice,
         quantity,
-        expectedTotal
+        expectedTotal,
       ]
     );
 
-
-     /* =========================
-   UPDATE PRODUCT SOLD
-========================= */
-
-await query(
-  `
-  update products
-  set sold = sold + $1
-  where id = $2
-  `,
-  [quantity, product.id]
-);
     /* =========================
-       SUCCESS
+    UPDATE SOLD
+    ========================= */
+
+    await query(
+      `
+      update products
+      set sold = sold + $1
+      where id = $2
+      `,
+      [quantity, product.id]
+    );
+
+    /* =========================
+    SUCCESS
     ========================= */
 
     return NextResponse.json({
       success: true,
-      order_id: orderId
+      order_id: orderId,
     });
 
   } catch (err) {
-
-    console.error("PI COMPLETE ERROR:", err);
+    console.error("COMPLETE ERROR:", err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
