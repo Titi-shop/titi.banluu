@@ -39,10 +39,10 @@ export default function PiPriceWidget() {
 
   // Xác định màu giá Pi dựa trên so sánh với giá trước đó
   let priceColor = "text-orange-500"; // mặc định cam
-  if (prevPrice !== null && price !== null) {
-    if (price > prevPrice) priceColor = "text-green-600";
-    else if (price < prevPrice) priceColor = "text-red-600";
-  }
+if (change !== null) {
+  if (change > 0) priceColor = "text-green-600";
+  else if (change < 0) priceColor = "text-red-600";
+}
 
   // Mũi tên tăng giảm dựa trên % thay đổi trong ngày
   const isUp = change !== null && change > 0;
