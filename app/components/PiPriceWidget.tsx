@@ -19,9 +19,10 @@ export default function PiPriceWidget() {
         const data: PiPriceData = await res.json();
 
         if (data.price_usd !== undefined) {
-          setPrevPrice(price); // lưu giá cũ để so sánh
+          setPrevPrice(price); // lưu giá trước để so sánh
           setPrice(Number(data.price_usd));
         }
+
         if (data.change_24h !== undefined) {
           setChange(Number(data.change_24h));
         }
@@ -33,17 +34,17 @@ export default function PiPriceWidget() {
     fetchPrice(); // fetch ngay khi mount
     const interval = setInterval(fetchPrice, 10 * 1000); // mỗi 10 giây
 
-    return () => clearInterval(interval); // cleanup khi unmount
+    return () => clearInterval(interval);
   }, [price]);
 
-  // Xác định màu giá
+  // Xác định màu giá Pi dựa trên so sánh với giá trước đó
   let priceColor = "text-orange-500"; // mặc định cam
   if (prevPrice !== null && price !== null) {
     if (price > prevPrice) priceColor = "text-green-600";
     else if (price < prevPrice) priceColor = "text-red-600";
   }
 
-  // Xác định mũi tên tăng giảm
+  // Mũi tên tăng giảm dựa trên % thay đổi trong ngày
   const isUp = change !== null && change > 0;
   const isDown = change !== null && change < 0;
 
@@ -64,11 +65,11 @@ export default function PiPriceWidget() {
             ${isUp ? "text-green-600" : ""}
             ${isDown ? "text-red-600" : ""}
           `}
-        >
-          {isUp && "▲"}
-          {isDown && "▼"}
-          {change.toFixed(2)}%
-        </span>
+          >
+            {isUp && "▲"}
+            {isDown && "▼"}
+            {change.toFixed(2)}%
+          </span>
         )}
       </div>
     </div>
