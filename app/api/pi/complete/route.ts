@@ -77,7 +77,10 @@ export async function POST(req: Request) {
     const { rows: productRows } = await query(
       `
       select id,name,seller_id,images,price,sale_price,
-             sale_start,sale_end,is_active
+       sale_start,sale_end,
+       is_active,
+       status,
+       deleted_at
       from products
       where id=$1
       `,
