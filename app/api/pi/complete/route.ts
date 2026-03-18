@@ -15,7 +15,7 @@ function safeQuantity(v: unknown) {
   const n = Number(v);
   if (!Number.isInteger(n)) return 1;
   if (n < 1) return 1;
-  if (n > 100) return 100;
+  if (n > 10) return 10;
   return n;
 }
 
