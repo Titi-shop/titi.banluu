@@ -204,35 +204,75 @@ export default function CustomerAddressPage() {
       {showForm && <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowForm(false)} />}
 
       {/* BOTTOM SHEET */}
-      <div className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl transition-transform duration-300 ${showForm ? "translate-y-0" : "translate-y-full"}`} style={{ height: "80vh" }}>
-        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-4" onClick={() => setShowForm(false)} />
+<div className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl transition-transform duration-300 ${showForm ? "translate-y-0" : "translate-y-full"}`} style={{ height: "80vh" }}>
+  <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-4" onClick={() => setShowForm(false)} />
 
-        <div className="px-4 overflow-y-auto h-full pb-20 pt-2">
-          {/* Form điền địa chỉ theo thứ tự từ trên xuống */}
-          <label className="block text-sm font-medium mb-1">{t.country}</label>
-          <select className="w-full border rounded-lg p-2 mb-3" value={form.country} onChange={handleCountryChange}>
-            {countries.map((c) => (
-              <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.dial})</option>
-            ))}
-          </select>
+  <div className="px-4 overflow-y-auto h-full pb-20 pt-2 space-y-3">
+    {/* 1. Full name */}
+    <input
+      className="w-full border rounded-lg p-2"
+      placeholder={t.full_name}
+      value={form.full_name}
+      onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+    />
 
-          <input className="w-full border rounded-lg p-2 mb-3" placeholder={t.province_city} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} />
+    {/* 2. Phone */}
+    <input
+      className="w-full border rounded-lg p-2"
+      placeholder={t.phone_number}
+      value={form.phone}
+      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+    />
 
-          <input className="w-full border rounded-lg p-2 mb-3" placeholder={t.full_name} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+    {/* 3. Address line */}
+    <textarea
+      className="w-full border rounded-lg p-2"
+      rows={2}
+      placeholder={t.address}
+      value={form.address_line}
+      onChange={(e) => setForm({ ...form, address_line: e.target.value })}
+    />
 
-          <input className="w-full border rounded-lg p-2 mb-3" placeholder={t.phone_number} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+    {/* 4. City / Province */}
+    <input
+      className="w-full border rounded-lg p-2"
+      placeholder={t.province_city}
+      value={form.province}
+      onChange={(e) => setForm({ ...form, province: e.target.value })}
+    />
 
-          <input className="w-full border rounded-lg p-2 mb-3" placeholder={t.postal_code_optional} value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
+    {/* 5. Country */}
+    <select
+      className="w-full border rounded-lg p-2"
+      value={form.country}
+      onChange={handleCountryChange}
+    >
+      {countries.map((c) => (
+        <option key={c.code} value={c.code}>
+          {c.flag} {c.name} ({c.dial})
+        </option>
+      ))}
+    </select>
 
-          <textarea className="w-full border rounded-lg p-2 mb-4" rows={3} placeholder={t.address} value={form.address_line} onChange={(e) => setForm({ ...form, address_line: e.target.value })} />
-        </div>
+    {/* 6. Postal code */}
+    <input
+      className="w-full border rounded-lg p-2"
+      placeholder={t.postal_code_optional}
+      value={form.postal_code}
+      onChange={(e) => setForm({ ...form, postal_code: e.target.value })}
+    />
+  </div>
 
-        <div className="absolute bottom-12 left-0 right-0 bg-white border-t p-4">
-          <button onClick={handleSave} disabled={saving} className="w-full py-3 rounded-xl bg-orange-600 text-white font-semibold">
-            {saving ? t.saving : t.save_address}
-          </button>
-        </div>
-      </div>
+  <div className="absolute bottom-12 left-0 right-0 bg-white border-t p-4">
+    <button
+      onClick={handleSave}
+      disabled={saving}
+      className="w-full py-3 rounded-xl bg-orange-600 text-white font-semibold"
+    >
+      {saving ? t.saving : t.save_address}
+    </button>
+  </div>
+</div>
     </main>
   );
 }
