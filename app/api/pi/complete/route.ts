@@ -153,6 +153,13 @@ export async function POST(req: Request) {
 
     const payment = await piRes.json();
 
+if (!payment || payment.amount == null) {
+  return NextResponse.json(
+    { error: "INVALID_PAYMENT_DATA" },
+    { status: 400 }
+  );
+}
+
     if (!piRes.ok) {
       return NextResponse.json(
         { error: "PI_PAYMENT_NOT_FOUND" },
@@ -325,15 +332,24 @@ export async function POST(req: Request) {
     UPDATE SOLD
     ========================= */
 
-    await query(
-      `
-      update products
-set sold = sold + $1,
-    stock = stock - $1
-where id = $2
-      `,
-      [quantity, product.id]
-    );
+    const result = await query(
+  `
+  update products
+  set sold = sold + $1,
+      stock = stock - $1
+  where id = $2
+  and (is_unlimited = true or stock >= $1)
+  returning id
+  `,
+  [quantity, product.id]
+);
+
+if (result.rowCount === 0) {
+  return NextResponse.json(
+    { error: "OUT_OF_STOCK" },
+    { status: 400 }
+  );
+}
 
     /* =========================
     SUCCESS
