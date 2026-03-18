@@ -77,7 +77,10 @@ export async function POST(req: Request) {
     const { rows: productRows } = await query(
       `
       select id,name,seller_id,images,price,sale_price,
-             sale_start,sale_end,is_active
+       sale_start,sale_end,
+       is_active,
+       status,
+       deleted_at
       from products
       where id=$1
       `,
@@ -86,12 +89,17 @@ export async function POST(req: Request) {
 
     const product = productRows[0];
 
-    if (!product || product.is_active === false) {
-      return NextResponse.json(
-        { error: "PRODUCT_NOT_AVAILABLE" },
-        { status: 400 }
-      );
-    }
+    if (
+  !product ||
+  product.is_active === false ||
+  product.status !== "active" ||
+  product.deleted_at !== null
+) {
+  return NextResponse.json(
+    { error: "PRODUCT_NOT_AVAILABLE" },
+    { status: 400 }
+  );
+}
 
     /* =========================
     CALCULATE PRICE (SERVER ONLY)
