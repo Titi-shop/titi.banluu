@@ -60,7 +60,7 @@ export async function GET() {
     return NextResponse.json({
       symbol: "PI/USDT",
       price_usd: price,
-      change_24h: change, // <- % tăng giảm tự tính
+      change_24h: change, // % tăng/giảm tự tính
       source: "OKX",
       updated_at: new Date().toISOString(),
     });
