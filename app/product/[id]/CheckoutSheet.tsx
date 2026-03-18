@@ -101,6 +101,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null); // ✅ hiển thị lỗi UI
 
   const quantity = useMemo(() => {
     const n = Number(qtyDraft);
@@ -122,7 +123,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   /* =========================
      LOAD ADDRESS
-  ========================= */
+  ========================== */
 
   useEffect(() => {
     async function loadAddress() {
@@ -163,7 +164,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   /* =========================
      PRICE
-  ========================= */
+  ========================== */
 
   const unitPrice = useMemo(() => {
     if (!item) return 0;
@@ -174,125 +175,137 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   }, [item]);
 
   const total = useMemo(
-  () => Number((unitPrice * quantity).toFixed(6)),
-  [unitPrice, quantity]
-);
+    () => Number((unitPrice * quantity).toFixed(6)),
+    [unitPrice, quantity]
+  );
+
+  /* =========================
+     VALIDATION
+  ========================== */
+
+  const validateBeforePay = () => {
+    if (!window.Pi || !piReady) {
+      setErrorMsg("Pi chưa sẵn sàng");
+      return false;
+    }
+
+    if (!user) {
+      router.push("/pilogin");
+      return false;
+    }
+
+    if (!shipping) {
+      setErrorMsg("Vui lòng thêm địa chỉ giao hàng");
+      return false;
+    }
+
+    if (!item || quantity < 1 || quantity > 99) {
+      setErrorMsg("Số lượng không hợp lệ");
+      return false;
+    }
+
+    return true;
+  };
 
   /* =========================
      PAY WITH PI
-  ========================= */
+  ========================== */
 
   const handlePay = async () => {
-    if (!window.Pi || !piReady || !user || !shipping || !item) {
-      alert(t.transaction_failed);
-      return;
-    }
-
-    if (processing) return;
+    if (!validateBeforePay()) return;
 
     setProcessing(true);
+    setErrorMsg(null);
 
     try {
-      await window.Pi.createPayment(
+      await window.Pi?.createPayment(
         {
-          amount: Number(total.toFixed(6)),
+          amount: total,
           memo: "Thanh toán đơn hàng TiTi",
           metadata: {
-  shipping,
-  product: {
-    id: item.id,
-    name: item.name,
-    image: item.image || item.images?.[0] || "",
-    price: unitPrice
-  },
-  quantity
-},
+            shipping,
+            product: {
+              id: item!.id,
+              name: item!.name,
+              image: item!.image || item!.images?.[0] || "",
+              price: unitPrice,
+            },
+            quantity,
+          },
         },
         {
           onReadyForServerApproval: async (paymentId, callback) => {
+            try {
+              const token = await getPiAccessToken();
 
-  try {
+              const res = await fetch("/api/pi/approve", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paymentId }),
+              });
 
-    const token = await getPiAccessToken();
+              if (!res.ok) {
+                console.error("APPROVE FAIL", await res.text());
+                setProcessing(false);
+                setErrorMsg("Approve thất bại");
+                return;
+              }
 
-    const res = await fetch("/api/pi/approve", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ paymentId }),
-    });
-
-    if (!res.ok) {
-
-      console.error("APPROVE FAIL", await res.text());
-
-      setProcessing(false);
-
-      alert("Approve thất bại");
-
-      return;
-    }
-
-    callback(); // ✅ chỉ gọi khi approve OK
-
-  } catch (err) {
-
-    console.error("APPROVE ERROR:", err);
-
-    setProcessing(false);
-
-  }
-
-},
-
-          /* COMPLETE */
+              callback(); // ✅ chỉ gọi khi approve OK
+            } catch (err) {
+              console.error("APPROVE ERROR:", err);
+              setProcessing(false);
+              setErrorMsg("Approve thất bại");
+            }
+          },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
+            try {
+              const token = await getPiAccessToken();
 
-  const token = await getPiAccessToken();
+              const res = await fetch("/api/pi/complete", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  paymentId,
+                  txid,
+                  product_id: item!.id,
+                  quantity,
+                  total,
+                  shipping,
+                  user: {
+                    pi_uid: user!.pi_uid,
+                  },
+                }),
+              });
 
-  const res = await fetch("/api/pi/complete", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      paymentId,
-      txid,
-      product_id: product.id,
-      quantity,
-      total,
-      shipping,
-      user: {
-  pi_uid: user.pi_uid
-}
-    }),
-  });
+              if (!res.ok) {
+                setProcessing(false);
+                setErrorMsg("Complete thất bại");
+                return;
+              }
 
-  if (!res.ok) {
-    setProcessing(false);
-    alert("Complete thất bại");
-    return;
-  }
-
-  onClose();
-  router.push("/customer/pending");
-},
+              onClose();
+              router.push("/customer/pending");
+            } catch {
+              setProcessing(false);
+              setErrorMsg("Thanh toán lỗi");
+            }
+          },
 
           onCancel: () => setProcessing(false),
-
           onError: () => setProcessing(false),
         }
       );
-
     } catch {
-
       setProcessing(false);
-
-      alert(t.transaction_failed);
+      setErrorMsg(t.transaction_failed);
     }
   };
 
@@ -307,22 +320,22 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
 
           <div
-  className="border rounded-lg p-3 cursor-pointer mb-4"
-  onClick={() => router.push("/customer/address")}
->
-  {shipping ? (
-    <>
-      <p className="font-medium">{shipping.name}</p>
-      <p className="text-sm text-gray-600">{shipping.phone}</p>
-      <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
-      <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
-        {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
-      </p>
-    </>
-  ) : (
-    <p className="text-gray-500">➕ {t.add_shipping}</p>
-  )}
-</div>
+            className="border rounded-lg p-3 cursor-pointer mb-4"
+            onClick={() => router.push("/customer/address")}
+          >
+            {shipping ? (
+              <>
+                <p className="font-medium">{shipping.name}</p>
+                <p className="text-sm text-gray-600">{shipping.phone}</p>
+                <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
+                <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
+                  {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
+                </p>
+              </>
+            ) : (
+              <p className="text-gray-500">➕ {t.add_shipping}</p>
+            )}
+          </div>
 
           <div className="flex items-center gap-3 border-b pb-3">
             <img
@@ -357,6 +370,13 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
               {formatPi(total)} π
             </p>
           </div>
+
+          {/* ERROR BANNER */}
+          {errorMsg && (
+            <div className="mt-2 p-2 bg-red-100 text-red-700 rounded text-sm text-center">
+              {errorMsg}
+            </div>
+          )}
 
         </div>
 
