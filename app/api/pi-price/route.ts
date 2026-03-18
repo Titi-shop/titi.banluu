@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
 
+interface OkxTickerData {
+  last: string;
+  changePct?: string; // % thay đổi 24h
+}
+
+interface OkxResponse {
+  data?: OkxTickerData[];
+}
+
 export async function GET() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
@@ -22,33 +31,20 @@ export async function GET() {
       );
     }
 
-    const json: unknown = await res.json();
+    const json: OkxResponse = (await res.json()) as OkxResponse;
 
-    if (
-      typeof json !== "object" ||
-      json === null ||
-      !("data" in json)
-    ) {
+    if (!json.data || json.data.length === 0) {
       return NextResponse.json(
         { error: "Invalid response structure from OKX" },
         { status: 500 }
       );
     }
 
-    const data = (json as {
-      data?: {
-        last?: string;
-        sodUtc8?: string;
-      }[];
-    }).data;
+    const ticker = json.data[0];
+    const price = Number(ticker.last);
+    const change = ticker.changePct ? Number(ticker.changePct) : null;
 
-    const priceStr = data?.[0]?.last;
-    const changeStr = data?.[0]?.sodUtc8;
-
-    const price = priceStr ? Number(priceStr) : null;
-    const change = changeStr ? Number(changeStr) : null;
-
-    if (!price || Number.isNaN(price)) {
+    if (Number.isNaN(price)) {
       return NextResponse.json(
         { error: "Invalid price received from OKX" },
         { status: 500 }
@@ -58,7 +54,7 @@ export async function GET() {
     return NextResponse.json({
       symbol: "PI/USDT",
       price_usd: price,
-      change_24h: change,
+      change_24h: change, // % thay đổi 24h chuẩn
       source: "OKX",
       updated_at: new Date().toISOString(),
     });
