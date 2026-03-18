@@ -77,10 +77,7 @@ export async function POST(req: Request) {
     const { rows: productRows } = await query(
       `
       select id,name,seller_id,images,price,sale_price,
-       sale_start,sale_end,
-       is_active,
-       status,
-       deleted_at
+       sale_start,sale_end,is_active
       from products
       where id=$1
       `,
@@ -89,18 +86,18 @@ export async function POST(req: Request) {
 
     const product = productRows[0];
 
-    if (
-  !product ||
-  product.is_active === false ||
-  product.status !== "active" ||
-  product.deleted_at !== null
-) {
+    if (!product || product.is_active === false)
   return NextResponse.json(
     { error: "PRODUCT_NOT_AVAILABLE" },
     { status: 400 }
   );
 }
-
+if (!product.is_unlimited && product.stock < quantity) {
+  return NextResponse.json(
+    { error: "OUT_OF_STOCK" },
+    { status: 400 }
+  );
+}
     /* =========================
     CALCULATE PRICE (SERVER ONLY)
     ========================= */
@@ -169,6 +166,12 @@ export async function POST(req: Request) {
     ========================= */
 
     const piAmount = Number(payment.amount);
+    if (payment.status !== "approved") {
+  return NextResponse.json(
+    { error: "PAYMENT_NOT_APPROVED" },
+    { status: 400 }
+  );
+}
 
     if (Math.abs(piAmount - expectedTotal) > 0.00001) {
       return NextResponse.json(
@@ -311,14 +314,24 @@ export async function POST(req: Request) {
     UPDATE SOLD
     ========================= */
 
-    await query(
-      `
-      update products
-      set sold = sold + $1
-      where id = $2
-      `,
-      [quantity, product.id]
-    );
+    const result = await query(
+  `
+  update products
+  set sold = sold + $1,
+      stock = stock - $1
+  where id = $2
+  and (is_unlimited = true or stock >= $1)
+  returning id
+  `,
+  [quantity, product.id]
+);
+
+if (result.rowCount === 0) {
+  return NextResponse.json(
+    { error: "OUT_OF_STOCK" },
+    { status: 400 }
+  );
+}
 
     /* =========================
     SUCCESS
