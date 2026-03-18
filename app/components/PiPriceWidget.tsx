@@ -2,20 +2,26 @@
 
 import { useEffect, useState } from "react";
 
+interface PiPriceData {
+  price_usd: number;
+  change_24h: number | null; // % tăng/giảm từ giá mở cửa
+}
+
 export default function PiPriceWidget() {
   const [price, setPrice] = useState<number | null>(null);
   const [change, setChange] = useState<number | null>(null);
+  const [prevPrice, setPrevPrice] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchPrice = async () => {
       try {
         const res = await fetch("/api/pi-price", { cache: "no-store" });
-        const data = await res.json();
+        const data: PiPriceData = await res.json();
 
-        if (data.price_usd) {
+        if (data.price_usd !== undefined) {
+          setPrevPrice(price); // lưu giá cũ để so sánh
           setPrice(Number(data.price_usd));
         }
-
         if (data.change_24h !== undefined) {
           setChange(Number(data.change_24h));
         }
@@ -24,25 +30,29 @@ export default function PiPriceWidget() {
       }
     };
 
-    fetchPrice();
+    fetchPrice(); // fetch ngay khi mount
+    const interval = setInterval(fetchPrice, 10 * 1000); // mỗi 10 giây
 
-    const interval = setInterval(fetchPrice, 5 * 60 * 1000);
+    return () => clearInterval(interval); // cleanup khi unmount
+  }, [price]);
 
-    return () => clearInterval(interval);
-  }, []);
+  // Xác định màu giá
+  let priceColor = "text-orange-500"; // mặc định cam
+  if (prevPrice !== null && price !== null) {
+    if (price > prevPrice) priceColor = "text-green-600";
+    else if (price < prevPrice) priceColor = "text-red-600";
+  }
 
+  // Xác định mũi tên tăng giảm
   const isUp = change !== null && change > 0;
   const isDown = change !== null && change < 0;
 
   return (
     <div className="w-full flex justify-center py-1">
       <div className="flex items-center gap-2 text-sm">
+        <span className="text-gray-500">1 PI =</span>
 
-        <span className="text-gray-500">
-          1 PI =
-        </span>
-
-        <span className="text-lg font-bold text-orange-500">
+        <span className={`text-lg font-bold ${priceColor}`}>
           {price !== null ? price.toFixed(6) : "..."}
         </span>
 
@@ -54,13 +64,12 @@ export default function PiPriceWidget() {
             ${isUp ? "text-green-600" : ""}
             ${isDown ? "text-red-600" : ""}
           `}
-          >
-            {isUp && "▲"}
-            {isDown && "▼"}
-            {change.toFixed(2)}%
-          </span>
+        >
+          {isUp && "▲"}
+          {isDown && "▼"}
+          {change.toFixed(2)}%
+        </span>
         )}
-
       </div>
     </div>
   );
