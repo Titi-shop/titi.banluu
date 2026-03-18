@@ -229,40 +229,41 @@ PAY WITH PI
           COMPLETE
           ========================= */
 
-          onReadyForServerCompletion: async (paymentId, txid, callback) => {
-  try {
-    const token = await getPiAccessToken();
+          onReadyForServerCompletion: async (paymentId, txid) => {
+            try {
+              const token = await getPiAccessToken();
 
-    const res = await fetch("/api/pi/complete", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        paymentId,
-        txid,
-        product_id: item.id,
-        quantity,
-      }),
-    });
+              const res = await fetch("/api/pi/complete", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  paymentId,
+                  txid,
+                  product_id: item.id,
+                  quantity,
+                  // ❌ KHÔNG gửi total
+                  // ❌ KHÔNG gửi user
+                  // ❌ KHÔNG gửi shipping
+                }),
+              });
 
-    if (!res.ok) {
-      setProcessing(false);
-      alert("Complete thất bại");
-      return;
-    }
+              if (!res.ok) {
+                setProcessing(false);
+                alert("Complete thất bại");
+                return;
+              }
 
-    callback(); // 🔥 BẮT BUỘC
-
-    clearCart();
-    setSelectedIds([]);
-    router.push("/customer/pending");
-  } catch {
-    setProcessing(false);
-    alert("Thanh toán lỗi");
-  }
-};
+              clearCart();
+              setSelectedIds([]);
+              router.push("/customer/pending");
+            } catch {
+              setProcessing(false);
+              alert("Thanh toán lỗi");
+            }
+          },
 
           onCancel: () => setProcessing(false),
 
