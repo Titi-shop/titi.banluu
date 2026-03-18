@@ -1,3 +1,5 @@
+Kiểm tra file này thêm 1 lần .
+
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
@@ -15,7 +17,7 @@ function safeQuantity(v: unknown) {
   const n = Number(v);
   if (!Number.isInteger(n)) return 1;
   if (n < 1) return 1;
-  if (n > 10) return 10;;
+  if (n > 10) return 10;
   return n;
 }
 
@@ -77,8 +79,13 @@ export async function POST(req: Request) {
     const { rows: productRows } = await query(
       `
       select id,name,seller_id,images,price,sale_price,
-       sale_start,sale_end,is_active
-      from products
+ sale_start,sale_end,
+ is_active,
+ status,
+ deleted_at,
+ stock,
+ is_unlimited
+from products
       where id=$1
       `,
       [productId]
@@ -86,13 +93,22 @@ export async function POST(req: Request) {
 
     const product = productRows[0];
 
-    if (!product || product.is_active === false)
+    console.log("PRODUCT:", product);
+
+    if (
+  !product ||
+  product.is_active === false ||
+  product.status !== "active" ||
+  product.deleted_at !== null
+) {
   return NextResponse.json(
     { error: "PRODUCT_NOT_AVAILABLE" },
     { status: 400 }
   );
 }
-if (!product.is_unlimited && product.stock < quantity) {
+
+
+    if (!product.is_unlimited && product.stock < quantity) {
   return NextResponse.json(
     { error: "OUT_OF_STOCK" },
     { status: 400 }
@@ -143,6 +159,13 @@ if (!product.is_unlimited && product.stock < quantity) {
 
     const payment = await piRes.json();
 
+if (!payment || payment.amount == null) {
+  return NextResponse.json(
+    { error: "INVALID_PAYMENT_DATA" },
+    { status: 400 }
+  );
+}
+
     if (!piRes.ok) {
       return NextResponse.json(
         { error: "PI_PAYMENT_NOT_FOUND" },
@@ -166,6 +189,7 @@ if (!product.is_unlimited && product.stock < quantity) {
     ========================= */
 
     const piAmount = Number(payment.amount);
+
     if (payment.status !== "approved") {
   return NextResponse.json(
     { error: "PAYMENT_NOT_APPROVED" },
