@@ -1,5 +1,3 @@
-Kiểm tra file này thêm 1 lần .
-
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
