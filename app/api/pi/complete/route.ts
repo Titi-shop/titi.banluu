@@ -101,6 +101,13 @@ export async function POST(req: Request) {
   );
 }
 
+
+    if (!product.is_unlimited && product.stock < quantity) {
+  return NextResponse.json(
+    { error: "OUT_OF_STOCK" },
+    { status: 400 }
+  );
+}
     /* =========================
     CALCULATE PRICE (SERVER ONLY)
     ========================= */
@@ -321,8 +328,9 @@ export async function POST(req: Request) {
     await query(
       `
       update products
-      set sold = sold + $1
-      where id = $2
+set sold = sold + $1,
+    stock = stock - $1
+where id = $2
       `,
       [quantity, product.id]
     );
