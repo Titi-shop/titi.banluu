@@ -67,7 +67,6 @@ export default function CustomerAddressPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) return;
-
     loadAddresses();
   }, [authLoading, user]);
 
@@ -78,22 +77,13 @@ export default function CustomerAddressPage() {
     const selected = countries.find((c) => c.code === e.target.value);
     if (!selected) return;
 
-    setForm({
-      ...form,
-      country: selected.code,
-    });
+    setForm({ ...form, country: selected.code });
   };
 
   const handleSave = async () => {
     if (authLoading) return;
 
-    if (
-      !form.full_name ||
-      !form.phone ||
-      !form.country ||
-      !form.province ||
-      !form.address_line
-    ) {
+    if (!form.full_name || !form.phone || !form.country || !form.province || !form.address_line) {
       setMessage("⚠️ " + t.fill_all_fields);
       return;
     }
@@ -115,9 +105,7 @@ export default function CustomerAddressPage() {
 
       setShowForm(false);
       setForm(emptyForm);
-
       await loadAddresses();
-
       setMessage("✅ " + t.address_saved);
     } finally {
       setSaving(false);
@@ -144,7 +132,6 @@ export default function CustomerAddressPage() {
 
   const deleteAddress = async (id: string) => {
     if (authLoading) return;
-
     if (!confirm(t.confirm_delete || "Xoá địa chỉ này?")) return;
 
     const token = await getPiAccessToken();
@@ -166,174 +153,82 @@ export default function CustomerAddressPage() {
       {/* HEADER */}
       <div className="fixed top-0 inset-x-0 bg-white border-b z-20">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center">
-          <button
-            onClick={() => router.back()}
-            className="text-orange-600 font-bold"
-          >
-            ←
-          </button>
-          <h1 className="flex-1 text-center font-semibold">
-            {t.shipping_address}
-          </h1>
+          <button onClick={() => router.back()} className="text-orange-600 font-bold">←</button>
+          <h1 className="flex-1 text-center font-semibold">{t.shipping_address}</h1>
         </div>
       </div>
 
       {/* LIST */}
-{/* LIST */}
-<div className="max-w-md mx-auto px-4 pt-20 space-y-4">
-  {addresses.map((a) => (
-    <div
-      key={a.id}
-      className={`rounded-xl bg-white p-4 shadow border ${
-        a.is_default ? "border-orange-500" : "border-gray-200"
-      }`}
-    >
-      <div className="flex justify-between">
-        <div>
-          {/* Tên */}
-          <p className="font-semibold">{a.full_name}</p>
+      <div className="max-w-md mx-auto px-4 pt-20 space-y-4">
+        {addresses.map((a) => (
+          <div key={a.id} className={`rounded-xl bg-white p-4 shadow border ${a.is_default ? "border-orange-500" : "border-gray-200"}`}>
+            <div className="flex justify-between">
+              <div>
+                <p className="font-semibold">{a.full_name}</p>
+                <p className="text-sm text-gray-600">{a.phone}</p>
+                <p className="text-sm text-gray-500 mt-1">{a.address_line}</p>
+                <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
+                  {a.province} – {getCountryDisplay(a.country)} – {a.postal_code || ""}
+                </p>
+              </div>
 
-          {/* Số điện thoại */}
-          <p className="text-sm text-gray-600">{a.phone}</p>
+              {a.is_default && (
+                <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
+                  {t.default || "Mặc định"}
+                </span>
+              )}
+            </div>
 
-          {/* Address line */}
-          <p className="text-sm text-gray-500 mt-1">{a.address_line}</p>
+            <div className="flex gap-4 mt-3 text-sm">
+              {!a.is_default && (
+                <button onClick={() => setDefault(a.id)} className="text-orange-600 font-medium">
+                  ⭐ {t.set_default || "Đặt mặc định"}
+                </button>
+              )}
 
-          {/* Province – Country – Postal code trên cùng 1 dòng */}
-          <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
-            {a.province} – {getCountryDisplay(a.country)} – {a.postal_code || ""}
-          </p>
-        </div>
+              <button onClick={() => deleteAddress(a.id)} className="text-red-500 font-medium">
+                {t.delete || "Xoá"}
+              </button>
+            </div>
+          </div>
+        ))}
 
-        {a.is_default && (
-          <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
-            {t.default || "Mặc định"}
-          </span>
-        )}
-      </div>
-
-      <div className="flex gap-4 mt-3 text-sm">
-        {!a.is_default && (
-          <button
-            onClick={() => setDefault(a.id)}
-            className="text-orange-600 font-medium"
-          >
-            ⭐ {t.set_default || "Đặt mặc định"}
-          </button>
-        )}
-
-        <button
-          onClick={() => deleteAddress(a.id)}
-          className="text-red-500 font-medium"
-        >
-          {t.delete || "Xoá"}
+        <button onClick={() => setShowForm(true)} className="w-full py-3 border-2 border-dashed border-orange-400 rounded-xl text-orange-600 font-semibold bg-white">
+          {t.add_address || "Thêm địa chỉ"}
         </button>
+
+        {message && <p className="text-center text-sm text-gray-500">{message}</p>}
       </div>
-    </div>
-  ))}
 
-  <button
-    onClick={() => setShowForm(true)}
-    className="w-full py-3 border-2 border-dashed border-orange-400 rounded-xl text-orange-600 font-semibold bg-white"
-  >
-    {t.add_address || "Thêm địa chỉ"}
-  </button>
-
-  {message && (
-    <p className="text-center text-sm text-gray-500">{message}</p>
-  )}
-</div>
       {/* OVERLAY */}
-      {showForm && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40"
-          onClick={() => setShowForm(false)}
-        />
-      )}
+      {showForm && <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowForm(false)} />}
 
       {/* BOTTOM SHEET */}
-      <div
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl
-          transition-transform duration-300
-          ${showForm ? "translate-y-0" : "translate-y-full"}`}
-        style={{ height: "80vh" }}
-      >
-        <div
-          className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-4"
-          onClick={() => setShowForm(false)}
-        />
+      <div className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl transition-transform duration-300 ${showForm ? "translate-y-0" : "translate-y-full"}`} style={{ height: "80vh" }}>
+        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-4" onClick={() => setShowForm(false)} />
 
         <div className="px-4 overflow-y-auto h-full pb-20 pt-2">
-
-          <label className="block text-sm font-medium mb-1">
-            {t.country}
-          </label>
-
-          <select
-            className="w-full border rounded-lg p-2 mb-3"
-            value={form.country}
-            onChange={handleCountryChange}
-          >
+          {/* Form điền địa chỉ theo thứ tự từ trên xuống */}
+          <label className="block text-sm font-medium mb-1">{t.country}</label>
+          <select className="w-full border rounded-lg p-2 mb-3" value={form.country} onChange={handleCountryChange}>
             {countries.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.flag} {c.name} ({c.dial})
-              </option>
+              <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.dial})</option>
             ))}
           </select>
 
-          <input
-            className="w-full border rounded-lg p-2 mb-3"
-            placeholder={t.province_city}
-            value={form.province}
-            onChange={(e) =>
-              setForm({ ...form, province: e.target.value })
-            }
-          />
+          <input className="w-full border rounded-lg p-2 mb-3" placeholder={t.province_city} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} />
 
-          <input
-            className="w-full border rounded-lg p-2 mb-3"
-            placeholder={t.full_name}
-            value={form.full_name}
-            onChange={(e) =>
-              setForm({ ...form, full_name: e.target.value })
-            }
-          />
+          <input className="w-full border rounded-lg p-2 mb-3" placeholder={t.full_name} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
 
-          <input
-            className="w-full border rounded-lg p-2 mb-3"
-            placeholder={t.phone_number}
-            value={form.phone}
-            onChange={(e) =>
-              setForm({ ...form, phone: e.target.value })
-            }
-          />
+          <input className="w-full border rounded-lg p-2 mb-3" placeholder={t.phone_number} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
 
-          <input
-            className="w-full border rounded-lg p-2 mb-3"
-            placeholder={t.postal_code_optional}
-            value={form.postal_code}
-            onChange={(e) =>
-              setForm({ ...form, postal_code: e.target.value })
-            }
-          />
+          <input className="w-full border rounded-lg p-2 mb-3" placeholder={t.postal_code_optional} value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
 
-          <textarea
-            className="w-full border rounded-lg p-2 mb-4"
-            rows={3}
-            placeholder={t.address}
-            value={form.address_line}
-            onChange={(e) =>
-              setForm({ ...form, address_line: e.target.value })
-            }
-          />
+          <textarea className="w-full border rounded-lg p-2 mb-4" rows={3} placeholder={t.address} value={form.address_line} onChange={(e) => setForm({ ...form, address_line: e.target.value })} />
         </div>
 
         <div className="absolute bottom-12 left-0 right-0 bg-white border-t p-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full py-3 rounded-xl bg-orange-600 text-white font-semibold"
-          >
+          <button onClick={handleSave} disabled={saving} className="w-full py-3 rounded-xl bg-orange-600 text-white font-semibold">
             {saving ? t.saving : t.save_address}
           </button>
         </div>
