@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 interface OkxTickerData {
   last: string;
-  changePct?: string; // % thay đổi 24h
+  sodUtc8?: string; // giá mở cửa hôm nay
 }
 
 interface OkxResponse {
@@ -42,7 +42,7 @@ export async function GET() {
 
     const ticker = json.data[0];
     const price = Number(ticker.last);
-    const change = ticker.changePct ? Number(ticker.changePct) : null;
+    const sod = ticker.sodUtc8 ? Number(ticker.sodUtc8) : null;
 
     if (Number.isNaN(price)) {
       return NextResponse.json(
@@ -51,16 +51,21 @@ export async function GET() {
       );
     }
 
+    // Tính % tăng/giảm dựa trên giá mở cửa hôm nay
+    let change: number | null = null;
+    if (sod !== null && sod !== 0) {
+      change = ((price - sod) / sod) * 100;
+    }
+
     return NextResponse.json({
       symbol: "PI/USDT",
       price_usd: price,
-      change_24h: change, // % thay đổi 24h chuẩn
+      change_24h: change, // <- % tăng giảm tự tính
       source: "OKX",
       updated_at: new Date().toISOString(),
     });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Unknown error";
+    const message = err instanceof Error ? err.message : "Unknown error";
 
     return NextResponse.json(
       { error: `Failed to fetch PI price: ${message}` },
