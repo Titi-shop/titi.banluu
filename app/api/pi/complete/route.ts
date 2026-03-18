@@ -170,6 +170,13 @@ export async function POST(req: Request) {
 
     const piAmount = Number(payment.amount);
 
+    if (payment.status !== "approved") {
+  return NextResponse.json(
+    { error: "PAYMENT_NOT_APPROVED" },
+    { status: 400 }
+  );
+}
+
     if (Math.abs(piAmount - expectedTotal) > 0.00001) {
       return NextResponse.json(
         { error: "INVALID_AMOUNT" },
