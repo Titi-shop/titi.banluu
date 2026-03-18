@@ -77,17 +77,21 @@ export async function POST(req: Request) {
     const { rows: productRows } = await query(
       `
       select id,name,seller_id,images,price,sale_price,
-       sale_start,sale_end,
-       is_active,
-       status,
-       deleted_at
-      from products
+ sale_start,sale_end,
+ is_active,
+ status,
+ deleted_at,
+ stock,
+ is_unlimited
+from products
       where id=$1
       `,
       [productId]
     );
 
     const product = productRows[0];
+
+    console.log("PRODUCT:", product);
 
     if (
   !product ||
