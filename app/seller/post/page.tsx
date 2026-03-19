@@ -50,9 +50,7 @@ export default function SellerPostPage() {
 
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
- const [thumbnailIndex, setThumbnailIndex] = useState(0);
- const [stock, setStock] = useState<number | "">(1);
- const [isActive, setIsActive] = useState(true);
+
   const [message, setMessage] = useState<MessageState>({
     text: "",
     type: "",
@@ -88,22 +86,13 @@ export default function SellerPostPage() {
   ) {
     if (!files.length) return;
 
-    if (!images.length) {
-  setMessage({
-    text: t.need_image || "⚠️ Cần ít nhất 1 ảnh sản phẩm",
-    type: "error",
-  });
-  return;
-}
-
-/* ✅ THÊM NGAY DƯỚI ĐÂY */
-if (stock === "" || Number(stock) < 0) {
-  setMessage({
-    text: "⚠️ Stock không hợp lệ",
-    type: "error",
-  });
-  return;
-}
+    if (images.length + files.length > 6) {
+      setMessage({
+        text: t.max_6_images || "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm",
+        type: "error",
+      });
+      return;
+    }
 
     setUploadingImage(true);
 
@@ -141,17 +130,8 @@ if (stock === "" || Number(stock) < 0) {
   }
 
   function removeImage(index: number) {
-  setImages((prev) => {
-    const next = prev.filter((_, i) => i !== index);
-
-    // fix thumbnail index
-    if (thumbnailIndex >= next.length) {
-      setThumbnailIndex(0);
-    }
-
-    return next;
-  });
-}
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  }
 
   function localToUTC(local: string): string {
     return new Date(local).toISOString();
@@ -196,32 +176,22 @@ if (stock === "" || Number(stock) < 0) {
     const form = e.currentTarget;
 
     const payload = {
-  name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
-  price: Number(
-    (form.elements.namedItem("price") as HTMLInputElement).value
-  ),
-
-  salePrice: salePrice || null,
-  saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-  saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
-
-  description: (
-    form.elements.namedItem("description") as HTMLTextAreaElement
-  ).value,
-
-  detail,
-
-  images,
-  thumbnail: images[thumbnailIndex] || images[0], // ✅ NEW
-
-  detailImages,
-
-  categoryId: Number(
-    (form.elements.namedItem("categoryId") as HTMLSelectElement).value
-  ),
-
-  stock: Number(stock),      
-  is_active: isActive,       
+      name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+      price: Number(
+        (form.elements.namedItem("price") as HTMLInputElement).value
+      ),
+      salePrice: salePrice || null,
+      saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
+      saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
+      description: (
+        form.elements.namedItem("description") as HTMLTextAreaElement
+      ).value,
+      detail,
+      images,
+      detailImages,
+      categoryId: Number(
+        (form.elements.namedItem("categoryId") as HTMLSelectElement).value
+      ),
     };
 
     if (!payload.name || payload.price <= 0 || !payload.categoryId) {
@@ -302,58 +272,38 @@ if (stock === "" || Number(stock) < 0) {
         />
 
         {/* IMAGES */}
-<div className="grid grid-cols-3 gap-3">
-  {images.map((url, i) => (
-    <div key={url} className="relative h-28 border rounded overflow-hidden">
-
-      {/* IMAGE */}
-      <Image src={url} alt="" fill className="object-cover" />
-
-      {/* THUMBNAIL BADGE */}
-      {thumbnailIndex === i && (
-        <div className="absolute top-1 left-1 bg-green-600 text-white text-[10px] px-2 py-[2px] rounded">
-          MAIN
+        <div className="grid grid-cols-3 gap-3">
+          {images.map((url, i) => (
+            <div key={url} className="relative h-28">
+              <Image src={url} alt="" fill className="object-cover rounded" />
+              <button
+                type="button"
+                onClick={() => removeImage(i)}
+                className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          {images.length < 6 && (
+            <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
+              ＋
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={(e) =>
+                  uploadImages(
+                    Array.from(e.target.files || []),
+                    setImages
+                  )
+                }
+              />
+            </label>
+          )}
         </div>
-      )}
 
-      {/* SET THUMBNAIL */}
-      <button
-        type="button"
-        onClick={() => setThumbnailIndex(i)}
-        className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-2 py-[2px] rounded"
-      >
-        Set
-      </button>
-
-      {/* REMOVE */}
-      <button
-        type="button"
-        onClick={() => removeImage(i)}
-        className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-      >
-        ✕
-      </button>
-    </div>
-  ))}
-
-  {images.length < 6 && (
-    <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
-      ＋
-      <input
-        type="file"
-        accept="image/*"
-        multiple
-        hidden
-        onChange={(e) =>
-          uploadImages(
-            Array.from(e.target.files || []),
-            setImages
-          )
-        }
-      />
-    </label>
-  )}
-</div>
         {/* PRICE */}
         <input
           name="price"
@@ -364,28 +314,6 @@ if (stock === "" || Number(stock) < 0) {
           required
         />
 
-
-         {/* STOCK */}
-<input
-  type="number"
-  min={0}
-  placeholder="Stock"
-  value={stock}
-  onChange={(e) =>
-    setStock(e.target.value ? Number(e.target.value) : "")
-  }
-  className="w-full border p-2 rounded"
-/>
-
-{/* ACTIVE */}
-<label className="flex items-center gap-2">
-  <input
-    type="checkbox"
-    checked={isActive}
-    onChange={(e) => setIsActive(e.target.checked)}
-  />
-  <span>{t.active || "Hiển thị sản phẩm"}</span>
-</label>
         {/* SALE */}
         <input
           type="number"
