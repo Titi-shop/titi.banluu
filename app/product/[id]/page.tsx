@@ -301,29 +301,38 @@ export default function ProductDetail() {
         </h3>
 
         {product.description ? (
-          <div
-            className="text-sm text-gray-700 leading-relaxed space-y-2"
-            dangerouslySetInnerHTML={{
-              __html: product.description,
-            }}
-          />
-        ) : (
-          <p className="text-sm text-gray-400">
-            {t.no_description}
-          </p>
-        )}
+  <ul className="text-sm text-gray-700 space-y-1">
+    {formatShortDescription(product.description).map((line, i) => (
+      <li key={i}>• {line}</li>
+    ))}
+  </ul>
+) : (
+  <p className="text-sm text-gray-400">
+    {t.no_description}
+  </p>
+)}
       </div>
 
       {/* DETAIL CONTENT */}
-      <div className="bg-white mt-2 px-4 py-5">
-        <h3 className="text-base font-semibold mb-3">
-          {t.product_details ?? "Chi tiết sản phẩm"}
-        </h3>
+<div className="bg-white mt-2 px-4 py-5">
+  <h3 className="text-base font-semibold mb-3">
+    {t.product_details ?? "Chi tiết sản phẩm"}
+  </h3>
 
-        <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-          {formatDetail(product.description || t.no_description)}
-        </div>
-      </div>
+  {product.detail ? (
+    <div
+      className="text-sm text-gray-700 leading-relaxed"
+      dangerouslySetInnerHTML={{
+        __html: product.detail,
+      }}
+    />
+  ) : (
+    <p className="text-sm text-gray-400">
+      {t.no_description}
+    </p>
+  )}
+</div>
+    
 
       {/* RELATED */}
       {relatedProducts.length > 0 && (
