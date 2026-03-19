@@ -131,16 +131,7 @@ const [isActive, setIsActive] = useState(true);
   }
 
   function removeImage(index: number) {
-  setImages((prev) => {
-    const next = prev.filter((_, i) => i !== index);
-
-    // fix thumbnail index
-    if (thumbnailIndex >= next.length) {
-      setThumbnailIndex(0);
-    }
-
-    return next;
-  });
+  setImages((prev) => prev.filter((_, i) => i !== index));
 }
 
   function localToUTC(local: string): string {
@@ -195,30 +186,37 @@ const [isActive, setIsActive] = useState(true);
   saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
   saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
 
-  const descriptionInput = (
+  const form = e.currentTarget;
+
+// ✅ LẤY description TRƯỚC
+const descriptionInput = (
   form.elements.namedItem("description") as HTMLTextAreaElement
 ).value;
 
+// ✅ TẠO payload SAU
 const payload = {
-  name: ...,
-  price: ...,
+  name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
 
-  description: descriptionInput, // ✅ chỉ dùng cái này
+  price: Number(
+    (form.elements.namedItem("price") as HTMLInputElement).value
+  ),
+
+  salePrice: salePrice || null,
+  saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
+  saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
+
+  description: descriptionInput, // ✅ đúng
+
   images,
-  thumbnail: images[0],
-  categoryId: ...,
-  stock: Number(stock),
-  is_active: isActive,
-};
+  thumbnail: images[0], // ✅ thêm dòng này
 
   categoryId: Number(
     (form.elements.namedItem("categoryId") as HTMLSelectElement).value
   ),
 
-  stock: Number(stock),        // ✅ NEW
-  is_active: isActive,         // ✅ NEW
+  stock: Number(stock),
+  is_active: isActive,
 };
-
     if (!payload.name || payload.price <= 0 || !payload.categoryId) {
       setMessage({
         text:
@@ -257,7 +255,7 @@ const payload = {
   }
 
   if (loading || !authUser) {
-    return <main className="p-8 text-center">⏳ {t.loading}</main>;
+    return <main className="p-8 text-center"> {t.loading}</main>;
   }
 
   /* =========================
