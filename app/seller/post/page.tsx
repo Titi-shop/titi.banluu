@@ -48,13 +48,11 @@ export default function SellerPostPage() {
   const [saleStart, setSaleStart] = useState("");
   const [saleEnd, setSaleEnd] = useState("");
 
-  // ✅ NEW
-  const [stock, setStock] = useState<number>(1);
-  const [isActive, setIsActive] = useState(true);
-
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-
+ const [thumbnailIndex, setThumbnailIndex] = useState(0);
+ const [stock, setStock] = useState<number | "">(1);
+ const [isActive, setIsActive] = useState(true);
   const [message, setMessage] = useState<MessageState>({
     text: "",
     type: "",
@@ -157,18 +155,10 @@ export default function SellerPostPage() {
       return;
     }
 
-    if (stock < 0) {
-      setMessage({
-        text: "⚠️ Stock không hợp lệ",
-        type: "error",
-      });
-      return;
-    }
-
     if (salePrice) {
       if (!saleStart || !saleEnd) {
         setMessage({
-          text: t.need_sale_date || "⚠️ Sale cần ngày",
+          text: t.need_sale_date || "⚠️ Sale cần ngày bắt đầu và kết thúc",
           type: "error",
         });
         return;
@@ -176,7 +166,9 @@ export default function SellerPostPage() {
 
       if (new Date(saleEnd) <= new Date(saleStart)) {
         setMessage({
-          text: t.invalid_sale_range || "⚠️ Sai thời gian sale",
+          text:
+            t.invalid_sale_range ||
+            "⚠️ Ngày kết thúc phải sau ngày bắt đầu",
           type: "error",
         });
         return;
@@ -186,33 +178,39 @@ export default function SellerPostPage() {
     const form = e.currentTarget;
 
     const payload = {
-      name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
-      price: Number(
-        (form.elements.namedItem("price") as HTMLInputElement).value
-      ),
-      salePrice: salePrice || null,
-      saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-      saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
-      description: (
-        form.elements.namedItem("description") as HTMLTextAreaElement
-      ).value,
-      detail,
-      images,
-      detailImages,
+  name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+  price: Number(
+    (form.elements.namedItem("price") as HTMLInputElement).value
+  ),
 
-      // ✅ NEW
-      thumbnail: images[0],
-      stock,
-      is_active: isActive,
+  salePrice: salePrice || null,
+  saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
+  saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
 
-      categoryId: Number(
-        (form.elements.namedItem("categoryId") as HTMLSelectElement).value
-      ),
+  description: (
+    form.elements.namedItem("description") as HTMLTextAreaElement
+  ).value,
+
+  detail,
+
+  images,
+  thumbnail: images[thumbnailIndex] || images[0], // ✅ NEW
+
+  detailImages,
+
+  categoryId: Number(
+    (form.elements.namedItem("categoryId") as HTMLSelectElement).value
+  ),
+
+  stock: Number(stock),      
+  is_active: isActive,       
     };
 
     if (!payload.name || payload.price <= 0 || !payload.categoryId) {
       setMessage({
-        text: t.enter_valid_name_price || "⚠️ Thiếu thông tin",
+        text:
+          t.enter_valid_name_price ||
+          "⚠️ Nhập đầy đủ danh mục, tên và giá",
         type: "error",
       });
       return;
@@ -230,14 +228,14 @@ export default function SellerPostPage() {
       if (!res.ok) throw new Error();
 
       setMessage({
-        text: t.post_success || "🎉 Thành công",
+        text: t.post_success || "🎉 Đăng sản phẩm thành công",
         type: "success",
       });
 
       setTimeout(() => router.push("/seller/stock"), 800);
     } catch {
       setMessage({
-        text: t.post_failed || "❌ Lỗi",
+        text: t.post_failed || "❌ Đăng thất bại",
         type: "error",
       });
     } finally {
@@ -259,10 +257,14 @@ export default function SellerPostPage() {
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-
         {/* CATEGORY */}
-        <select name="categoryId" className="w-full border p-2 rounded" required>
+        <select
+          name="categoryId"
+          className="w-full border p-2 rounded"
+          required
+        >
           <option value="">{t.select_category}</option>
+
           {categories.map((c) => {
             const key = c.key as keyof typeof t;
             return (
@@ -274,68 +276,174 @@ export default function SellerPostPage() {
         </select>
 
         {/* NAME */}
-        <input name="name" placeholder={t.product_name} className="w-full border p-2 rounded" required />
+        <input
+          name="name"
+          placeholder={t.product_name}
+          className="w-full border p-2 rounded"
+          required
+        />
 
         {/* IMAGES */}
-        <div className="grid grid-cols-3 gap-3">
-          {images.map((url, i) => (
-            <div key={url} className="relative h-28">
-              <Image src={url} alt="" fill className="object-cover rounded" />
-              {i === 0 && (
-                <span className="absolute bottom-1 left-1 bg-orange-600 text-white text-xs px-2 rounded">
-                  Thumbnail
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => removeImage(i)}
-                className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          {images.length < 6 && (
-            <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
-              ＋
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                hidden
-                onChange={(e) =>
-                  uploadImages(Array.from(e.target.files || []), setImages)
-                }
-              />
-            </label>
-          )}
+<div className="grid grid-cols-3 gap-3">
+  {images.map((url, i) => (
+    <div key={url} className="relative h-28 border rounded overflow-hidden">
+
+      {/* IMAGE */}
+      <Image src={url} alt="" fill className="object-cover" />
+
+      {/* THUMBNAIL BADGE */}
+      {thumbnailIndex === i && (
+        <div className="absolute top-1 left-1 bg-green-600 text-white text-[10px] px-2 py-[2px] rounded">
+          MAIN
         </div>
+      )}
 
+      {/* SET THUMBNAIL */}
+      <button
+        type="button"
+        onClick={() => setThumbnailIndex(i)}
+        className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-2 py-[2px] rounded"
+      >
+        Set
+      </button>
+
+      {/* REMOVE */}
+      <button
+        type="button"
+        onClick={() => removeImage(i)}
+        className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
+      >
+        ✕
+      </button>
+    </div>
+  ))}
+
+  {images.length < 6 && (
+    <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
+      ＋
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) =>
+          uploadImages(
+            Array.from(e.target.files || []),
+            setImages
+          )
+        }
+      />
+    </label>
+  )}
+</div>
         {/* PRICE */}
-        <input name="price" type="number" step="0.00001" placeholder={t.price_pi} className="w-full border p-2 rounded" required />
+        <input
+          name="price"
+          type="number"
+          step="0.00001"
+          placeholder={t.price_pi}
+          className="w-full border p-2 rounded"
+          required
+        />
 
-        {/* STOCK */}
+
+         {/* STOCK */}
+<input
+  type="number"
+  min={0}
+  placeholder="Stock"
+  value={stock}
+  onChange={(e) =>
+    setStock(e.target.value ? Number(e.target.value) : "")
+  }
+  className="w-full border p-2 rounded"
+/>
+
+{/* ACTIVE */}
+<label className="flex items-center gap-2">
+  <input
+    type="checkbox"
+    checked={isActive}
+    onChange={(e) => setIsActive(e.target.checked)}
+  />
+  <span>{t.active || "Hiển thị sản phẩm"}</span>
+</label>
+        {/* SALE */}
         <input
           type="number"
-          value={stock}
-          min={0}
-          onChange={(e) => setStock(Number(e.target.value))}
-          placeholder="Stock"
+          step="0.00001"
+          placeholder={t.sale_price_optional}
+          value={salePrice}
+          onChange={(e) =>
+            setSalePrice(e.target.value ? Number(e.target.value) : "")
+          }
           className="w-full border p-2 rounded"
         />
 
-        {/* ACTIVE */}
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={() => setIsActive((v) => !v)}
-          />
-          Hiển thị sản phẩm
-        </label>
+        {/* SALE TIME */}
+        {salePrice && (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600 font-medium">
+              📅 {t.sale_time || "Thời gian khuyến mãi"}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="datetime-local"
+                value={saleStart}
+                onChange={(e) => setSaleStart(e.target.value)}
+                className="border p-2 rounded"
+              />
+
+              <input
+                type="datetime-local"
+                value={saleEnd}
+                onChange={(e) => setSaleEnd(e.target.value)}
+                className="border p-2 rounded"
+              />
+            </div>
+          </div>
+        )}
 
         {/* DESCRIPTION */}
-        <textarea name="description" placeholder={t.description} required className="w-full border p-2 rounded" />
+        <textarea
+          name="description"
+          placeholder={t.description}
+          required
+          className="w-full border p-2 rounded min-h-[70px]"
+        />
+
+        {/* DETAIL */}
+        <textarea
+          placeholder={t.product_detail}
+          value={detail}
+          onChange={(e) => setDetail(e.target.value)}
+          className="w-full border p-2 rounded min-h-[120px]"
+        />
+
+        {/* DETAIL IMAGES */}
+        <div className="grid grid-cols-3 gap-3">
+          {detailImages.map((url) => (
+            <div key={url} className="relative h-28">
+              <Image src={url} alt="" fill className="object-cover rounded" />
+            </div>
+          ))}
+          <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
+            ＋
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) =>
+                uploadImages(
+                  Array.from(e.target.files || []),
+                  setDetailImages
+                )
+              }
+            />
+          </label>
+        </div>
 
         {/* SUBMIT */}
         <button
