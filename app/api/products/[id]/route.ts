@@ -20,6 +20,61 @@ type ProductRow = {
   sold: number | null;
 };
 
+
+
+/* =========================
+   PATCH /api/products/[id]
+========================= */
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params;
+    if (!id) return NextResponse.json({ error: "MISSING_PRODUCT_ID" }, { status: 400 });
+
+    // ✅ Lấy body
+    const body = await req.json();
+
+    // TODO: Validate payload nếu cần
+    // e.g. name, price, images, categoryId, salePrice, saleStart, saleEnd, stock, is_active
+
+    // Cập nhật Supabase
+    const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${id}`, {
+      method: "PATCH",
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation", // trả về bản ghi mới
+      },
+      body: JSON.stringify({
+        name: body.name,
+        description: body.description,
+        detail: body.detail,
+        images: body.images,
+        category_id: body.categoryId,
+        price: body.price,
+        sale_price: body.salePrice,
+        sale_start: body.saleStart,
+        sale_end: body.saleEnd,
+        stock: body.stock,
+        is_active: body.is_active,
+        thumbnail: body.thumbnail,
+      }),
+    });
+
+    if (!updateRes.ok) {
+      const text = await updateRes.text();
+      console.error("❌ PATCH PRODUCT ERROR:", text);
+      return NextResponse.json({ error: "FAILED_TO_UPDATE_PRODUCT" }, { status: 500 });
+    }
+
+    const data = await updateRes.json();
+
+    return NextResponse.json(data[0]);
+  } catch (err) {
+    console.error("❌ PRODUCT PATCH ERROR:", err);
+    return NextResponse.json({ error: "INTERNAL_SERVER_ERROR" }, { status: 500 });
+  }
+}
 /* =========================
    GET /api/products/[id]
 ========================= */
