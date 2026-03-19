@@ -107,14 +107,12 @@ const enriched = products.map((p: any) => {
 return {
   id: p.id,
   name: p.name,
-  description: p.description,
+
+  description: typeof p.description === "string" ? p.description : "",
+  detail: typeof p.detail === "string" ? p.detail : "", // ✅ FIX
 
   images: p.images ?? [],
   thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
-
-  // ✅ FIX QUAN TRỌNG (THÊM 2 DÒNG NÀY)
-  detail: p.detail ?? "",
-  detailImages: p.detail_images ?? [],
 
   categoryId: p.category_id,
   price: p.price,
