@@ -23,12 +23,10 @@ type PiPayment = {
         paymentId: string,
         callback: () => void
       ) => void;
-
       onReadyForServerCompletion: (
         paymentId: string,
         txid: string
       ) => void;
-
       onCancel: () => void;
       onError: (error: unknown) => void;
     }
@@ -68,6 +66,11 @@ interface AddressApiResponse {
   items?: AddressApiItem[];
 }
 
+interface Message {
+  text: string;
+  type: "error" | "success";
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -101,7 +104,16 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null); // ✅ hiển thị lỗi UI
+  const [message, setMessage] = useState<Message | null>(null);
+
+  /* =========================
+  SHOW MESSAGE (GIỐNG CART)
+  ========================= */
+
+  const showMessage = (text: string, type: "error" | "success" = "error") => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage(null), 4000);
+  };
 
   const quantity = useMemo(() => {
     const n = Number(qtyDraft);
@@ -123,7 +135,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   /* =========================
      LOAD ADDRESS
-  ========================== */
+  ========================= */
 
   useEffect(() => {
     async function loadAddress() {
@@ -131,15 +143,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         const token = await getPiAccessToken();
 
         const res = await fetch("/api/address", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) return;
 
         const data: AddressApiResponse = await res.json();
-
         const def = data.items?.find((a) => a.is_default);
 
         if (!def) return;
@@ -157,18 +166,15 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       }
     }
 
-    if (open && user) {
-      loadAddress();
-    }
+    if (open && user) loadAddress();
   }, [open, user]);
 
   /* =========================
      PRICE
-  ========================== */
+  ========================= */
 
   const unitPrice = useMemo(() => {
     if (!item) return 0;
-
     return typeof item.finalPrice === "number"
       ? item.finalPrice
       : item.price;
@@ -181,11 +187,11 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   /* =========================
      VALIDATION
-  ========================== */
+  ========================= */
 
   const validateBeforePay = () => {
     if (!window.Pi || !piReady) {
-      setErrorMsg("Pi chưa sẵn sàng");
+      showMessage("Pi chưa sẵn sàng");
       return false;
     }
 
@@ -195,12 +201,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     }
 
     if (!shipping) {
-      setErrorMsg("Vui lòng thêm địa chỉ giao hàng");
+      showMessage("Vui lòng thêm địa chỉ giao hàng");
       return false;
     }
 
     if (!item || quantity < 1 || quantity > 99) {
-      setErrorMsg("Số lượng không hợp lệ");
+      showMessage("Số lượng không hợp lệ");
       return false;
     }
 
@@ -209,13 +215,14 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   /* =========================
      PAY WITH PI
-  ========================== */
+  ========================= */
 
   const handlePay = async () => {
     if (!validateBeforePay()) return;
 
+    if (processing) return;
+
     setProcessing(true);
-    setErrorMsg(null);
 
     try {
       await window.Pi?.createPayment(
@@ -248,17 +255,15 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
               });
 
               if (!res.ok) {
-                console.error("APPROVE FAIL", await res.text());
                 setProcessing(false);
-                setErrorMsg("Approve thất bại");
+                showMessage("Approve thất bại");
                 return;
               }
 
-              callback(); // ✅ chỉ gọi khi approve OK
-            } catch (err) {
-              console.error("APPROVE ERROR:", err);
+              callback();
+            } catch {
               setProcessing(false);
-              setErrorMsg("Approve thất bại");
+              showMessage("Approve lỗi");
             }
           },
 
@@ -279,33 +284,39 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
                   quantity,
                   total,
                   shipping,
-                  user: {
-                    pi_uid: user!.pi_uid,
-                  },
+                  user: { pi_uid: user!.pi_uid },
                 }),
               });
 
               if (!res.ok) {
                 setProcessing(false);
-                setErrorMsg("Complete thất bại");
+                showMessage("Complete thất bại");
                 return;
               }
 
               onClose();
               router.push("/customer/pending");
+              showMessage("Thanh toán thành công", "success");
             } catch {
               setProcessing(false);
-              setErrorMsg("Thanh toán lỗi");
+              showMessage("Thanh toán lỗi");
             }
           },
 
-          onCancel: () => setProcessing(false),
-          onError: () => setProcessing(false),
+          onCancel: () => {
+            setProcessing(false);
+            showMessage("Thanh toán bị huỷ");
+          },
+
+          onError: () => {
+            setProcessing(false);
+            showMessage("Thanh toán thất bại");
+          },
         }
       );
     } catch {
       setProcessing(false);
-      setErrorMsg(t.transaction_failed);
+      showMessage(t.transaction_failed);
     }
   };
 
@@ -313,6 +324,17 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   return (
     <div className="fixed inset-0 z-[100]">
+
+      {/* MESSAGE (GIỐNG CART) */}
+      {message && (
+        <div
+          className={`fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded shadow-lg z-[200]
+          ${message.type === "error" ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}
+        >
+          {message.text}
+        </div>
+      )}
+
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[45vh] flex flex-col">
@@ -370,13 +392,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
               {formatPi(total)} π
             </p>
           </div>
-
-          {/* ERROR BANNER */}
-          {errorMsg && (
-            <div className="mt-2 p-2 bg-red-100 text-red-700 rounded text-sm text-center">
-              {errorMsg}
-            </div>
-          )}
 
         </div>
 
