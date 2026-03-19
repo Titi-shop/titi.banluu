@@ -173,20 +173,7 @@ const [isActive, setIsActive] = useState(true);
         return;
       }
     }
-
-    const form = e.currentTarget;
-
-    const payload = {
-  name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
-  price: Number(
-    (form.elements.namedItem("price") as HTMLInputElement).value
-  ),
-
-  salePrice: salePrice || null,
-  saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-  saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
-
-  const form = e.currentTarget;
+const form = e.currentTarget;
 
 // ✅ lấy description trước
 const descriptionInput = (
