@@ -160,6 +160,7 @@ export async function POST(req: Request) {
   name,
   price,
   description,
+  detail,
   images,
   thumbnail,
   categoryId,
@@ -182,6 +183,7 @@ export async function POST(req: Request) {
   price,
 
   description: typeof description === "string" ? description : "",
+  detail: typeof detail === "string" ? detail : "", // ✅ FIX
 
   images: Array.isArray(images)
     ? images.filter((i) => typeof i === "string")
@@ -233,6 +235,7 @@ export async function PUT(req: Request) {
       name,
       price,
       description,
+      detail,
       images,
       thumbnail,
       categoryId,
@@ -261,30 +264,31 @@ export async function PUT(req: Request) {
     }
 
     const updated = await updateProductBySeller(
-      auth.user.pi_uid,
-      String(id),
-      {
-        name: name.trim(),
-        price,
+  auth.user.pi_uid,
+  String(id),
+  {
+    name: name.trim(),
+    price,
 
-        description: typeof description === "string" ? description : "",
+    description: typeof description === "string" ? description : "",
+    detail: typeof detail === "string" ? detail : "", // ✅ FIX
 
-        images: Array.isArray(images)
-          ? images.filter((i) => typeof i === "string")
-          : [],
+    images: Array.isArray(images)
+      ? images.filter((i) => typeof i === "string")
+      : [],
 
-        thumbnail: typeof thumbnail === "string" ? thumbnail : null,
+    thumbnail: typeof thumbnail === "string" ? thumbnail : null,
 
-        category_id: typeof categoryId === "number" ? categoryId : null,
+    category_id: typeof categoryId === "number" ? categoryId : null,
 
-        sale_price: typeof salePrice === "number" ? salePrice : null,
-        sale_start: typeof saleStart === "string" ? saleStart : null,
-        sale_end: typeof saleEnd === "string" ? saleEnd : null,
+    sale_price: typeof salePrice === "number" ? salePrice : null,
+    sale_start: typeof saleStart === "string" ? saleStart : null,
+    sale_end: typeof saleEnd === "string" ? saleEnd : null,
 
-        stock: typeof stock === "number" && stock >= 0 ? stock : 0,
-        is_active: typeof is_active === "boolean" ? is_active : true,
-      }
-    );
+    stock: typeof stock === "number" && stock >= 0 ? stock : 0,
+    is_active: typeof is_active === "boolean" ? is_active : true,
+  }
+);
 
     if (!updated) {
       return NextResponse.json(
