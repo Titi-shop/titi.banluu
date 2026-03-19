@@ -44,7 +44,8 @@ interface ApiProduct {
   views?: number;
   sold?: number;
   images?: string[];
-  detailImages?: string[];
+  stock?: number;
+  isActive?: boolean;
   categoryId?: string | null;
 }
 
@@ -59,7 +60,8 @@ interface Product {
   views: number;
   sold: number;
   images: string[];
-  detailImages: string[];
+  stock?: number;
+  isActive?: boolean;
   categoryId: string | null;
 }
 
@@ -93,29 +95,38 @@ export default function ProductDetail() {
         if (!Array.isArray(data)) return;
 
         const normalized: Product[] = data.map((p) => {
-          const api = p as ApiProduct;
-          const finalPrice =
-            typeof api.finalPrice === "number"
-              ? api.finalPrice
-              : api.price;
+  const api = p as ApiProduct;
 
-          return {
-            id: api.id,
-            name: api.name,
-            price: api.price,
-            finalPrice,
-            isSale: finalPrice < api.price,
-            description: api.description ?? "",
-            detail: api.detail ?? "",
-            views: api.views ?? 0,
-            sold: api.sold ?? 0,
-            images: Array.isArray(api.images) ? api.images : [],
-            detailImages: Array.isArray(api.detailImages)
-              ? api.detailImages
-              : [],
-            categoryId: api.categoryId ?? null,
-          };
-        });
+  const finalPrice =
+    typeof api.finalPrice === "number"
+      ? api.finalPrice
+      : api.price;
+
+  const stock = typeof api.stock === "number" ? api.stock : 0;
+  const isActive = api.isActive !== false;
+
+  return {
+    id: api.id,
+    name: api.name,
+    price: api.price,
+    finalPrice,
+    isSale: finalPrice < api.price,
+
+    description: api.description ?? "",
+    detail: api.detail ?? "",
+
+    views: api.views ?? 0,
+    sold: api.sold ?? 0,
+
+    images: Array.isArray(api.images) ? api.images : [],
+    categoryId: api.categoryId ?? null,
+
+    // ✅ NEW
+    stock,
+    isActive,
+    isOutOfStock: stock <= 0,
+  };
+});
 
         setProducts(normalized);
 
@@ -275,21 +286,17 @@ const relatedProducts = products.filter(
   </h3>
 
   {product.description ? (
-  <ul className="space-y-1 text-sm text-gray-700 leading-relaxed">
-    {formatShortDescription(product.description)
-  .slice(0, 5)
-  .map((line, i) => (
-      <li key={i} className="flex gap-2">
-        <span className="text-orange-500">•</span>
-        <span>{line}</span>
-      </li>
-    ))}
-  </ul>
-) : (
-  <p className="text-sm text-gray-400">
-    {t.no_description}
-  </p>
-)}
+    <div
+      className="text-sm text-gray-700 leading-relaxed space-y-2"
+      dangerouslySetInnerHTML={{
+        __html: product.description,
+      }}
+    />
+  ) : (
+    <p className="text-sm text-gray-400">
+      {t.no_description}
+    </p>
+  )}
 </div>
 
       {/* DETAIL IMAGES */}
@@ -356,19 +363,28 @@ const relatedProducts = products.filter(
       {/* ACTIONS */}
       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
         <button
-          onClick={add}
-          className="flex-1 bg-yellow-500 text-white py-2 rounded-md"
-        >
-          {t.add_to_cart}
-        </button>
+  onClick={add}
+  disabled={product.isOutOfStock}
+  className={`flex-1 py-2 rounded-md text-white ${
+    product.isOutOfStock
+      ? "bg-gray-400"
+      : "bg-yellow-500"
+  }`}
+>
+  {t.add_to_cart}
+</button>
 
-        <button
-          onClick={buy}
-          className="flex-1 bg-red-500 text-white py-2 rounded-md"
-        >
-          {t.buy_now}
-        </button>
-      </div>
+<button
+  onClick={buy}
+  disabled={product.isOutOfStock}
+  className={`flex-1 py-2 rounded-md text-white ${
+    product.isOutOfStock
+      ? "bg-gray-400"
+      : "bg-red-500"
+  }`}
+>
+  {product.isOutOfStock ? "Hết hàng" : t.buy_now}
+</button>
 
       {/* CHECKOUT SHEET */}
       <CheckoutSheet
