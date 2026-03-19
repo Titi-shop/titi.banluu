@@ -147,17 +147,18 @@ export async function POST(req: Request) {
     }
 
     const {
-      name,
-      price,
-      description,
-      detail,
-      images,
-      detailImages,
-      categoryId,
-      salePrice,
-      saleStart,
-      saleEnd,
-    } = body as Record<string, unknown>;
+  name,
+  price,
+  description,
+  images,
+  thumbnail,
+  categoryId,
+  salePrice,
+  saleStart,
+  saleEnd,
+  stock,
+  is_active,
+} = body as Record<string, unknown>;
 
     if (typeof name !== "string" || typeof price !== "number") {
       return NextResponse.json(
@@ -167,28 +168,29 @@ export async function POST(req: Request) {
     }
 
     const product = await createProduct(auth.user.pi_uid, {
-      name: name.trim(),
-      price, // Pi decimal nhỏ OK
-      description: typeof description === "string" ? description : "",
-      detail: typeof detail === "string" ? detail : "",
+  name: name.trim(),
+  price,
 
-      images: Array.isArray(images)
-        ? images.filter((i) => typeof i === "string")
-        : [],
+  description: typeof description === "string" ? description : "",
 
-      detail_images: Array.isArray(detailImages)
-        ? detailImages.filter((i) => typeof i === "string")
-        : [],
+  images: Array.isArray(images)
+    ? images.filter((i) => typeof i === "string")
+    : [],
 
-      category_id: typeof categoryId === "number" ? categoryId : null,
+  thumbnail: typeof thumbnail === "string" ? thumbnail : null,
 
-      sale_price: typeof salePrice === "number" ? salePrice : null,
-      sale_start: typeof saleStart === "string" ? saleStart : null,
-      sale_end: typeof saleEnd === "string" ? saleEnd : null,
+  category_id: typeof categoryId === "number" ? categoryId : null,
 
-      views: 0,
-      sold: 0,
-    });
+  sale_price: typeof salePrice === "number" ? salePrice : null,
+  sale_start: typeof saleStart === "string" ? saleStart : null,
+  sale_end: typeof saleEnd === "string" ? saleEnd : null,
+
+  stock: typeof stock === "number" ? stock : 0,
+  is_active: typeof is_active === "boolean" ? is_active : true,
+
+  views: 0,
+  sold: 0,
+});
 
     return NextResponse.json({ success: true, product });
   } catch (err) {
