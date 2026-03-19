@@ -46,9 +46,8 @@ export default function SellerPostPage() {
   const [saleStart, setSaleStart] = useState("");
   const [saleEnd, setSaleEnd] = useState("");
 
-
-   const [stock, setStock] = useState<number | "">(1);
-const [isActive, setIsActive] = useState(true);
+  const [stock, setStock] = useState<number | "">(1);
+  const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -112,7 +111,7 @@ const [isActive, setIsActive] = useState(true);
           throw new Error("UPLOAD_FAILED");
         }
 
-        const data = (await res.json()) as { url?: string };
+        const data: { url?: string } = await res.json();
 
         if (!data.url) {
           throw new Error("NO_URL_RETURNED");
@@ -131,8 +130,8 @@ const [isActive, setIsActive] = useState(true);
   }
 
   function removeImage(index: number) {
-  setImages((prev) => prev.filter((_, i) => i !== index));
-}
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  }
 
   function localToUTC(local: string): string {
     return new Date(local).toISOString();
@@ -173,38 +172,55 @@ const [isActive, setIsActive] = useState(true);
         return;
       }
     }
-const form = e.currentTarget;
 
-// ✅ lấy description trước
-const descriptionInput = (
-  form.elements.namedItem("description") as HTMLTextAreaElement
-).value;
+    const form = e.currentTarget;
 
-// ✅ tạo payload (CHỈ 1 lần duy nhất)
-const payload = {
-  name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+    const descriptionEl = form.elements.namedItem(
+      "description"
+    ) as HTMLTextAreaElement | null;
 
-  price: Number(
-    (form.elements.namedItem("price") as HTMLInputElement).value
-  ),
+    const nameEl = form.elements.namedItem(
+      "name"
+    ) as HTMLInputElement | null;
 
-  salePrice: salePrice || null,
-  saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-  saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
+    const priceEl = form.elements.namedItem(
+      "price"
+    ) as HTMLInputElement | null;
 
-  description: descriptionInput,
-detail: descriptionInput, 
+    const categoryEl = form.elements.namedItem(
+      "categoryId"
+    ) as HTMLSelectElement | null;
 
-  images,
-  thumbnail: images[0], 
+    if (!descriptionEl || !nameEl || !priceEl || !categoryEl) {
+      setMessage({
+        text: "❌ Form không hợp lệ",
+        type: "error",
+      });
+      return;
+    }
 
-  categoryId: Number(
-    (form.elements.namedItem("categoryId") as HTMLSelectElement).value
-  ),
+    const descriptionInput = descriptionEl.value;
 
-  stock: Number(stock),
-  is_active: isActive,
-};
+    const payload = {
+      name: nameEl.value.trim(),
+      price: Number(priceEl.value),
+
+      salePrice: salePrice || null,
+      saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
+      saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
+
+      description: descriptionInput,
+      detail: descriptionInput, // ✅ FIX CRASH
+
+      images,
+      thumbnail: images[0] ?? "",
+
+      categoryId: Number(categoryEl.value),
+
+      stock: Number(stock),
+      is_active: isActive,
+    };
+
     if (!payload.name || payload.price <= 0 || !payload.categoryId) {
       setMessage({
         text:
@@ -254,17 +270,19 @@ detail: descriptionInput,
       <h1 className="text-xl font-bold text-center mb-4 text-[#ff6600]">
         ➕ {t.post_product}
       </h1>
-{message.text && (
-  <div
-    className={`p-2 rounded text-sm ${
-      message.type === "error"
-        ? "bg-red-100 text-red-600"
-        : "bg-green-100 text-green-600"
-    }`}
-  >
-    {message.text}
-  </div>
-)}
+
+      {message.text && (
+        <div
+          className={`p-2 rounded text-sm ${
+            message.type === "error"
+              ? "bg-red-100 text-red-600"
+              : "bg-green-100 text-green-600"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* CATEGORY */}
         <select
@@ -292,35 +310,22 @@ detail: descriptionInput,
           required
         />
 
-
-         <p className="text-sm font-medium">
-  🖼️ Ảnh sản phẩm (ảnh đầu tiên là ảnh chính)
-</p>
-         {images.map((url, i) => (
-  <div key={url} className="relative h-28">
-    <Image src={url} alt="" fill className="object-cover rounded" />
-
-    {/* ✅ BADGE THUMBNAIL */}
-    {i === 0 && (
-      <span className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
-        Thumbnail
-      </span>
-    )}
-
-    <button
-      type="button"
-      onClick={() => removeImage(i)}
-      className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-    >
-      ✕
-    </button>
-  </div>
-))}
         {/* IMAGES */}
+        <p className="text-sm font-medium">
+          🖼️ Ảnh sản phẩm (ảnh đầu tiên là ảnh chính)
+        </p>
+
         <div className="grid grid-cols-3 gap-3">
           {images.map((url, i) => (
             <div key={url} className="relative h-28">
               <Image src={url} alt="" fill className="object-cover rounded" />
+
+              {i === 0 && (
+                <span className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
+                  Thumbnail
+                </span>
+              )}
+
               <button
                 type="button"
                 onClick={() => removeImage(i)}
@@ -330,6 +335,7 @@ detail: descriptionInput,
               </button>
             </div>
           ))}
+
           {images.length < 6 && (
             <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
               ＋
@@ -359,28 +365,28 @@ detail: descriptionInput,
           required
         />
 
+        {/* STOCK */}
+        <input
+          type="number"
+          min={0}
+          placeholder="Stock"
+          value={stock}
+          onChange={(e) =>
+            setStock(e.target.value ? Number(e.target.value) : "")
+          }
+          className="w-full border p-2 rounded"
+        />
 
-         {/* STOCK */}
-<input
-  type="number"
-  min={0}
-  placeholder="Stock"
-  value={stock}
-  onChange={(e) =>
-    setStock(e.target.value ? Number(e.target.value) : "")
-  }
-  className="w-full border p-2 rounded"
-/>
+        {/* ACTIVE */}
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+          />
+          <span>{t.active || "Hiển thị sản phẩm"}</span>
+        </label>
 
-{/* ACTIVE */}
-<label className="flex items-center gap-2">
-  <input
-    type="checkbox"
-    checked={isActive}
-    onChange={(e) => setIsActive(e.target.checked)}
-  />
-  <span>{t.active || "Hiển thị sản phẩm"}</span>
-</label>
         {/* SALE */}
         <input
           type="number"
@@ -426,52 +432,6 @@ detail: descriptionInput,
           className="w-full border p-2 rounded min-h-[70px]"
         />
 
-
-         <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
-  🖼️ Thêm ảnh mô tả
-  <input
-    type="file"
-    accept="image/*"
-    hidden
-    onChange={async (e) => {
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
-
-      setUploadingImage(true);
-
-      try {
-        for (const file of files) {
-          const formData = new FormData();
-          formData.append("file", file);
-
-          const res = await apiAuthFetch("/api/upload", {
-            method: "POST",
-            body: formData,
-          });
-
-          if (!res.ok) throw new Error();
-
-          const data = (await res.json()) as { url?: string };
-          if (!data.url) throw new Error();
-
-          const textarea = document.querySelector(
-  "textarea[name='description']"
-) as HTMLTextAreaElement | null;
-
-if (textarea) {
-  textarea.value += `\n<img src="${data.url}" />\n`;
-}
-      } catch {
-        setMessage({
-          text: "❌ Upload ảnh mô tả thất bại",
-          type: "error",
-        });
-      } finally {
-        setUploadingImage(false);
-      }
-    }}
-  />
-</label>
         {/* SUBMIT */}
         <button
           disabled={saving}
