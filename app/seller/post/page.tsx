@@ -193,9 +193,10 @@ const payload = {
   saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
 
   description: descriptionInput,
+detail: descriptionInput, 
 
   images,
-  thumbnail: images[0], // ✅ chuẩn
+  thumbnail: images[0], 
 
   categoryId: Number(
     (form.elements.namedItem("categoryId") as HTMLSelectElement).value
@@ -253,7 +254,17 @@ const payload = {
       <h1 className="text-xl font-bold text-center mb-4 text-[#ff6600]">
         ➕ {t.post_product}
       </h1>
-
+{message.text && (
+  <div
+    className={`p-2 rounded text-sm ${
+      message.type === "error"
+        ? "bg-red-100 text-red-600"
+        : "bg-green-100 text-green-600"
+    }`}
+  >
+    {message.text}
+  </div>
+)}
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* CATEGORY */}
         <select
@@ -281,6 +292,30 @@ const payload = {
           required
         />
 
+
+         <p className="text-sm font-medium">
+  🖼️ Ảnh sản phẩm (ảnh đầu tiên là ảnh chính)
+</p>
+         {images.map((url, i) => (
+  <div key={url} className="relative h-28">
+    <Image src={url} alt="" fill className="object-cover rounded" />
+
+    {/* ✅ BADGE THUMBNAIL */}
+    {i === 0 && (
+      <span className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
+        Thumbnail
+      </span>
+    )}
+
+    <button
+      type="button"
+      onClick={() => removeImage(i)}
+      className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
+    >
+      ✕
+    </button>
+  </div>
+))}
         {/* IMAGES */}
         <div className="grid grid-cols-3 gap-3">
           {images.map((url, i) => (
@@ -420,11 +455,12 @@ const payload = {
           if (!data.url) throw new Error();
 
           const textarea = document.querySelector(
-            "textarea[name='description']"
-          ) as HTMLTextAreaElement;
+  "textarea[name='description']"
+) as HTMLTextAreaElement | null;
 
-          textarea.value += `\n<img src="${data.url}" />\n`;
-        }
+if (textarea) {
+  textarea.value += `\n<img src="${data.url}" />\n`;
+}
       } catch {
         setMessage({
           text: "❌ Upload ảnh mô tả thất bại",
