@@ -36,7 +36,7 @@ export async function GET(req: Request) {
       const inFilter = idArray.map((id) => `"${id}"`).join(",");
 
       const res = await fetch(
-        `${process.env.SUPABASE_URL}/rest/v1/products?id=in.(${inFilter})&select=id,name,images,price,sale_price,sale_start,sale_end`,
+        `${process.env.SUPABASE_URL}/rest/v1/products?id=in.(${inFilter})&select=id,name,description,detail,images,detail_images,price,sale_price,sale_start,sale_end,stock,is_active`,
         {
           headers: {
             apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
