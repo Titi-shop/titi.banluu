@@ -88,13 +88,22 @@ export default function SellerPostPage() {
   ) {
     if (!files.length) return;
 
-    if (images.length + files.length > 6) {
-      setMessage({
-        text: t.max_6_images || "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm",
-        type: "error",
-      });
-      return;
-    }
+    if (!images.length) {
+  setMessage({
+    text: t.need_image || "⚠️ Cần ít nhất 1 ảnh sản phẩm",
+    type: "error",
+  });
+  return;
+}
+
+/* ✅ THÊM NGAY DƯỚI ĐÂY */
+if (stock === "" || Number(stock) < 0) {
+  setMessage({
+    text: "⚠️ Stock không hợp lệ",
+    type: "error",
+  });
+  return;
+}
 
     setUploadingImage(true);
 
@@ -132,8 +141,17 @@ export default function SellerPostPage() {
   }
 
   function removeImage(index: number) {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  }
+  setImages((prev) => {
+    const next = prev.filter((_, i) => i !== index);
+
+    // fix thumbnail index
+    if (thumbnailIndex >= next.length) {
+      setThumbnailIndex(0);
+    }
+
+    return next;
+  });
+}
 
   function localToUTC(local: string): string {
     return new Date(local).toISOString();
