@@ -8,13 +8,13 @@ import { ArrowLeft, ShoppingCart } from "lucide-react";
 import CheckoutSheet from "./CheckoutSheet";
 import { formatPi } from "@/lib/pi";
 
-
 function formatDetail(text: string) {
   return text
-    .replace(/\\n/g, "\n")      // FIX dữ liệu lưu dạng \n
-    .replace(/\r\n/g, "\n")     // FIX Windows newline
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
     .trim();
 }
+
 function formatShortDescription(text?: string) {
   if (!text || typeof text !== "string") return [];
 
@@ -22,7 +22,7 @@ function formatShortDescription(text?: string) {
     .replace(/\\n/g, "\n")
     .replace(/\r\n/g, "\n")
     .split("\n")
-    .map(line => line.trim())
+    .map((line) => line.trim())
     .filter(Boolean);
 }
 
@@ -30,6 +30,7 @@ function calcSalePercent(price: number, finalPrice: number) {
   if (finalPrice >= price) return 0;
   return Math.round(((price - finalPrice) / price) * 100);
 }
+
 /* =======================
    TYPES
 ======================= */
@@ -52,16 +53,17 @@ interface ApiProduct {
 interface Product {
   id: string;
   name: string;
-  price: number;        // giá gốc
-  finalPrice: number;   // giá sale / giá thanh toán
+  price: number;
+  finalPrice: number;
   isSale: boolean;
   description: string;
   detail: string;
   views: number;
   sold: number;
   images: string[];
-  stock?: number;
-  isActive?: boolean;
+  stock: number;
+  isActive: boolean;
+  isOutOfStock: boolean;
   categoryId: string | null;
 }
 
@@ -95,43 +97,42 @@ export default function ProductDetail() {
         if (!Array.isArray(data)) return;
 
         const normalized: Product[] = data.map((p) => {
-  const api = p as ApiProduct;
+          const api = p as ApiProduct;
 
-  const finalPrice =
-    typeof api.finalPrice === "number"
-      ? api.finalPrice
-      : api.price;
+          const finalPrice =
+            typeof api.finalPrice === "number"
+              ? api.finalPrice
+              : api.price;
 
-  const stock = typeof api.stock === "number" ? api.stock : 0;
-  const isActive = api.isActive !== false;
+          const stock = typeof api.stock === "number" ? api.stock : 0;
+          const isActive = api.isActive !== false;
 
-  return {
-    id: api.id,
-    name: api.name,
-    price: api.price,
-    finalPrice,
-    isSale: finalPrice < api.price,
+          return {
+            id: api.id,
+            name: api.name,
+            price: api.price,
+            finalPrice,
+            isSale: finalPrice < api.price,
 
-    description: api.description ?? "",
-    detail: api.detail ?? "",
+            description: api.description ?? "",
+            detail: api.detail ?? "",
 
-    views: api.views ?? 0,
-    sold: api.sold ?? 0,
+            views: api.views ?? 0,
+            sold: api.sold ?? 0,
 
-    images: Array.isArray(api.images) ? api.images : [],
-    categoryId: api.categoryId ?? null,
+            images: Array.isArray(api.images) ? api.images : [],
+            categoryId: api.categoryId ?? null,
 
-    // ✅ NEW
-    stock,
-    isActive,
-    isOutOfStock: stock <= 0,
-  };
-});
+            stock,
+            isActive,
+            isOutOfStock: stock <= 0 || !isActive,
+          };
+        });
 
         setProducts(normalized);
 
-const found = normalized.find((p) => p.id === id);
-if (found) setProduct(found);
+        const found = normalized.find((p) => p.id === id);
+        if (found) setProduct(found);
       } finally {
         setLoading(false);
       }
@@ -140,33 +141,34 @@ if (found) setProduct(found);
     loadProduct();
   }, [id]);
 
-
   /* =======================
    INCREMENT VIEW
 ======================= */
-useEffect(() => {
-  if (!id) return;
+  useEffect(() => {
+    if (!id) return;
 
-  fetch("/api/products/view", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  }).catch((err) =>
-    console.error("View update failed:", err)
-  );
-}, [id]);
+    fetch("/api/products/view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch((err) =>
+      console.error("View update failed:", err)
+    );
+  }, [id]);
 
   /* =======================
      STATES
   ======================= */
   if (loading) return <p className="p-4">{t.loading}</p>;
   if (!product) return <p className="p-4">{t.no_products}</p>;
-const relatedProducts = products.filter(
-  (p) =>
-    p.id !== product.id &&
-    p.categoryId &&
-    p.categoryId === product.categoryId
-);
+
+  const relatedProducts = products.filter(
+    (p) =>
+      p.id !== product.id &&
+      p.categoryId &&
+      p.categoryId === product.categoryId
+  );
+
   const images =
     product.images.length > 0
       ? product.images
@@ -181,13 +183,13 @@ const relatedProducts = products.filter(
     );
 
   /* =======================
-     ACTIONS (FIXED)
+     ACTIONS
   ======================= */
 
   const add = () => {
     addToCart({
       ...product,
-      price: product.finalPrice, // ✅ DÙNG GIÁ SALE
+      price: product.finalPrice,
       quantity,
     });
     router.push("/cart");
@@ -196,7 +198,7 @@ const relatedProducts = products.filter(
   const buy = () => {
     addToCart({
       ...product,
-      price: product.finalPrice, // ✅ DÙNG GIÁ SALE
+      price: product.finalPrice,
       quantity,
     });
     setOpenCheckout(true);
@@ -206,20 +208,20 @@ const relatedProducts = products.filter(
      RENDER
   ======================= */
   return (
-     <div className="pb-32 bg-gray-50 min-h-screen">
+    <div className="pb-32 bg-gray-50 min-h-screen">
       {/* MAIN IMAGES */}
       <div className="mt-14 relative w-full h-80 bg-white">
-  <img
-    src={images[currentIndex]}
-    alt={product.name}
-    className="w-full h-full object-cover"
-  />
+        <img
+          src={images[currentIndex]}
+          alt={product.name}
+          className="w-full h-full object-cover"
+        />
 
-  {product.isSale && (
-    <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-      -{calcSalePercent(product.price, product.finalPrice)}%
-    </div>
-  )}
+        {product.isSale && (
+          <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+            -{calcSalePercent(product.price, product.finalPrice)}%
+          </div>
+        )}
 
         {images.length > 1 && (
           <>
@@ -260,155 +262,146 @@ const relatedProducts = products.filter(
 
         <div className="text-right">
           <p className="text-xl font-bold text-orange-600">
-  π {formatPi(product.finalPrice)}
-</p>
+            π {formatPi(product.finalPrice)}
+          </p>
 
           {product.isSale && (
             <p className="text-sm text-gray-400 line-through">
-  π {formatPi(product.price)}
-</p>
+              π {formatPi(product.price)}
+            </p>
           )}
         </div>
       </div>
+
       {/* META */}
-<div className="bg-white px-4 pb-4 flex gap-4 text-gray-600 text-sm">
-  <span>👁 {product.views}</span>
-  <span>
-    🛒 {product.sold} {t.orders}
-  </span>
-</div>
+      <div className="bg-white px-4 pb-4 flex gap-4 text-gray-600 text-sm">
+        <span>👁 {product.views}</span>
+        <span>
+          🛒 {product.sold} {t.orders}
+        </span>
+      </div>
 
-{/* ✅ STOCK */}
-<div className="bg-white px-4 pb-4 text-sm">
-  {product.isOutOfStock ? (
-    <span className="text-red-500 font-semibold">
-      ❌ Hết hàng
-    </span>
-  ) : (
-    <span className="text-green-600">
-      ✅ Còn {product.stock} sản phẩm
-    </span>
-  )}
-</div>
+      {/* STOCK */}
+      <div className="bg-white px-4 pb-4 text-sm">
+        {product.isOutOfStock ? (
+          <span className="text-red-500 font-semibold">
+            ❌ Hết hàng
+          </span>
+        ) : (
+          <span className="text-green-600">
+            ✅ Còn {product.stock} sản phẩm
+          </span>
+        )}
+      </div>
 
-      {/* SHORT DESCRIPTION (Shopee style) */}
-<div className="bg-white p-4">
-  <h3 className="text-sm font-semibold mb-2">
-    {t.product_description ?? "Mô tả sản phẩm"}
-  </h3>
+      {/* DESCRIPTION */}
+      <div className="bg-white p-4">
+        <h3 className="text-sm font-semibold mb-2">
+          {t.product_description ?? "Mô tả sản phẩm"}
+        </h3>
 
-  {product.description ? (
-    <div
-      className="text-sm text-gray-700 leading-relaxed space-y-2"
-      dangerouslySetInnerHTML={{
-        __html: product.description,
-      }}
-    />
-  ) : (
-    <p className="text-sm text-gray-400">
-      {t.no_description}
-    </p>
-  )}
-</div>
-
-      {/* DETAIL IMAGES */}
-        <div className="bg-white mt-2 space-y-2">
-          {product.detailImages.map((url, i) => (
-            <img
-              key={i}
-              src={url}
-              alt={`detail-${i}`}
-              className="w-full object-cover"
-            />
-          ))}
-        </div>
-      )}
+        {product.description ? (
+          <div
+            className="text-sm text-gray-700 leading-relaxed space-y-2"
+            dangerouslySetInnerHTML={{
+              __html: product.description,
+            }}
+          />
+        ) : (
+          <p className="text-sm text-gray-400">
+            {t.no_description}
+          </p>
+        )}
+      </div>
 
       {/* DETAIL CONTENT */}
       <div className="bg-white mt-2 px-4 py-5">
-  <h3 className="text-base font-semibold mb-3">
-     {t.product_details ?? "Chi tiết sản phẩm"}
-  </h3>
+        <h3 className="text-base font-semibold mb-3">
+          {t.product_details ?? "Chi tiết sản phẩm"}
+        </h3>
 
-  <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-    {formatDetail(product.detail || t.no_description)}
-  </div>
-</div>
-
-       {relatedProducts.length > 0 && (
-  <div className="bg-white mt-2 p-4">
-    <h3 className="text-sm font-semibold mb-3">
-      🔗 {t.product_related_products ?? "Sản phẩm liên quan"}
-    </h3>
-
-    <div className="flex gap-3 overflow-x-auto">
-      {relatedProducts.map((p) => (
-        <div
-          key={p.id}
-          onClick={() => router.push(`/product/${p.id}`)}
-          className="min-w-[140px] bg-gray-50 rounded-lg p-2"
-        >
-          <img
-            src={p.images[0] || "/placeholder.png"}
-            className="w-full h-24 object-cover rounded"
-          />
-
-          <p className="text-xs mt-2 line-clamp-2">
-            {p.name}
-          </p>
-
-          <p className="text-sm font-semibold text-orange-600">
-  π {formatPi(p.finalPrice)}
-</p>
-
-          {p.isSale && (
-            <p className="text-xs text-gray-400 line-through">
-  π {formatPi(p.price)}
-</p>
-          )}
+        <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+          {formatDetail(product.detail || t.no_description)}
         </div>
-      ))}
-    </div>
-  </div>
-)}
+      </div>
+
+      {/* RELATED */}
+      {relatedProducts.length > 0 && (
+        <div className="bg-white mt-2 p-4">
+          <h3 className="text-sm font-semibold mb-3">
+            🔗 {t.product_related_products ?? "Sản phẩm liên quan"}
+          </h3>
+
+          <div className="flex gap-3 overflow-x-auto">
+            {relatedProducts.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => router.push(`/product/${p.id}`)}
+                className="min-w-[140px] bg-gray-50 rounded-lg p-2"
+              >
+                <img
+                  src={p.images[0] || "/placeholder.png"}
+                  className="w-full h-24 object-cover rounded"
+                />
+
+                <p className="text-xs mt-2 line-clamp-2">
+                  {p.name}
+                </p>
+
+                <p className="text-sm font-semibold text-orange-600">
+                  π {formatPi(p.finalPrice)}
+                </p>
+
+                {p.isSale && (
+                  <p className="text-xs text-gray-400 line-through">
+                    π {formatPi(p.price)}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ACTIONS */}
       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
         <button
-  onClick={add}
-  disabled={product.isOutOfStock}
-  className={`flex-1 py-2 rounded-md text-white ${
-    product.isOutOfStock
-      ? "bg-gray-400"
-      : "bg-yellow-500"
-  }`}
->
-  {t.add_to_cart}
-</button>
+          onClick={add}
+          disabled={product.isOutOfStock}
+          className={`flex-1 py-2 rounded-md text-white ${
+            product.isOutOfStock
+              ? "bg-gray-400"
+              : "bg-yellow-500"
+          }`}
+        >
+          {t.add_to_cart}
+        </button>
 
-<button
-  onClick={buy}
-  disabled={product.isOutOfStock}
-  className={`flex-1 py-2 rounded-md text-white ${
-    product.isOutOfStock
-      ? "bg-gray-400"
-      : "bg-red-500"
-  }`}
->
-  {product.isOutOfStock ? "Hết hàng" : t.buy_now}
-</button>
+        <button
+          onClick={buy}
+          disabled={product.isOutOfStock}
+          className={`flex-1 py-2 rounded-md text-white ${
+            product.isOutOfStock
+              ? "bg-gray-400"
+              : "bg-red-500"
+          }`}
+        >
+          {product.isOutOfStock ? "Hết hàng" : t.buy_now}
+        </button>
+      </div>
 
-      {/* CHECKOUT SHEET */}
+      {/* CHECKOUT */}
       <CheckoutSheet
-  open={openCheckout}
-  onClose={() => setOpenCheckout(false)}
-  product={{
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    finalPrice: product.finalPrice,
-    images: product.images,
-  }}
-/>
+        open={openCheckout}
+        onClose={() => setOpenCheckout(false)}
+        product={{
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          finalPrice: product.finalPrice,
+          images: product.images,
+        }}
+      />
     </div>
   );
 }
