@@ -300,7 +300,6 @@ const relatedProducts = products.filter(
 </div>
 
       {/* DETAIL IMAGES */}
-      {product.detailImages.length > 0 && (
         <div className="bg-white mt-2 space-y-2">
           {product.detailImages.map((url, i) => (
             <img
