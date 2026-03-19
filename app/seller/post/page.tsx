@@ -41,8 +41,6 @@ export default function SellerPostPage() {
   ========================= */
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<string[]>([]);
-  const [detailImages, setDetailImages] = useState<string[]>([]);
-  const [detail, setDetail] = useState("");
 
   const [salePrice, setSalePrice] = useState<number | "">("");
   const [saleStart, setSaleStart] = useState("");
@@ -197,15 +195,21 @@ const [isActive, setIsActive] = useState(true);
   saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
   saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
 
-  description: (
-    form.elements.namedItem("description") as HTMLTextAreaElement
-  ).value,
+  const descriptionInput = (
+  form.elements.namedItem("description") as HTMLTextAreaElement
+).value;
 
-  detail,
+const payload = {
+  name: ...,
+  price: ...,
 
+  description: descriptionInput, // ✅ chỉ dùng cái này
   images,
-
-  detailImages,
+  thumbnail: images[0],
+  categoryId: ...,
+  stock: Number(stock),
+  is_active: isActive,
+};
 
   categoryId: Number(
     (form.elements.namedItem("categoryId") as HTMLSelectElement).value
@@ -402,38 +406,51 @@ const [isActive, setIsActive] = useState(true);
           className="w-full border p-2 rounded min-h-[70px]"
         />
 
-        {/* DETAIL */}
-        <textarea
-          placeholder={t.product_detail}
-          value={detail}
-          onChange={(e) => setDetail(e.target.value)}
-          className="w-full border p-2 rounded min-h-[120px]"
-        />
 
-        {/* DETAIL IMAGES */}
-        <div className="grid grid-cols-3 gap-3">
-          {detailImages.map((url) => (
-            <div key={url} className="relative h-28">
-              <Image src={url} alt="" fill className="object-cover rounded" />
-            </div>
-          ))}
-          <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
-            ＋
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              onChange={(e) =>
-                uploadImages(
-                  Array.from(e.target.files || []),
-                  setDetailImages
-                )
-              }
-            />
-          </label>
-        </div>
+         <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
+  🖼️ Thêm ảnh mô tả
+  <input
+    type="file"
+    accept="image/*"
+    hidden
+    onChange={async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
 
+      setUploadingImage(true);
+
+      try {
+        for (const file of files) {
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const res = await apiAuthFetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!res.ok) throw new Error();
+
+          const data = (await res.json()) as { url?: string };
+          if (!data.url) throw new Error();
+
+          const textarea = document.querySelector(
+            "textarea[name='description']"
+          ) as HTMLTextAreaElement;
+
+          textarea.value += `\n<img src="${data.url}" />\n`;
+        }
+      } catch {
+        setMessage({
+          text: "❌ Upload ảnh mô tả thất bại",
+          type: "error",
+        });
+      } finally {
+        setUploadingImage(false);
+      }
+    }}
+  />
+</label>
         {/* SUBMIT */}
         <button
           disabled={saving}
