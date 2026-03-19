@@ -101,19 +101,29 @@ const enriched = products.map((p: any) => {
     now >= start &&
     now <= end;
 
+  const stock = typeof p.stock === "number" ? p.stock : 0;
+  const isActive = p.is_active !== false;
+
   return {
     id: p.id,
     name: p.name,
     description: p.description,
-    detail: p.detail ?? "",
+
     images: p.images ?? [],
-    detailImages: p.detail_images ?? [],
+    thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
 
     categoryId: p.category_id,
     price: p.price,
     salePrice: p.sale_price,
+
     isSale,
     finalPrice: isSale ? p.sale_price : p.price,
+
+    stock,
+    isActive,
+
+    // 🔥 QUAN TRỌNG
+    isOutOfStock: stock <= 0,
 
     views: p.views ?? 0,
     sold: p.sold ?? 0,
@@ -147,17 +157,18 @@ export async function POST(req: Request) {
     }
 
     const {
-      name,
-      price,
-      description,
-      detail,
-      images,
-      detailImages,
-      categoryId,
-      salePrice,
-      saleStart,
-      saleEnd,
-    } = body as Record<string, unknown>;
+  name,
+  price,
+  description,
+  images,
+  thumbnail,
+  categoryId,
+  salePrice,
+  saleStart,
+  saleEnd,
+  stock,
+  is_active,
+} = body as Record<string, unknown>;
 
     if (typeof name !== "string" || typeof price !== "number") {
       return NextResponse.json(
@@ -167,28 +178,29 @@ export async function POST(req: Request) {
     }
 
     const product = await createProduct(auth.user.pi_uid, {
-      name: name.trim(),
-      price, // Pi decimal nhỏ OK
-      description: typeof description === "string" ? description : "",
-      detail: typeof detail === "string" ? detail : "",
+  name: name.trim(),
+  price,
 
-      images: Array.isArray(images)
-        ? images.filter((i) => typeof i === "string")
-        : [],
+  description: typeof description === "string" ? description : "",
 
-      detail_images: Array.isArray(detailImages)
-        ? detailImages.filter((i) => typeof i === "string")
-        : [],
+  images: Array.isArray(images)
+    ? images.filter((i) => typeof i === "string")
+    : [],
 
-      category_id: typeof categoryId === "number" ? categoryId : null,
+  thumbnail: typeof thumbnail === "string" ? thumbnail : null,
 
-      sale_price: typeof salePrice === "number" ? salePrice : null,
-      sale_start: typeof saleStart === "string" ? saleStart : null,
-      sale_end: typeof saleEnd === "string" ? saleEnd : null,
+  category_id: typeof categoryId === "number" ? categoryId : null,
 
-      views: 0,
-      sold: 0,
-    });
+  sale_price: typeof salePrice === "number" ? salePrice : null,
+  sale_start: typeof saleStart === "string" ? saleStart : null,
+  sale_end: typeof saleEnd === "string" ? saleEnd : null,
+
+  stock: typeof stock === "number" ? stock : 0,
+  is_active: typeof is_active === "boolean" ? is_active : true,
+
+  views: 0,
+  sold: 0,
+});
 
     return NextResponse.json({ success: true, product });
   } catch (err) {
@@ -221,13 +233,14 @@ export async function PUT(req: Request) {
       name,
       price,
       description,
-      detail,
       images,
-      detailImages,
+      thumbnail,
       categoryId,
       salePrice,
       saleStart,
       saleEnd,
+      stock,
+      is_active,
     } = body as Record<string, unknown>;
 
     if (
@@ -253,22 +266,23 @@ export async function PUT(req: Request) {
       {
         name: name.trim(),
         price,
+
         description: typeof description === "string" ? description : "",
-        detail: typeof detail === "string" ? detail : "",
 
         images: Array.isArray(images)
           ? images.filter((i) => typeof i === "string")
           : [],
 
-        detail_images: Array.isArray(detailImages)
-          ? detailImages.filter((i) => typeof i === "string")
-          : [],
+        thumbnail: typeof thumbnail === "string" ? thumbnail : null,
 
         category_id: typeof categoryId === "number" ? categoryId : null,
 
         sale_price: typeof salePrice === "number" ? salePrice : null,
         sale_start: typeof saleStart === "string" ? saleStart : null,
         sale_end: typeof saleEnd === "string" ? saleEnd : null,
+
+        stock: typeof stock === "number" && stock >= 0 ? stock : 0,
+        is_active: typeof is_active === "boolean" ? is_active : true,
       }
     );
 
