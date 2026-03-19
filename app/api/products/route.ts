@@ -105,9 +105,10 @@ const enriched = products.map((p: any) => {
     id: p.id,
     name: p.name,
     description: p.description,
-    detail: p.detail ?? "",
     images: p.images ?? [],
-    detailImages: p.detail_images ?? [],
+    thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
+     stock: p.stock ?? 0,
+    isActive: p.is_active ?? true,
 
     categoryId: p.category_id,
     price: p.price,
@@ -219,18 +220,20 @@ export async function PUT(req: Request) {
     }
 
     const {
-      id,
-      name,
-      price,
-      description,
-      detail,
-      images,
-      detailImages,
-      categoryId,
-      salePrice,
-      saleStart,
-      saleEnd,
-    } = body as Record<string, unknown>;
+  id,
+  name,
+  price,
+  description,
+  images,
+  thumbnail,
+  categoryId,
+  salePrice,
+  saleStart,
+  saleEnd,
+  stock,
+  is_active,
+} = body as Record<string, unknown>;
+    
 
     if (
       typeof id !== "string" &&
