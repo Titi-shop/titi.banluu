@@ -270,14 +270,26 @@ const relatedProducts = products.filter(
           )}
         </div>
       </div>
-
       {/* META */}
-      <div className="bg-white px-4 pb-4 flex gap-4 text-gray-600 text-sm">
-        <span>👁 {product.views}</span>
-        <span>
-          🛒 {product.sold} {t.orders}
-        </span>
-      </div>
+<div className="bg-white px-4 pb-4 flex gap-4 text-gray-600 text-sm">
+  <span>👁 {product.views}</span>
+  <span>
+    🛒 {product.sold} {t.orders}
+  </span>
+</div>
+
+{/* ✅ STOCK */}
+<div className="bg-white px-4 pb-4 text-sm">
+  {product.isOutOfStock ? (
+    <span className="text-red-500 font-semibold">
+      ❌ Hết hàng
+    </span>
+  ) : (
+    <span className="text-green-600">
+      ✅ Còn {product.stock} sản phẩm
+    </span>
+  )}
+</div>
 
       {/* SHORT DESCRIPTION (Shopee style) */}
 <div className="bg-white p-4">
