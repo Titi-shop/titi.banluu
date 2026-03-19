@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
@@ -42,14 +41,14 @@ export default function SellerPostPage() {
   ========================= */
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<string[]>([]);
+  const [thumbnail, setThumbnail] = useState<string>(""); // ✅ NEW
 
   const [salePrice, setSalePrice] = useState<number | "">("");
   const [saleStart, setSaleStart] = useState("");
   const [saleEnd, setSaleEnd] = useState("");
 
-
-   const [stock, setStock] = useState<number | "">(1);
-const [isActive, setIsActive] = useState(true);
+  const [stock, setStock] = useState<number | "">(1);
+  const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -82,15 +81,29 @@ const [isActive, setIsActive] = useState(true);
   /* =========================
      IMAGE UPLOAD
   ========================= */
-  async function uploadImages(
-    files: File[],
-    setter: React.Dispatch<React.SetStateAction<string[]>>
-  ) {
+  async function uploadSingle(file: File): Promise<string> {
+    const form = new FormData();
+    form.append("file", file);
+
+    const res = await apiAuthFetch("/api/upload", {
+      method: "POST",
+      body: form,
+    });
+
+    if (!res.ok) throw new Error();
+
+    const data: { url?: string } = await res.json();
+    if (!data.url) throw new Error();
+
+    return data.url;
+  }
+
+  async function uploadImages(files: File[]) {
     if (!files.length) return;
 
     if (images.length + files.length > 6) {
       setMessage({
-        text: t.max_6_images || "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm",
+        text: t.max_6_images || "⚠️ Tối đa 6 ảnh",
         type: "error",
       });
       return;
@@ -100,30 +113,27 @@ const [isActive, setIsActive] = useState(true);
 
     try {
       for (const file of files) {
-        const form = new FormData();
-        form.append("file", file);
-
-        const res = await apiAuthFetch("/api/upload", {
-          method: "POST",
-          body: form,
-        });
-
-        if (!res.ok) {
-          console.error("UPLOAD ERROR:", await res.text());
-          throw new Error("UPLOAD_FAILED");
-        }
-
-        const data = (await res.json()) as { url?: string };
-
-        if (!data.url) {
-          throw new Error("NO_URL_RETURNED");
-        }
-
-        setter((prev) => [...prev, data.url]);
+        const url = await uploadSingle(file);
+        setImages((prev) => [...prev, url]);
       }
     } catch {
       setMessage({
-        text: t.upload_failed || "❌ Upload ảnh thất bại",
+        text: t.upload_failed || "❌ Upload thất bại",
+        type: "error",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  async function uploadThumbnail(file: File) {
+    setUploadingImage(true);
+    try {
+      const url = await uploadSingle(file);
+      setThumbnail(url);
+    } catch {
+      setMessage({
+        text: "❌ Upload thumbnail thất bại",
         type: "error",
       });
     } finally {
@@ -132,8 +142,8 @@ const [isActive, setIsActive] = useState(true);
   }
 
   function removeImage(index: number) {
-  setImages((prev) => prev.filter((_, i) => i !== index));
-}
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  }
 
   function localToUTC(local: string): string {
     return new Date(local).toISOString();
@@ -147,76 +157,57 @@ const [isActive, setIsActive] = useState(true);
 
     if (!authUser || authUser.role !== "seller") return;
 
-    if (!images.length) {
+    if (!thumbnail) {
       setMessage({
-        text: t.need_image || "⚠️ Cần ít nhất 1 ảnh sản phẩm",
+        text: "⚠️ Cần ảnh thumbnail",
         type: "error",
       });
       return;
     }
 
-    if (salePrice) {
-      if (!saleStart || !saleEnd) {
-        setMessage({
-          text: t.need_sale_date || "⚠️ Sale cần ngày bắt đầu và kết thúc",
-          type: "error",
-        });
-        return;
-      }
+    const form = e.currentTarget;
 
-      if (new Date(saleEnd) <= new Date(saleStart)) {
-        setMessage({
-          text:
-            t.invalid_sale_range ||
-            "⚠️ Ngày kết thúc phải sau ngày bắt đầu",
-          type: "error",
-        });
-        return;
-      }
-    }
-const form = e.currentTarget;
+    const description = (
+      form.elements.namedItem("description") as HTMLTextAreaElement
+    ).value;
 
-// ✅ lấy description trước
-const descriptionInput = (
-  form.elements.namedItem("description") as HTMLTextAreaElement
-).value;
+    const detail = (
+      form.elements.namedItem("detail") as HTMLTextAreaElement
+    ).value;
 
-// ✅ tạo payload (CHỈ 1 lần duy nhất)
-const payload = {
-  name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+    const payload = {
+      name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+      price: Number(
+        (form.elements.namedItem("price") as HTMLInputElement).value
+      ),
 
-  price: Number(
-    (form.elements.namedItem("price") as HTMLInputElement).value
-  ),
+      salePrice: salePrice || null,
+      saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
+      saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
 
-  salePrice: salePrice || null,
-  saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-  saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
+      description,
+      detail: detail || description, // ✅ fallback an toàn
 
-  description: descriptionInput,
+      images,
+      thumbnail,
 
-  images,
-  thumbnail: images[0], // ✅ chuẩn
+      categoryId: Number(
+        (form.elements.namedItem("categoryId") as HTMLSelectElement).value
+      ),
 
-  categoryId: Number(
-    (form.elements.namedItem("categoryId") as HTMLSelectElement).value
-  ),
+      stock: Number(stock),
+      is_active: isActive,
+    };
 
-  stock: Number(stock),
-  is_active: isActive,
-};
     if (!payload.name || payload.price <= 0 || !payload.categoryId) {
       setMessage({
-        text:
-          t.enter_valid_name_price ||
-          "⚠️ Nhập đầy đủ danh mục, tên và giá",
+        text: "⚠️ Thiếu dữ liệu",
         type: "error",
       });
       return;
     }
 
     setSaving(true);
-    setMessage({ text: "", type: "" });
 
     try {
       const res = await apiAuthFetch("/api/products", {
@@ -227,14 +218,14 @@ const payload = {
       if (!res.ok) throw new Error();
 
       setMessage({
-        text: t.post_success || "🎉 Đăng sản phẩm thành công",
+        text: "🎉 Thành công",
         type: "success",
       });
 
       setTimeout(() => router.push("/seller/stock"), 800);
     } catch {
       setMessage({
-        text: t.post_failed || "❌ Đăng thất bại",
+        text: "❌ Lỗi",
         type: "error",
       });
     } finally {
@@ -243,208 +234,46 @@ const payload = {
   }
 
   if (loading || !authUser) {
-    return <main className="p-8 text-center"> {t.loading}</main>;
+    return <main className="p-8 text-center">{t.loading}</main>;
   }
 
-  /* =========================
-     UI
-  ========================= */
   return (
-    <main className="max-w-2xl mx-auto p-4 pb-28">
-      <h1 className="text-xl font-bold text-center mb-4 text-[#ff6600]">
-        ➕ {t.post_product}
-      </h1>
+    <main className="max-w-2xl mx-auto p-4 space-y-4">
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* CATEGORY */}
-        <select
-          name="categoryId"
-          className="w-full border p-2 rounded"
-          required
-        >
-          <option value="">{t.select_category}</option>
-
-          {categories.map((c) => {
-            const key = c.key as keyof typeof t;
-            return (
-              <option key={c.id} value={c.id}>
-                {t[key] ?? c.key}
-              </option>
-            );
-          })}
-        </select>
-
-        {/* NAME */}
-        <input
-          name="name"
-          placeholder={t.product_name}
-          className="w-full border p-2 rounded"
-          required
-        />
-
-        {/* IMAGES */}
-        <div className="grid grid-cols-3 gap-3">
-          {images.map((url, i) => (
-            <div key={url} className="relative h-28">
-              <Image src={url} alt="" fill className="object-cover rounded" />
-              <button
-                type="button"
-                onClick={() => removeImage(i)}
-                className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 rounded"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          {images.length < 6 && (
-            <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
-              ＋
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                hidden
-                onChange={(e) =>
-                  uploadImages(
-                    Array.from(e.target.files || []),
-                    setImages
-                  )
-                }
-              />
-            </label>
-          )}
-        </div>
-
-        {/* PRICE */}
-        <input
-          name="price"
-          type="number"
-          step="0.00001"
-          placeholder={t.price_pi}
-          className="w-full border p-2 rounded"
-          required
-        />
-
-
-         {/* STOCK */}
-<input
-  type="number"
-  min={0}
-  placeholder="Stock"
-  value={stock}
-  onChange={(e) =>
-    setStock(e.target.value ? Number(e.target.value) : "")
-  }
-  className="w-full border p-2 rounded"
-/>
-
-{/* ACTIVE */}
-<label className="flex items-center gap-2">
-  <input
-    type="checkbox"
-    checked={isActive}
-    onChange={(e) => setIsActive(e.target.checked)}
-  />
-  <span>{t.active || "Hiển thị sản phẩm"}</span>
-</label>
-        {/* SALE */}
-        <input
-          type="number"
-          step="0.00001"
-          placeholder={t.sale_price_optional}
-          value={salePrice}
-          onChange={(e) =>
-            setSalePrice(e.target.value ? Number(e.target.value) : "")
-          }
-          className="w-full border p-2 rounded"
-        />
-
-        {/* SALE TIME */}
-        {salePrice && (
-          <div className="space-y-2">
-            <p className="text-sm text-gray-600 font-medium">
-              📅 {t.sale_time || "Thời gian khuyến mãi"}
-            </p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="datetime-local"
-                value={saleStart}
-                onChange={(e) => setSaleStart(e.target.value)}
-                className="border p-2 rounded"
-              />
-
-              <input
-                type="datetime-local"
-                value={saleEnd}
-                onChange={(e) => setSaleEnd(e.target.value)}
-                className="border p-2 rounded"
-              />
-            </div>
-          </div>
+      {/* THUMBNAIL */}
+      <div>
+        <p className="text-sm font-medium">🖼️ Thumbnail</p>
+        {thumbnail && (
+          <Image src={thumbnail} alt="" width={100} height={100} />
         )}
-
-        {/* DESCRIPTION */}
-        <textarea
-          name="description"
-          placeholder={t.description}
-          required
-          className="w-full border p-2 rounded min-h-[70px]"
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) =>
+            e.target.files?.[0] && uploadThumbnail(e.target.files[0])
+          }
         />
+      </div>
 
+      {/* IMAGES */}
+      <div>
+        <p className="text-sm font-medium">📸 Images</p>
+        <input
+          type="file"
+          multiple
+          onChange={(e) =>
+            uploadImages(Array.from(e.target.files || []))
+          }
+        />
+      </div>
 
-         <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
-  🖼️ Thêm ảnh mô tả
-  <input
-    type="file"
-    accept="image/*"
-    hidden
-    onChange={async (e) => {
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
+      {/* DETAIL */}
+      <textarea
+        name="detail"
+        placeholder="Chi tiết sản phẩm"
+        className="w-full border p-2"
+      />
 
-      setUploadingImage(true);
-
-      try {
-        for (const file of files) {
-          const formData = new FormData();
-          formData.append("file", file);
-
-          const res = await apiAuthFetch("/api/upload", {
-            method: "POST",
-            body: formData,
-          });
-
-          if (!res.ok) throw new Error();
-
-          const data = (await res.json()) as { url?: string };
-          if (!data.url) throw new Error();
-
-          const textarea = document.querySelector(
-            "textarea[name='description']"
-          ) as HTMLTextAreaElement;
-
-          textarea.value += `\n<img src="${data.url}" />\n`;
-        }
-      } catch {
-        setMessage({
-          text: "❌ Upload ảnh mô tả thất bại",
-          type: "error",
-        });
-      } finally {
-        setUploadingImage(false);
-      }
-    }}
-  />
-</label>
-        {/* SUBMIT */}
-        <button
-          disabled={saving}
-          className="w-full bg-[#ff6600] text-white py-3 rounded-lg font-semibold"
-        >
-          {saving ? t.posting : t.post_product}
-        </button>
-      </form>
     </main>
   );
 }
