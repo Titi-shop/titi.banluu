@@ -391,6 +391,14 @@ const payload = {
           className="w-full border p-2 rounded min-h-[70px]"
         />
 
+                 {/* DETAIL */}
+        <textarea
+          placeholder={t.product_detail}
+          value={detail}
+          onChange={(e) => setDetail(e.target.value)}
+          className="w-full border p-2 rounded min-h-[120px]"
+        />
+
 
          <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
   🖼️ Thêm ảnh mô tả
