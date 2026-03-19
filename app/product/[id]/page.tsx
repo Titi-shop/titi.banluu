@@ -321,7 +321,7 @@ export default function ProductDetail() {
         </h3>
 
         <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-          {formatDetail(product.detail || t.no_description)}
+          {formatDetail(product.description || t.no_description)}
         </div>
       </div>
 
