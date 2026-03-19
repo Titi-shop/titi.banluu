@@ -16,7 +16,7 @@ interface Category {
 }
 
 interface ProductPayload {
-  id?: number; // Có khi edit
+  id?: number; // khi edit
   name: string;
   price: number;
   salePrice?: number | null;
@@ -33,7 +33,7 @@ interface ProductPayload {
 
 interface ProductFormProps {
   categories: Category[];
-  initialData?: ProductPayload; // Khi edit
+  initialData?: ProductPayload;
   onSubmit: (payload: ProductPayload) => Promise<void>;
 }
 
@@ -49,19 +49,14 @@ export default function ProductForm({
   const { user, loading } = useAuth();
 
   const [images, setImages] = useState<string[]>(initialData?.images || []);
-  const [salePrice, setSalePrice] = useState<number | "">(
-    initialData?.salePrice || ""
-  );
+  const [salePrice, setSalePrice] = useState<number | "">(initialData?.salePrice || "");
   const [saleStart, setSaleStart] = useState(initialData?.saleStart || "");
   const [saleEnd, setSaleEnd] = useState(initialData?.saleEnd || "");
   const [stock, setStock] = useState<number | "">(initialData?.stock || 1);
   const [isActive, setIsActive] = useState(initialData?.is_active ?? true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: "success" | "error" | "" }>({
-    text: "",
-    type: "",
-  });
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" | "" }>({ text: "", type: "" });
 
   if (loading || !user) return <div className="text-center p-8">{t.loading}</div>;
 
@@ -69,10 +64,7 @@ export default function ProductForm({
 
   const removeImage = (index: number) => setImages(prev => prev.filter((_, i) => i !== index));
 
-  const uploadImages = async (
-    files: File[],
-    setter: React.Dispatch<React.SetStateAction<string[]>>
-  ) => {
+  const uploadImages = async (files: File[], setter: React.Dispatch<React.SetStateAction<string[]>>) => {
     if (!files.length) return;
     if (images.length + files.length > 6) {
       setMessage({ text: t.max_6_images || "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm", type: "error" });
@@ -102,14 +94,13 @@ export default function ProductForm({
 
   const uploadDetailImages = async (files: File[]) => {
     if (!files.length) return;
-
     setUploadingImage(true);
     try {
       for (const file of files) {
-        const formData = new FormData();
-        formData.append("file", file);
+        const form = new FormData();
+        form.append("file", file);
 
-        const res = await apiAuthFetch("/api/upload", { method: "POST", body: formData });
+        const res = await apiAuthFetch("/api/upload", { method: "POST", body: form });
         if (!res.ok) throw new Error();
 
         const data = (await res.json()) as { url?: string };
@@ -160,7 +151,6 @@ export default function ProductForm({
 
     setSaving(true);
     setMessage({ text: "", type: "" });
-
     try {
       await onSubmit(payload);
       setMessage({ text: t.post_success || "🎉 Đăng sản phẩm thành công", type: "success" });
@@ -176,7 +166,7 @@ export default function ProductForm({
       {/* CATEGORY */}
       <select name="categoryId" className="w-full border p-2 rounded" required defaultValue={initialData?.categoryId || ""}>
         <option value="">{t.select_category}</option>
-        {categories.map((c) => {
+        {categories.map(c => {
           const key = c.key as keyof typeof t;
           return <option key={c.id} value={c.id}>{t[key] ?? c.key}</option>;
         })}
@@ -196,7 +186,7 @@ export default function ProductForm({
         {images.length < 6 && (
           <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-28">
             ＋
-            <input type="file" accept="image/*" multiple hidden onChange={(e) => uploadImages(Array.from(e.target.files || []), setImages)} />
+            <input type="file" accept="image/*" multiple hidden onChange={e => uploadImages(Array.from(e.target.files || []), setImages)} />
           </label>
         )}
       </div>
@@ -205,22 +195,22 @@ export default function ProductForm({
       <input name="price" type="number" step="0.00001" defaultValue={initialData?.price} placeholder={t.price_pi} className="w-full border p-2 rounded" required />
 
       {/* STOCK */}
-      <input type="number" min={0} placeholder="Stock" value={stock} onChange={(e) => setStock(e.target.value ? Number(e.target.value) : "")} className="w-full border p-2 rounded" />
+      <input type="number" min={0} placeholder="Stock" value={stock} onChange={e => setStock(e.target.value ? Number(e.target.value) : "")} className="w-full border p-2 rounded" />
 
       {/* ACTIVE */}
       <label className="flex items-center gap-2">
-        <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+        <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
         <span>{t.active || "Hiển thị sản phẩm"}</span>
       </label>
 
       {/* SALE */}
-      <input type="number" step="0.00001" placeholder={t.sale_price_optional} value={salePrice} onChange={(e) => setSalePrice(e.target.value ? Number(e.target.value) : "")} className="w-full border p-2 rounded" />
+      <input type="number" step="0.00001" placeholder={t.sale_price_optional} value={salePrice} onChange={e => setSalePrice(e.target.value ? Number(e.target.value) : "")} className="w-full border p-2 rounded" />
       {salePrice && (
         <div className="space-y-2">
           <p className="text-sm text-gray-600 font-medium">📅 {t.sale_time || "Thời gian khuyến mãi"}</p>
           <div className="grid grid-cols-2 gap-3">
-            <input type="datetime-local" value={saleStart} onChange={(e) => setSaleStart(e.target.value)} className="border p-2 rounded" />
-            <input type="datetime-local" value={saleEnd} onChange={(e) => setSaleEnd(e.target.value)} className="border p-2 rounded" />
+            <input type="datetime-local" value={saleStart} onChange={e => setSaleStart(e.target.value)} className="border p-2 rounded" />
+            <input type="datetime-local" value={saleEnd} onChange={e => setSaleEnd(e.target.value)} className="border p-2 rounded" />
           </div>
         </div>
       )}
@@ -234,10 +224,10 @@ export default function ProductForm({
       {/* DETAIL IMAGE UPLOAD */}
       <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
         🖼️ Thêm ảnh mô tả
-        <input type="file" accept="image/*" hidden multiple onChange={(e) => uploadDetailImages(Array.from(e.target.files || []))} />
+        <input type="file" accept="image/*" hidden multiple onChange={e => uploadDetailImages(Array.from(e.target.files || []))} />
       </label>
 
-      {/* SUBMIT BUTTON */}
+      {/* SUBMIT */}
       <button disabled={saving || uploadingImage} className="w-full bg-[#ff6600] text-white py-3 rounded-lg font-semibold">
         {saving ? t.posting : initialData ? t.update_product || "Cập nhật sản phẩm" : t.post_product}
       </button>
