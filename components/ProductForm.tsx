@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent } from "react";
 import Image from "next/image";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
@@ -63,27 +63,19 @@ export default function ProductForm({
     type: "",
   });
 
-  if (loading || !user) {
-    return <div className="text-center p-8">{t.loading}</div>;
-  }
+  if (loading || !user) return <div className="text-center p-8">{t.loading}</div>;
 
   const localToUTC = (local: string) => new Date(local).toISOString();
 
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
+  const removeImage = (index: number) => setImages(prev => prev.filter((_, i) => i !== index));
 
   const uploadImages = async (
     files: File[],
     setter: React.Dispatch<React.SetStateAction<string[]>>
   ) => {
     if (!files.length) return;
-
     if (images.length + files.length > 6) {
-      setMessage({
-        text: t.max_6_images || "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm",
-        type: "error",
-      });
+      setMessage({ text: t.max_6_images || "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm", type: "error" });
       return;
     }
 
@@ -99,13 +91,35 @@ export default function ProductForm({
         const data = (await res.json()) as { url?: string };
         if (!data.url) throw new Error("NO_URL_RETURNED");
 
-        setter((prev) => [...prev, data.url]);
+        setter(prev => [...prev, data.url]);
       }
     } catch {
-      setMessage({
-        text: t.upload_failed || "❌ Upload ảnh thất bại",
-        type: "error",
-      });
+      setMessage({ text: t.upload_failed || "❌ Upload ảnh thất bại", type: "error" });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const uploadDetailImages = async (files: File[]) => {
+    if (!files.length) return;
+
+    setUploadingImage(true);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await apiAuthFetch("/api/upload", { method: "POST", body: formData });
+        if (!res.ok) throw new Error();
+
+        const data = (await res.json()) as { url?: string };
+        if (!data.url) throw new Error();
+
+        const textarea = document.querySelector("textarea[name='detail']") as HTMLTextAreaElement | null;
+        if (textarea) textarea.value += `\n<img src="${data.url}" />\n`;
+      }
+    } catch {
+      setMessage({ text: "❌ Upload ảnh mô tả thất bại", type: "error" });
     } finally {
       setUploadingImage(false);
     }
@@ -115,37 +129,17 @@ export default function ProductForm({
     e.preventDefault();
 
     const form = e.currentTarget;
-
     const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim();
     const price = Number((form.elements.namedItem("price") as HTMLInputElement).value);
-    const categoryId = Number(
-      (form.elements.namedItem("categoryId") as HTMLSelectElement).value
-    );
+    const categoryId = Number((form.elements.namedItem("categoryId") as HTMLSelectElement).value);
     const description = (form.elements.namedItem("description") as HTMLTextAreaElement).value;
     const detail = (form.elements.namedItem("detail") as HTMLTextAreaElement).value;
 
-    if (!images.length) {
-      setMessage({ text: t.need_image || "⚠️ Cần ít nhất 1 ảnh sản phẩm", type: "error" });
-      return;
-    }
-
-    if (!name || price <= 0 || !categoryId) {
-      setMessage({
-        text: t.enter_valid_name_price || "⚠️ Nhập đầy đủ danh mục, tên và giá",
-        type: "error",
-      });
-      return;
-    }
-
+    if (!images.length) return setMessage({ text: t.need_image || "⚠️ Cần ít nhất 1 ảnh sản phẩm", type: "error" });
+    if (!name || price <= 0 || !categoryId) return setMessage({ text: t.enter_valid_name_price || "⚠️ Nhập đầy đủ danh mục, tên và giá", type: "error" });
     if (salePrice) {
-      if (!saleStart || !saleEnd) {
-        setMessage({ text: t.need_sale_date || "⚠️ Sale cần ngày bắt đầu và kết thúc", type: "error" });
-        return;
-      }
-      if (new Date(saleEnd) <= new Date(saleStart)) {
-        setMessage({ text: t.invalid_sale_range || "⚠️ Ngày kết thúc phải sau ngày bắt đầu", type: "error" });
-        return;
-      }
+      if (!saleStart || !saleEnd) return setMessage({ text: t.need_sale_date || "⚠️ Sale cần ngày bắt đầu và kết thúc", type: "error" });
+      if (new Date(saleEnd) <= new Date(saleStart)) return setMessage({ text: t.invalid_sale_range || "⚠️ Ngày kết thúc phải sau ngày bắt đầu", type: "error" });
     }
 
     const payload: ProductPayload = {
@@ -237,8 +231,14 @@ export default function ProductForm({
       {/* DETAIL */}
       <textarea name="detail" defaultValue={initialData?.detail || ""} placeholder="Chi tiết sản phẩm (HTML + ảnh)" className="w-full border p-2 rounded min-h-[120px]" />
 
-      {/* SUBMIT */}
-      <button disabled={saving} className="w-full bg-[#ff6600] text-white py-3 rounded-lg font-semibold">
+      {/* DETAIL IMAGE UPLOAD */}
+      <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
+        🖼️ Thêm ảnh mô tả
+        <input type="file" accept="image/*" hidden multiple onChange={(e) => uploadDetailImages(Array.from(e.target.files || []))} />
+      </label>
+
+      {/* SUBMIT BUTTON */}
+      <button disabled={saving || uploadingImage} className="w-full bg-[#ff6600] text-white py-3 rounded-lg font-semibold">
         {saving ? t.posting : initialData ? t.update_product || "Cập nhật sản phẩm" : t.post_product}
       </button>
 
