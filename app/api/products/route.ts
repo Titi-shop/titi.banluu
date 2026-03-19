@@ -104,30 +104,32 @@ const enriched = products.map((p: any) => {
   const stock = typeof p.stock === "number" ? p.stock : 0;
   const isActive = p.is_active !== false;
 
-  return {
-    id: p.id,
-    name: p.name,
-    description: p.description,
+return {
+  id: p.id,
+  name: p.name,
+  description: p.description,
 
-    images: p.images ?? [],
-    thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
+  images: p.images ?? [],
+  thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
 
-    categoryId: p.category_id,
-    price: p.price,
-    salePrice: p.sale_price,
+  // ✅ FIX QUAN TRỌNG (THÊM 2 DÒNG NÀY)
+  detail: p.detail ?? "",
+  detailImages: p.detail_images ?? [],
 
-    isSale,
-    finalPrice: isSale ? p.sale_price : p.price,
+  categoryId: p.category_id,
+  price: p.price,
+  salePrice: p.sale_price,
 
-    stock,
-    isActive,
+  isSale,
+  finalPrice: isSale ? p.sale_price : p.price,
 
-    // 🔥 QUAN TRỌNG
-    isOutOfStock: stock <= 0,
+  stock,
+  isActive,
+  isOutOfStock: stock <= 0,
 
-    views: p.views ?? 0,
-    sold: p.sold ?? 0,
-  };
+  views: p.views ?? 0,
+  sold: p.sold ?? 0,
+};
 });
 
     return NextResponse.json(enriched);
