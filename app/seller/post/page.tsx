@@ -48,6 +48,9 @@ export default function SellerPostPage() {
   const [saleStart, setSaleStart] = useState("");
   const [saleEnd, setSaleEnd] = useState("");
 
+
+   const [stock, setStock] = useState<number | "">(1);
+const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -130,8 +133,17 @@ export default function SellerPostPage() {
   }
 
   function removeImage(index: number) {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  }
+  setImages((prev) => {
+    const next = prev.filter((_, i) => i !== index);
+
+    // fix thumbnail index
+    if (thumbnailIndex >= next.length) {
+      setThumbnailIndex(0);
+    }
+
+    return next;
+  });
+}
 
   function localToUTC(local: string): string {
     return new Date(local).toISOString();
@@ -176,23 +188,32 @@ export default function SellerPostPage() {
     const form = e.currentTarget;
 
     const payload = {
-      name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
-      price: Number(
-        (form.elements.namedItem("price") as HTMLInputElement).value
-      ),
-      salePrice: salePrice || null,
-      saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-      saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
-      description: (
-        form.elements.namedItem("description") as HTMLTextAreaElement
-      ).value,
-      detail,
-      images,
-      detailImages,
-      categoryId: Number(
-        (form.elements.namedItem("categoryId") as HTMLSelectElement).value
-      ),
-    };
+  name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+  price: Number(
+    (form.elements.namedItem("price") as HTMLInputElement).value
+  ),
+
+  salePrice: salePrice || null,
+  saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
+  saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
+
+  description: (
+    form.elements.namedItem("description") as HTMLTextAreaElement
+  ).value,
+
+  detail,
+
+  images,
+
+  detailImages,
+
+  categoryId: Number(
+    (form.elements.namedItem("categoryId") as HTMLSelectElement).value
+  ),
+
+  stock: Number(stock),        // ✅ NEW
+  is_active: isActive,         // ✅ NEW
+};
 
     if (!payload.name || payload.price <= 0 || !payload.categoryId) {
       setMessage({
@@ -314,6 +335,28 @@ export default function SellerPostPage() {
           required
         />
 
+
+         {/* STOCK */}
+<input
+  type="number"
+  min={0}
+  placeholder="Stock"
+  value={stock}
+  onChange={(e) =>
+    setStock(e.target.value ? Number(e.target.value) : "")
+  }
+  className="w-full border p-2 rounded"
+/>
+
+{/* ACTIVE */}
+<label className="flex items-center gap-2">
+  <input
+    type="checkbox"
+    checked={isActive}
+    onChange={(e) => setIsActive(e.target.checked)}
+  />
+  <span>{t.active || "Hiển thị sản phẩm"}</span>
+</label>
         {/* SALE */}
         <input
           type="number"
