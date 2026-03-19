@@ -174,10 +174,14 @@ const [isActive, setIsActive] = useState(true);
       }
     }
 const form = e.currentTarget;
-
 // ✅ lấy description trước
 const descriptionInput = (
   form.elements.namedItem("description") as HTMLTextAreaElement
+).value;
+
+// ✅ lấy detail
+const detailInput = (
+  form.elements.namedItem("detail") as HTMLTextAreaElement
 ).value;
 
 // ✅ tạo payload (CHỈ 1 lần duy nhất)
@@ -193,6 +197,7 @@ const payload = {
   saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
 
   description: descriptionInput,
+  detail: detailInput,
 
   images,
   thumbnail: images[0], // ✅ chuẩn
@@ -392,6 +397,12 @@ const payload = {
         />
 
 
+         {/* DETAIL */}
+<textarea
+  name="detail"
+  placeholder="Chi tiết sản phẩm (HTML + ảnh)"
+  className="w-full border p-2 rounded min-h-[120px]"
+/>
          <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
   🖼️ Thêm ảnh mô tả
   <input
@@ -420,10 +431,12 @@ const payload = {
           if (!data.url) throw new Error();
 
           const textarea = document.querySelector(
-            "textarea[name='description']"
-          ) as HTMLTextAreaElement;
+  "textarea[name='detail']"
+) as HTMLTextAreaElement | null;
 
-          textarea.value += `\n<img src="${data.url}" />\n`;
+if (textarea) {
+  textarea.value += `\n<img src="${data.url}" />\n`;
+}
         }
       } catch {
         setMessage({
