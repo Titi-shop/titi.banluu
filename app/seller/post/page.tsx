@@ -188,12 +188,12 @@ const [isActive, setIsActive] = useState(true);
 
   const form = e.currentTarget;
 
-// ✅ LẤY description TRƯỚC
+// ✅ lấy description trước
 const descriptionInput = (
   form.elements.namedItem("description") as HTMLTextAreaElement
 ).value;
 
-// ✅ TẠO payload SAU
+// ✅ tạo payload (CHỈ 1 lần duy nhất)
 const payload = {
   name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
 
@@ -205,10 +205,10 @@ const payload = {
   saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
   saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
 
-  description: descriptionInput, // ✅ đúng
+  description: descriptionInput,
 
   images,
-  thumbnail: images[0], // ✅ thêm dòng này
+  thumbnail: images[0], // ✅ chuẩn
 
   categoryId: Number(
     (form.elements.namedItem("categoryId") as HTMLSelectElement).value
