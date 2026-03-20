@@ -8,12 +8,12 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import ProductForm from "@/components/ProductForm";
 
 interface Category {
-  id: number;
+  id: string;
   key: string;
 }
 
 interface ProductPayload {
-  id: number;
+  id: string;
   name: string;
   price: number;
   salePrice?: number | null;
@@ -23,7 +23,7 @@ interface ProductPayload {
   detail: string;
   images: string[];
   thumbnail: string;
-  categoryId: number;
+  categoryId: string;
   stock: number;
   is_active: boolean;
 }
