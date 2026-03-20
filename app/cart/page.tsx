@@ -129,7 +129,7 @@ export default function CartPage() {
 
   const validateBeforePay = (): boolean => {
     if (!window.Pi || !piReady) {
-      showMessage("Pi chưa sẵn sàng", "error");
+      showMessage(t.pi_not_ready || "Pi is not ready", "error");
       return false;
     }
 
@@ -139,23 +139,23 @@ export default function CartPage() {
     }
 
     if (!shipping) {
-      showMessage("Vui lòng thêm địa chỉ giao hàng", "error");
+      showMessage(t.please_add_shipping_address || "Please add a shipping address", "error");
       return false;
     }
 
     if (selectedItems.length === 0) {
-      showMessage("Vui lòng chọn sản phẩm", "error");
+      showMessage(t.please_select_product || "Please select a product", "error");
       return false;
     }
 
     if (selectedItems.length > 1) {
-      showMessage("Hiện chỉ hỗ trợ 1 sản phẩm mỗi lần", "error");
+      showMessage(t.only_one_product_supported || "Only 1 product is supported at a time", "error");
       return false;
     }
 
     const item = selectedItems[0];
     if (!item || item.quantity < 1 || item.quantity > 100) {
-      showMessage("Số lượng không hợp lệ", "error");
+      showMessage(t.invalid_quantity || "Invalid quantity", "error");
       return false;
     }
 
@@ -181,8 +181,17 @@ export default function CartPage() {
       await window.Pi?.createPayment(
         {
           amount: totalPrice,
-          memo: "Thanh toán đơn hàng TiTi",
-          metadata: { product_id: item.id, quantity },
+          memo: t.payment_memo_order || "Order payment",
+          metadata: {
+          shipping,
+          product: {
+          id: item.id,
+          name: item.name,
+         image: item.thumbnail || item.image || item.images?.[0] || "",
+          price: unit,
+          },
+          quantity,
+          },
         },
         {
           onReadyForServerApproval: async (paymentId, callback) => {
@@ -196,14 +205,14 @@ export default function CartPage() {
 
               if (!res.ok) {
                 setProcessing(false);
-                showMessage("Approve thất bại", "error");
+                showMessage(t.payment_approve_failed || "Payment approval failed", "error");
                 return;
               }
 
               callback();
             } catch {
               setProcessing(false);
-              showMessage("Approve lỗi", "error");
+              showMessage(t.payment_approve_error || "Payment approval error", "error");
             }
           },
 
@@ -218,34 +227,34 @@ export default function CartPage() {
 
               if (!res.ok) {
                 setProcessing(false);
-                showMessage("Complete thất bại", "error");
+                showMessage(t.payment_complete_failed || "Payment completion failed", "error");
                 return;
               }
 
               clearCart();
               setSelectedIds([]);
               router.push("/customer/pending");
-              showMessage("Thanh toán thành công", "success");
+              showMessage(t.payment_success || "Payment successful", "success");
             } catch {
               setProcessing(false);
-              showMessage("Thanh toán lỗi", "error");
+              showMessage(t.payment_failed || "Payment failed", "error");
             }
           },
 
           onCancel: () => {
             setProcessing(false);
-            showMessage("Thanh toán bị huỷ", "error");
+            showMessage(t.payment_cancelled || "Payment was cancelled", "error");
           },
 
           onError: () => {
             setProcessing(false);
-            showMessage("Thanh toán thất bại", "error");
+            showMessage(t.payment_failed || "Payment failed", "error");
           },
         }
       );
     } catch {
       setProcessing(false);
-      showMessage("Thanh toán lỗi", "error");
+      showMessage(t.transaction_failed || "Transaction failed", "error");
     }
   };
 
@@ -302,7 +311,11 @@ export default function CartPage() {
                 onChange={() => toggleItem(item.id)}
               />
 
-              <img src={item.image || item.images?.[0] || "/placeholder.png"} className="w-16 h-16 rounded object-cover" />
+              <img
+          src={item.thumbnail || item.image || item.images?.[0] || "/placeholder.png"}
+       alt={item.name}
+        className="w-16 h-16 rounded object-cover"
+         />
 
               <div className="flex-1">
                 <p className="text-sm font-medium line-clamp-2">{item.name}</p>
