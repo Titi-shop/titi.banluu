@@ -423,6 +423,9 @@
   "add_detail_image": "🖼️ 添加详情图片",
   "update_success": "🎉 商品更新成功",
   "update_failed": "❌ 更新失败",
-  "stock": "库存"
+  "stock": "库存",
+    "posting":  "zh": "发布中",
+ "update_product":    "更新商品",
+  "post_product": "发布商品"
 
 }
