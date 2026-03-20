@@ -12,20 +12,19 @@ import { useCart } from "@/app/context/CartContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 
-
 /* ================= TYPES ================= */
 
 interface Product {
   id: string;
   name: string;
   price: number;
-
-  salePrice: number | null;
+  salePrice?: number | null;
   isSale: boolean;
   finalPrice: number;
-
+  thumbnail?: string;
+  image?: string;
   images: string[];
-  categoryId: number | null;
+  categoryId: string | null;
   sold: number;
 }
 
@@ -34,6 +33,13 @@ interface Category {
   name: string;
   icon?: string;
 }
+
+/* ================= HELPERS ================= */
+
+function getMainImage(product: Product) {
+  return product.thumbnail || product.image || product.images?.[0] || "/placeholder.png";
+}
+
 /* ================= PRODUCT CARD ================= */
 
 function ProductCard({
@@ -51,9 +57,7 @@ function ProductCard({
   const discount =
     product.price > 0
       ? Math.round(
-          ((product.price - (product.finalPrice ?? product.price)) /
-            product.price) *
-            100
+          ((product.price - (product.finalPrice ?? product.price)) / product.price) * 100
         )
       : 0;
 
@@ -64,7 +68,7 @@ function ProductCard({
     >
       <div className="relative">
         <Image
-          src={product.images?.[0] || "/placeholder.png"}
+          src={getMainImage(product)}
           alt={product.name}
           width={300}
           height={300}
@@ -84,19 +88,17 @@ function ProductCard({
             setAdded(true);
             setTimeout(() => setAdded(false), 600);
           }}
-          className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all
-            ${added ? "bg-green-500 text-white scale-110" : "bg-white"}
-          `}
-          aria-label="Add to cart"
+          className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all ${
+            added ? "bg-green-500 text-white scale-110" : "bg-white"
+          }`}
+          aria-label={t.add_to_cart || "Add to cart"}
         >
           <ShoppingCart size={16} />
         </button>
       </div>
 
       <div className="p-3">
-        <p className="text-sm line-clamp-2 min-h-[40px]">
-          {product.name}
-        </p>
+        <p className="text-sm line-clamp-2 min-h-[40px]">{product.name}</p>
 
         <p className="text-orange-500 font-bold mt-1 text-[15px]">
           {formatPi(product.finalPrice ?? product.price)} π
@@ -119,13 +121,13 @@ function ProductCard({
 /* ================= PAGE ================= */
 
 export default function HomePage() {
+  const router = useRouter();
   const { addToCart } = useCart();
   const { t } = useTranslation();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] =
-    useState<string | "all">("all");
+  const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
   const [sortType, setSortType] = useState("sale");
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
@@ -137,17 +139,17 @@ export default function HomePage() {
 
     const interval = setInterval(() => {
       const diff = target.getTime() - Date.now();
-      if (diff <= 0) return setTimeLeft("00:00:00");
+      if (diff <= 0) {
+        setTimeLeft("00:00:00");
+        return;
+      }
 
       const h = Math.floor(diff / 1000 / 60 / 60);
       const m = Math.floor((diff / 1000 / 60) % 60);
       const s = Math.floor((diff / 1000) % 60);
 
       setTimeLeft(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(
-          2,
-          "0"
-        )}:${String(s).padStart(2, "0")}`
+        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
       );
     }, 1000);
 
@@ -161,8 +163,8 @@ export default function HomePage() {
       fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()),
     ])
       .then(([productData, categoryData]) => {
-        setProducts(productData);
-        setCategories(categoryData);
+        setProducts(Array.isArray(productData) ? productData : []);
+        setCategories(Array.isArray(categoryData) ? categoryData : []);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -172,13 +174,13 @@ export default function HomePage() {
     let list = [...products];
 
     if (selectedCategory !== "all") {
-      list = list.filter(
-        (p) => p.categoryId === selectedCategory
-      );
+      list = list.filter((p) => p.categoryId === selectedCategory);
     }
 
     if (sortType === "sold") {
       list.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
+    } else if (sortType === "sale") {
+      list.sort((a, b) => Number(b.isSale) - Number(a.isSale));
     }
 
     return list;
@@ -187,7 +189,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <p className="text-center mt-10">
-         {t.loading_products || "Loading products..."}
+        {t.loading_products || "Loading products..."}
       </p>
     );
   }
@@ -225,11 +227,12 @@ export default function HomePage() {
               .map((p) => (
                 <div
                   key={p.id}
-                  className="min-w-[140px] bg-white rounded-lg overflow-hidden text-black"
+                  onClick={() => router.push(`/product/${p.id}`)}
+                  className="min-w-[140px] bg-white rounded-lg overflow-hidden text-black cursor-pointer"
                 >
                   <div className="relative">
                     <Image
-                      src={p.images?.[0] || "/placeholder.png"}
+                      src={getMainImage(p)}
                       alt={p.name}
                       width={200}
                       height={200}
@@ -249,20 +252,20 @@ export default function HomePage() {
                           price: p.price,
                           sale_price: p.finalPrice,
                           quantity: 1,
-                          image: p.images?.[0],
+                          thumbnail: p.thumbnail,
+                          image: getMainImage(p),
                           images: p.images,
                         });
                       }}
                       className="absolute top-1 right-1 bg-white p-1.5 rounded-full shadow active:scale-95"
+                      aria-label={t.add_to_cart || "Add to cart"}
                     >
                       <ShoppingCart size={14} />
                     </button>
                   </div>
 
                   <div className="p-2">
-                    <p className="text-xs line-clamp-2 min-h-[32px]">
-                      {p.name}
-                    </p>
+                    <p className="text-xs line-clamp-2 min-h-[32px]">{p.name}</p>
 
                     <p className="text-orange-500 font-bold text-sm mt-1">
                       {formatPi(p.finalPrice ?? p.price)} π
@@ -288,9 +291,7 @@ export default function HomePage() {
             key={item.key}
             onClick={() => setSortType(item.key)}
             className={`px-4 py-1 rounded-full whitespace-nowrap ${
-              sortType === item.key
-                ? "bg-orange-600 text-white"
-                : "bg-gray-100"
+              sortType === item.key ? "bg-orange-600 text-white" : "bg-gray-100"
             }`}
           >
             {item.label}
@@ -313,7 +314,8 @@ export default function HomePage() {
                   price: product.price,
                   sale_price: product.finalPrice,
                   quantity: 1,
-                  image: product.images?.[0],
+                  thumbnail: product.thumbnail,
+                  image: getMainImage(product),
                   images: product.images,
                 })
               }
