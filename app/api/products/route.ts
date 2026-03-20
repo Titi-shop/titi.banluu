@@ -191,7 +191,9 @@ export async function POST(req: Request) {
 
   thumbnail: typeof thumbnail === "string" ? thumbnail : null,
 
-  category_id: typeof categoryId === "number" ? categoryId : null,
+  category_id: typeof categoryId === "string" && categoryId.trim() !== ""
+  ? categoryId
+  : null,
 
   sale_price: typeof salePrice === "number" ? salePrice : null,
   sale_start: typeof saleStart === "string" ? saleStart : null,
@@ -279,7 +281,9 @@ export async function PUT(req: Request) {
 
     thumbnail: typeof thumbnail === "string" ? thumbnail : null,
 
-    category_id: typeof categoryId === "number" ? categoryId : null,
+    category_id: typeof categoryId === "string" && categoryId.trim() !== ""
+  ? categoryId
+  : null,
 
     sale_price: typeof salePrice === "number" ? salePrice : null,
     sale_start: typeof saleStart === "string" ? saleStart : null,
