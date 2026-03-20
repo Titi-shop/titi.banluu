@@ -11,10 +11,6 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 
-/* =========================
-TYPES
-========================= */
-
 interface ShippingInfo {
   name: string;
   phone: string;
@@ -37,10 +33,6 @@ interface Message {
   type: "error" | "success";
 }
 
-/* =========================
-PAGE
-========================= */
-
 export default function CartPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -53,18 +45,10 @@ export default function CartPage() {
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
-  /* =========================
-  SHOW MESSAGE
-  ========================= */
-
   const showMessage = (text: string, type: "error" | "success" = "error") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
   };
-
-  /* =========================
-  SELECTED ITEMS
-  ========================= */
 
   const selectedItems = useMemo(
     () => cart.filter((i) => selectedIds.includes(i.id)),
@@ -74,15 +58,12 @@ export default function CartPage() {
   const total = useMemo(
     () =>
       selectedItems.reduce((sum, item) => {
-        const unit = typeof item.sale_price === "number" ? item.sale_price : item.price;
+        const unit =
+          typeof item.sale_price === "number" ? item.sale_price : item.price;
         return sum + unit * item.quantity;
       }, 0),
     [selectedItems]
   );
-
-  /* =========================
-  LOAD DEFAULT SHIPPING
-  ========================= */
 
   useEffect(() => {
     async function loadAddress() {
@@ -106,26 +87,20 @@ export default function CartPage() {
           postal_code: def.postal_code ?? null,
         });
       } catch {
-        // silent fail
+        //
       }
     }
 
-    if (user) loadAddress();
+    if (user) {
+      void loadAddress();
+    }
   }, [user]);
-
-  /* =========================
-  TOGGLE ITEM
-  ========================= */
 
   const toggleItem = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
-
-  /* =========================
-  VALIDATION
-  ========================= */
 
   const validateBeforePay = (): boolean => {
     if (!window.Pi || !piReady) {
@@ -139,7 +114,10 @@ export default function CartPage() {
     }
 
     if (!shipping) {
-      showMessage(t.please_add_shipping_address || "Please add a shipping address", "error");
+      showMessage(
+        t.please_add_shipping_address || "Please add a shipping address",
+        "error"
+      );
       return false;
     }
 
@@ -149,7 +127,10 @@ export default function CartPage() {
     }
 
     if (selectedItems.length > 1) {
-      showMessage(t.only_one_product_supported || "Only 1 product is supported at a time", "error");
+      showMessage(
+        t.only_one_product_supported || "Only 1 product is supported at a time",
+        "error"
+      );
       return false;
     }
 
@@ -162,145 +143,123 @@ export default function CartPage() {
     return true;
   };
 
-  /* =========================
-  PAY WITH PI
-  ========================= */
-
   const handlePay = async () => {
-  if (!validateBeforePay()) return;
+    if (!validateBeforePay()) return;
 
-  const item = selectedItems[0];
-  const unit =
-    typeof item.sale_price === "number" ? item.sale_price : item.price;
-  const quantity = item.quantity;
-  const totalPrice = Number((unit * quantity).toFixed(6));
+    const item = selectedItems[0];
+    const unit =
+      typeof item.sale_price === "number" ? item.sale_price : item.price;
+    const quantity = item.quantity;
+    const totalPrice = Number((unit * quantity).toFixed(6));
 
-  if (processing) return;
-  setProcessing(true);
+    if (processing) return;
+    setProcessing(true);
 
-  try {
-    await window.Pi?.createPayment(
-      {
-        amount: totalPrice,
-        memo: t.payment_memo_order || "Order payment",
-        metadata: {
-          shipping,
-          product: {
-            id: item.id,
-            name: item.name,
-            image:
-              item.thumbnail || item.image || item.images?.[0] || "",
-            price: unit,
+    try {
+      await window.Pi?.createPayment(
+        {
+          amount: totalPrice,
+          memo: t.payment_memo_order || "Order payment",
+          metadata: {
+            shipping,
+            product: {
+              id: item.id,
+              name: item.name,
+              image: item.thumbnail || "",
+              price: unit,
+            },
+            quantity,
           },
-          quantity,
         },
-      },
-      {
-        onReadyForServerApproval: async (paymentId, callback) => {
-          try {
-            const token = await getPiAccessToken();
-            const res = await fetch("/api/pi/approve", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ paymentId }),
-            });
+        {
+          onReadyForServerApproval: async (paymentId, callback) => {
+            try {
+              const token = await getPiAccessToken();
+              const res = await fetch("/api/pi/approve", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paymentId }),
+              });
 
-            if (!res.ok) {
+              if (!res.ok) {
+                setProcessing(false);
+                showMessage(
+                  t.payment_approve_failed || "Payment approval failed",
+                  "error"
+                );
+                return;
+              }
+
+              callback();
+            } catch {
               setProcessing(false);
               showMessage(
-                t.payment_approve_failed || "Payment approval failed",
+                t.payment_approve_error || "Payment approval error",
                 "error"
               );
-              return;
             }
+          },
 
-            callback();
-          } catch {
-            setProcessing(false);
-            showMessage(
-              t.payment_approve_error || "Payment approval error",
-              "error"
-            );
-          }
-        },
+          onReadyForServerCompletion: async (paymentId, txid) => {
+            try {
+              const token = await getPiAccessToken();
+              const res = await fetch("/api/pi/complete", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  paymentId,
+                  txid,
+                  product_id: item.id,
+                  quantity,
+                }),
+              });
 
-        onReadyForServerCompletion: async (paymentId, txid) => {
-          try {
-            const token = await getPiAccessToken();
-            const res = await fetch("/api/pi/complete", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                paymentId,
-                txid,
-                product_id: item.id,
-                quantity,
-              }),
-            });
+              if (!res.ok) {
+                setProcessing(false);
+                showMessage(
+                  t.payment_complete_failed || "Payment completion failed",
+                  "error"
+                );
+                return;
+              }
 
-            if (!res.ok) {
+              clearCart();
+              setSelectedIds([]);
               setProcessing(false);
-              showMessage(
-                t.payment_complete_failed || "Payment completion failed",
-                "error"
-              );
-              return;
+              router.push("/customer/pending");
+              showMessage(t.payment_success || "Payment successful", "success");
+            } catch {
+              setProcessing(false);
+              showMessage(t.payment_failed || "Payment failed", "error");
             }
+          },
 
-            clearCart();
-            setSelectedIds([]);
-            setProcessing(false);
-            router.push("/customer/pending");
-            showMessage(
-              t.payment_success || "Payment successful",
-              "success"
-            );
-          } catch {
+          onCancel: () => {
             setProcessing(false);
             showMessage(
-              t.payment_failed || "Payment failed",
+              t.payment_cancelled || "Payment was cancelled",
               "error"
             );
-          }
-        },
+          },
 
-        onCancel: () => {
-          setProcessing(false);
-          showMessage(
-            t.payment_cancelled || "Payment was cancelled",
-            "error"
-          );
-        },
+          onError: () => {
+            setProcessing(false);
+            showMessage(t.payment_failed || "Payment failed", "error");
+          },
+        }
+      );
+    } catch {
+      setProcessing(false);
+      showMessage(t.transaction_failed || "Transaction failed", "error");
+    }
+  };
 
-        onError: () => {
-          setProcessing(false);
-          showMessage(
-            t.payment_failed || "Payment failed",
-            "error"
-          );
-        },
-      }
-    );
-  } catch {
-    setProcessing(false);
-    showMessage(
-      t.transaction_failed || "Transaction failed",
-      "error"
-    );
-  }
-};
-
-  /* =========================
-  UI
-  ========================= */
-
-  // NOT LOGGED IN
   if (!user) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-6">
@@ -309,8 +268,11 @@ export default function CartPage() {
         <button
           onClick={() => pilogin?.()}
           disabled={!piReady}
-          className={`w-full py-3 rounded-full font-semibold text-white shadow
-            ${piReady ? "bg-orange-500 hover:bg-orange-600" : "bg-gray-300 cursor-not-allowed"}`}
+          className={`w-full py-3 rounded-full font-semibold text-white shadow ${
+            piReady
+              ? "bg-orange-500 hover:bg-orange-600"
+              : "bg-gray-300 cursor-not-allowed"
+          }`}
         >
           {t.login}
         </button>
@@ -322,76 +284,82 @@ export default function CartPage() {
     return (
       <main className="p-8 text-center">
         <p className="text-gray-500 mb-3">{t.empty_cart}</p>
-        <Link href="/" className="text-orange-600">{t.back_to_shop}</Link>
+        <Link href="/" className="text-orange-600">
+          {t.back_to_shop}
+        </Link>
       </main>
     );
   }
 
   return (
     <main className="min-h-screen bg-gray-50 pb-36 relative">
-      {/* MESSAGE BANNER */}
       {message && (
-        <div className={`fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded shadow-lg z-50
-          ${message.type === "error" ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}>
+        <div
+          className={`fixed top-16 left-1/2 z-50 -translate-x-1/2 rounded px-4 py-2 shadow-lg ${
+            message.type === "error"
+              ? "bg-red-500 text-white"
+              : "bg-green-500 text-white"
+          }`}
+        >
           {message.text}
         </div>
       )}
 
-    {/* CART ITEMS */}
-<div className="bg-white divide-y">
-  {cart.map((item) => {
-    const unit =
-      typeof item.sale_price === "number" ? item.sale_price : item.price;
+      <div className="bg-white divide-y">
+        {cart.map((item) => {
+          const unit =
+            typeof item.sale_price === "number" ? item.sale_price : item.price;
 
-    return (
-      <div key={item.id} className="flex gap-3 p-4 items-center">
-        <input
-          type="checkbox"
-          checked={selectedIds.includes(item.id)}
-          onChange={() => toggleItem(item.id)}
-        />
+          return (
+            <div key={item.id} className="flex items-center gap-3 p-4">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(item.id)}
+                onChange={() => toggleItem(item.id)}
+              />
 
-        <img
-          src={item.thumbnail || item.image || item.images?.[0] || "/placeholder.png"}
-          alt={item.name}
-          className="w-16 h-16 rounded object-cover"
-        />
+              <img
+                src={item.thumbnail || "/placeholder.png"}
+                alt={item.name}
+                className="h-16 w-16 rounded object-cover"
+              />
 
-        <div className="flex-1">
-          <p className="text-sm font-medium line-clamp-2">{item.name}</p>
+              <div className="flex-1">
+                <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
-          <div className="flex items-center gap-2 mt-1">
-            <input
-              type="number"
-              min={1}
-              max={99}
-              value={item.quantity}
-              onChange={(e) => updateQty(item.id, Number(e.target.value))}
-              className="w-16 border rounded text-center"
-            />
-            <span className="text-xs text-gray-500">× {formatPi(unit)} π</span>
-          </div>
-        </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={item.quantity}
+                    onChange={(e) => updateQty(item.id, Number(e.target.value))}
+                    className="w-16 rounded border text-center"
+                  />
+                  <span className="text-xs text-gray-500">
+                    × {formatPi(unit)} π
+                  </span>
+                </div>
+              </div>
 
-        <div className="text-right">
-          <p className="text-orange-600 font-semibold">
-            {formatPi(unit * item.quantity)} π
-          </p>
-          <button
-            onClick={() => removeFromCart(item.id)}
-            className="text-xs text-red-500"
-          >
-            {t.delete}
-          </button>
-        </div>
+              <div className="text-right">
+                <p className="font-semibold text-orange-600">
+                  {formatPi(unit * item.quantity)} π
+                </p>
+                <button
+                  onClick={() => removeFromCart(item.id)}
+                  className="text-xs text-red-500"
+                >
+                  {t.delete}
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
-    );
-  })}
-</div>
 
-      {/* FOOTER */}
-      <div className="fixed bottom-7 left-0 right-0 bg-white border-t p-5 pb-8">
-        <div className="flex justify-between mb-3">
+      <div className="fixed bottom-7 left-0 right-0 border-t bg-white p-5 pb-8">
+        <div className="mb-3 flex justify-between">
           <span>{t.total}</span>
           <span className="font-bold text-orange-600">{formatPi(total)} π</span>
         </div>
@@ -399,7 +367,7 @@ export default function CartPage() {
         <button
           onClick={handlePay}
           disabled={processing || selectedItems.length === 0}
-          className="w-full py-3 bg-orange-600 text-white rounded-lg"
+          className="w-full rounded-lg bg-orange-600 py-3 text-white"
         >
           {processing ? t.processing : t.pay_now}
         </button>
