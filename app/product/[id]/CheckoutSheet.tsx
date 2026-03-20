@@ -1,3 +1,5 @@
+Chỉnh luôn app/product/[id]/CheckoutSheet.tsx
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -75,13 +77,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   product: {
-    id: string;
+    id: number;
     name: string;
     price: number;
     finalPrice?: number;
     image?: string;
     images?: string[];
-    thumbnail?: string;
   };
 }
 
@@ -97,11 +98,7 @@ function getCountryDisplay(country?: string) {
    COMPONENT
 ========================= */
 
-export default function CheckoutSheet({
-  open,
-  onClose,
-  product,
-}: Props) {
+export default function CheckoutSheet({ open, onClose, product }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, piReady } = useAuth();
@@ -112,13 +109,10 @@ export default function CheckoutSheet({
   const [message, setMessage] = useState<Message | null>(null);
 
   /* =========================
-     SHOW MESSAGE
+  SHOW MESSAGE (GIỐNG CART)
   ========================= */
 
-  const showMessage = (
-    text: string,
-    type: "error" | "success" = "error"
-  ) => {
+  const showMessage = (text: string, type: "error" | "success" = "error") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
   };
@@ -136,12 +130,8 @@ export default function CheckoutSheet({
       name: product.name,
       price: product.price,
       finalPrice: product.finalPrice,
-      image:
-        product.thumbnail ||
-        product.image ||
-        product.images?.[0] ||
-        "",
-      images: product.images ?? [],
+      image: product.image,
+      images: product.images,
     };
   }, [product]);
 
@@ -178,9 +168,7 @@ export default function CheckoutSheet({
       }
     }
 
-    if (open && user) {
-      loadAddress();
-    }
+    if (open && user) loadAddress();
   }, [open, user]);
 
   /* =========================
@@ -205,7 +193,7 @@ export default function CheckoutSheet({
 
   const validateBeforePay = () => {
     if (!window.Pi || !piReady) {
-      showMessage(t.pi_not_ready || "Pi is not ready");
+      showMessage("Pi chưa sẵn sàng");
       return false;
     }
 
@@ -215,14 +203,12 @@ export default function CheckoutSheet({
     }
 
     if (!shipping) {
-      showMessage(
-        t.please_add_shipping_address || "Please add a shipping address"
-      );
+      showMessage("Vui lòng thêm địa chỉ giao hàng");
       return false;
     }
 
     if (!item || quantity < 1 || quantity > 99) {
-      showMessage(t.invalid_quantity || "Invalid quantity");
+      showMessage("Số lượng không hợp lệ");
       return false;
     }
 
@@ -235,6 +221,7 @@ export default function CheckoutSheet({
 
   const handlePay = async () => {
     if (!validateBeforePay()) return;
+
     if (processing) return;
 
     setProcessing(true);
@@ -243,7 +230,7 @@ export default function CheckoutSheet({
       await window.Pi?.createPayment(
         {
           amount: total,
-          memo: t.payment_memo_order || "Order payment",
+          memo: "Thanh toán đơn hàng TiTi",
           metadata: {
             shipping,
             product: {
@@ -271,18 +258,14 @@ export default function CheckoutSheet({
 
               if (!res.ok) {
                 setProcessing(false);
-                showMessage(
-                  t.payment_approve_failed || "Payment approval failed"
-                );
+                showMessage("Approve thất bại");
                 return;
               }
 
               callback();
             } catch {
               setProcessing(false);
-              showMessage(
-                t.payment_approve_error || "Payment approval error"
-              );
+              showMessage("Approve lỗi");
             }
           },
 
@@ -309,41 +292,33 @@ export default function CheckoutSheet({
 
               if (!res.ok) {
                 setProcessing(false);
-                showMessage(
-                  t.payment_complete_failed || "Payment completion failed"
-                );
+                showMessage("Complete thất bại");
                 return;
               }
 
-              setProcessing(false);
               onClose();
               router.push("/customer/pending");
-              showMessage(
-                t.payment_success || "Payment successful",
-                "success"
-              );
+              showMessage("Thanh toán thành công", "success");
             } catch {
               setProcessing(false);
-              showMessage(t.payment_failed || "Payment failed");
+              showMessage("Thanh toán lỗi");
             }
           },
 
           onCancel: () => {
             setProcessing(false);
-            showMessage(
-              t.payment_cancelled || "Payment was cancelled"
-            );
+            showMessage("Thanh toán bị huỷ");
           },
 
           onError: () => {
             setProcessing(false);
-            showMessage(t.payment_failed || "Payment failed");
+            showMessage("Thanh toán thất bại");
           },
         }
       );
     } catch {
       setProcessing(false);
-      showMessage(t.transaction_failed || "Transaction failed");
+      showMessage(t.transaction_failed);
     }
   };
 
@@ -351,25 +326,23 @@ export default function CheckoutSheet({
 
   return (
     <div className="fixed inset-0 z-[100]">
+
+      {/* MESSAGE (GIỐNG CART) */}
       {message && (
         <div
-          className={`fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded shadow-lg z-[200] ${
-            message.type === "error"
-              ? "bg-red-500 text-white"
-              : "bg-green-500 text-white"
-          }`}
+          className={`fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded shadow-lg z-[200]
+          ${message.type === "error" ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}
         >
           {message.text}
         </div>
       )}
 
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[45vh] flex flex-col">
+
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
+
           <div
             className="border rounded-lg p-3 cursor-pointer mb-4"
             onClick={() => router.push("/customer/address")}
@@ -377,29 +350,20 @@ export default function CheckoutSheet({
             {shipping ? (
               <>
                 <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-600">
-                  {shipping.phone}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {shipping.address_line}
-                </p>
+                <p className="text-sm text-gray-600">{shipping.phone}</p>
+                <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
                 <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
-                  {shipping.province} –{" "}
-                  {getCountryDisplay(shipping.country)} –{" "}
-                  {shipping.postal_code ?? ""}
+                  {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
                 </p>
               </>
             ) : (
-              <p className="text-gray-500">
-                ➕ {t.add_shipping}
-              </p>
+              <p className="text-gray-500">➕ {t.add_shipping}</p>
             )}
           </div>
 
           <div className="flex items-center gap-3 border-b pb-3">
             <img
-              src={item.image || "/placeholder.png"}
-              alt={item.name}
+              src={item.image || item.images?.[0] || "/placeholder.png"}
               className="w-16 h-16 rounded object-cover"
             />
 
@@ -430,6 +394,7 @@ export default function CheckoutSheet({
               {formatPi(total)} π
             </p>
           </div>
+
         </div>
 
         <div className="border-t p-4">
@@ -441,6 +406,7 @@ export default function CheckoutSheet({
             {processing ? t.processing : t.pay_now}
           </button>
         </div>
+
       </div>
     </div>
   );
