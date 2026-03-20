@@ -426,7 +426,19 @@
   "stock": "Số lượng",
    "posting": "Đang đăng",
   "update_product": "Cập nhật sản phẩm",
-    "post_product": "Đăng sản phẩm"
+    "post_product": "Đăng sản phẩm",
+  
+  "pi_not_ready": "Pi chưa sẵn sàng",
+  "please_add_shipping_address": "Vui lòng thêm địa chỉ giao hàng",
+  "invalid_quantity": "Số lượng không hợp lệ",
+  "payment_memo_order": "Thanh toán đơn hàng",
+  "payment_approve_failed": "Phê duyệt thanh toán thất bại",
+  "payment_approve_error": "Lỗi phê duyệt thanh toán",
+  "payment_complete_failed": "Hoàn tất thanh toán thất bại",
+  "payment_success": "Thanh toán thành công",
+  "payment_failed": "Thanh toán thất bại",
+  "payment_cancelled": "Thanh toán bị huỷ"
+
 
   
 
