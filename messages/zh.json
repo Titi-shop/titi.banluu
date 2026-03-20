@@ -437,7 +437,11 @@
   "payment_complete_failed": "付款完成失败",
   "payment_success": "付款成功",
   "payment_failed": "付款失败",
-  "payment_cancelled": "付款已取消"
+  "payment_cancelled": "付款已取消",
+  "please_select_product": "请选择商品",
+"only_one_product_supported": "目前一次只支持购买 1 个商品",
+ "transaction_failed": "交易失败"
+
 
 
   
