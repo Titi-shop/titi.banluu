@@ -405,5 +405,24 @@
   "return_rejected": "已拒绝",
   "refunded_at": "退款时间",
   "province_city": "省 / 城市",
-  "postal_code_optional": "邮政编码（可选）"
+  "postal_code_optional": "邮政编码（可选）",
+
+
+
+  
+  "max_6_images": "⚠️ 每个商品最多 6 张图片",
+  "upload_failed": "❌ 图片上传失败",
+  "upload_detail_failed": "❌ 商品详情图片上传失败",
+  "need_image": "⚠️ 至少需要 1 张商品图片",
+  "enter_valid_name_price": "⚠️ 请输入完整的分类、商品名称和价格",
+  "need_sale_date": "⚠️ 促销必须填写开始时间和结束时间",
+  "invalid_sale_range": "⚠️ 结束时间必须晚于开始时间",
+  "active": "显示商品",
+  "sale_time": "促销时间",
+  "product_detail_html": "商品详情（HTML + 图片）",
+  "add_detail_image": "🖼️ 添加详情图片",
+  "update_success": "🎉 商品更新成功",
+  "update_failed": "❌ 更新失败",
+  "stock": "库存"
+}
 }
