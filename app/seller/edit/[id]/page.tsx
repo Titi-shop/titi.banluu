@@ -76,3 +76,12 @@ export default function SellerEditPage() {
     </main>
   );
 }
+
+
+.then((data: ProductPayload) =>
+  setProduct({
+    ...data,
+    saleStart: toDateTimeLocal(data.saleStart),
+    saleEnd: toDateTimeLocal(data.saleEnd),
+  })
+)
