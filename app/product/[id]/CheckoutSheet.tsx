@@ -122,17 +122,18 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   }, [qtyDraft]);
 
   const item = useMemo(() => {
-    if (!product) return null;
+  if (!product) return null;
 
-    return {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      finalPrice: product.finalPrice,
-      image: product.thumbnail || product.image || product.images?.[0] || "",
-      images: product.images,
-    };
-  }, [product]);
+  return {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    finalPrice: product.finalPrice,
+    thumbnail: product.thumbnail || "",
+    image: product.thumbnail || product.image || product.images?.[0] || "",
+    images: product.images || [],
+  };
+}, [product]);
 
   /* =========================
      LOAD ADDRESS
@@ -235,7 +236,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
             product: {
               id: item!.id,
               name: item!.name,
-              image: item!.image || item!.images?.[0] || "",
+              image: item!.thumbnail || item!.image || item!.images?.[0] || "",
               price: unitPrice,
             },
             quantity,
