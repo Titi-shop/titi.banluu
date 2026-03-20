@@ -167,96 +167,134 @@ export default function CartPage() {
   ========================= */
 
   const handlePay = async () => {
-    if (!validateBeforePay()) return;
+  if (!validateBeforePay()) return;
 
-    const item = selectedItems[0];
-    const unit = typeof item.sale_price === "number" ? item.sale_price : item.price;
-    const quantity = item.quantity;
-    const totalPrice = Number((unit * quantity).toFixed(6));
+  const item = selectedItems[0];
+  const unit =
+    typeof item.sale_price === "number" ? item.sale_price : item.price;
+  const quantity = item.quantity;
+  const totalPrice = Number((unit * quantity).toFixed(6));
 
-    if (processing) return;
-    setProcessing(true);
+  if (processing) return;
+  setProcessing(true);
 
-    try {
-      await window.Pi?.createPayment(
-        {
-          amount: totalPrice,
-          memo: t.payment_memo_order || "Order payment",
-          metadata: {
+  try {
+    await window.Pi?.createPayment(
+      {
+        amount: totalPrice,
+        memo: t.payment_memo_order || "Order payment",
+        metadata: {
           shipping,
           product: {
-          id: item.id,
-          name: item.name,
-         image: item.thumbnail || item.image || item.images?.[0] || "",
-          price: unit,
+            id: item.id,
+            name: item.name,
+            image:
+              item.thumbnail || item.image || item.images?.[0] || "",
+            price: unit,
           },
           quantity,
-          },
         },
-        {
-          onReadyForServerApproval: async (paymentId, callback) => {
-            try {
-              const token = await getPiAccessToken();
-              const res = await fetch("/api/pi/approve", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ paymentId }),
-              });
+      },
+      {
+        onReadyForServerApproval: async (paymentId, callback) => {
+          try {
+            const token = await getPiAccessToken();
+            const res = await fetch("/api/pi/approve", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ paymentId }),
+            });
 
-              if (!res.ok) {
-                setProcessing(false);
-                showMessage(t.payment_approve_failed || "Payment approval failed", "error");
-                return;
-              }
-
-              callback();
-            } catch {
+            if (!res.ok) {
               setProcessing(false);
-              showMessage(t.payment_approve_error || "Payment approval error", "error");
+              showMessage(
+                t.payment_approve_failed || "Payment approval failed",
+                "error"
+              );
+              return;
             }
-          },
 
-          onReadyForServerCompletion: async (paymentId, txid) => {
-            try {
-              const token = await getPiAccessToken();
-              const res = await fetch("/api/pi/complete", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ paymentId, txid, product_id: item.id, quantity }),
-              });
+            callback();
+          } catch {
+            setProcessing(false);
+            showMessage(
+              t.payment_approve_error || "Payment approval error",
+              "error"
+            );
+          }
+        },
 
-              if (!res.ok) {
-                setProcessing(false);
-                showMessage(t.payment_complete_failed || "Payment completion failed", "error");
-                return;
-              }
+        onReadyForServerCompletion: async (paymentId, txid) => {
+          try {
+            const token = await getPiAccessToken();
+            const res = await fetch("/api/pi/complete", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                paymentId,
+                txid,
+                product_id: item.id,
+                quantity,
+              }),
+            });
 
-              clearCart();
-              setSelectedIds([]);
-              router.push("/customer/pending");
-              showMessage(t.payment_success || "Payment successful", "success");
-            } catch {
+            if (!res.ok) {
               setProcessing(false);
-              showMessage(t.payment_failed || "Payment failed", "error");
+              showMessage(
+                t.payment_complete_failed || "Payment completion failed",
+                "error"
+              );
+              return;
             }
-          },
 
-          onCancel: () => {
+            clearCart();
+            setSelectedIds([]);
             setProcessing(false);
-            showMessage(t.payment_cancelled || "Payment was cancelled", "error");
-          },
+            router.push("/customer/pending");
+            showMessage(
+              t.payment_success || "Payment successful",
+              "success"
+            );
+          } catch {
+            setProcessing(false);
+            showMessage(
+              t.payment_failed || "Payment failed",
+              "error"
+            );
+          }
+        },
 
-          onError: () => {
-            setProcessing(false);
-            showMessage(t.payment_failed || "Payment failed", "error");
-          },
-        }
-      );
-    } catch {
-      setProcessing(false);
-      showMessage(t.transaction_failed || "Transaction failed", "error");
-    }
-  };
+        onCancel: () => {
+          setProcessing(false);
+          showMessage(
+            t.payment_cancelled || "Payment was cancelled",
+            "error"
+          );
+        },
+
+        onError: () => {
+          setProcessing(false);
+          showMessage(
+            t.payment_failed || "Payment failed",
+            "error"
+          );
+        },
+      }
+    );
+  } catch {
+    setProcessing(false);
+    showMessage(
+      t.transaction_failed || "Transaction failed",
+      "error"
+    );
+  }
+};
 
   /* =========================
   UI
@@ -300,46 +338,54 @@ export default function CartPage() {
       )}
 
       {/* CART ITEMS */}
-      <div className="bg-white divide-y">
-        {cart.map((item) => {
-          const unit = typeof item.sale_price === "number" ? item.sale_price : item.price;
-          return (
-            <div key={item.id} className="flex gap-3 p-4 items-center">
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(item.id)}
-                onChange={() => toggleItem(item.id)}
-              />
+      {cart.map((item) => {
+  const unit =
+    typeof item.sale_price === "number" ? item.sale_price : item.price;
 
-              <img
-          src={item.thumbnail || item.image || item.images?.[0] || "/placeholder.png"}
-       alt={item.name}
+  return (
+    <div key={item.id} className="flex gap-3 p-4 items-center">
+      <input
+        type="checkbox"
+        checked={selectedIds.includes(item.id)}
+        onChange={() => toggleItem(item.id)}
+      />
+
+      <img
+        src={item.thumbnail || item.image || item.images?.[0] || "/placeholder.png"}
+        alt={item.name}
         className="w-16 h-16 rounded object-cover"
-         />
+      />
 
-              <div className="flex-1">
-                <p className="text-sm font-medium line-clamp-2">{item.name}</p>
+      <div className="flex-1">
+        <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
-                <div className="flex items-center gap-2 mt-1">
-                  <input
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={item.quantity}
-                    onChange={(e) => updateQty(item.id, Number(e.target.value))}
-                    className="w-16 border rounded text-center"
-                  />
-                  <span className="text-xs text-gray-500">× {formatPi(unit)} π</span>
-                </div>
-              </div>
+        <div className="flex items-center gap-2 mt-1">
+          <input
+            type="number"
+            min={1}
+            max={99}
+            value={item.quantity}
+            onChange={(e) => updateQty(item.id, Number(e.target.value))}
+            className="w-16 border rounded text-center"
+          />
+          <span className="text-xs text-gray-500">× {formatPi(unit)} π</span>
+        </div>
+      </div>
 
-              <div className="text-right">
-                <p className="text-orange-600 font-semibold">{formatPi(unit * item.quantity)} π</p>
-                <button onClick={() => removeFromCart(item.id)} className="text-xs text-red-500">{t.delete}</button>
-              </div>
-            </div>
-          );
-        })}
+      <div className="text-right">
+        <p className="text-orange-600 font-semibold">
+          {formatPi(unit * item.quantity)} π
+        </p>
+        <button
+          onClick={() => removeFromCart(item.id)}
+          className="text-xs text-red-500"
+        >
+          {t.delete}
+        </button>
+      </div>
+    </div>
+  );
+})}
       </div>
 
       {/* FOOTER */}
