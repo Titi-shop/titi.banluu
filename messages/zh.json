@@ -426,6 +426,20 @@
   "stock": "库存",
   "posting": "发布中",
   "update_product": "更新商品",
-  "post_product": "发布商品"
+  "post_product": "发布商品",
+  
+  "pi_not_ready": "Pi 尚未准备好",
+  "please_add_shipping_address": "请先添加收货地址",
+  "invalid_quantity": "数量无效",
+  "payment_memo_order": "订单付款",
+  "payment_approve_failed": "付款批准失败",
+  "payment_approve_error": "付款批准出错",
+  "payment_complete_failed": "付款完成失败",
+  "payment_success": "付款成功",
+  "payment_failed": "付款失败",
+  "payment_cancelled": "付款已取消"
+
+
+  
 
 }
