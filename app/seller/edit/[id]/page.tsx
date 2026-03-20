@@ -44,12 +44,19 @@ export default function SellerEditPage() {
   }, []);
 
   useEffect(() => {
-    if (!id) return;
-    apiAuthFetch(`/api/products/${id}`, { method: "GET" })
-      .then((r) => r.json())
-      .then((data) => setProduct(data))
-      .catch(() => setProduct(null));
-  }, [id]);
+  if (!id) return;
+
+  apiAuthFetch(`/api/products/${id}`, { method: "GET" })
+    .then((r) => r.json())
+    .then((data: ProductPayload) =>
+      setProduct({
+        ...data,
+        saleStart: toDateTimeLocal(data.saleStart),
+        saleEnd: toDateTimeLocal(data.saleEnd),
+      })
+    )
+    .catch(() => setProduct(null));
+}, [id]);
 
   if (loading || !user || !product) return <div className="p-8 text-center">{t.loading}</div>;
 
