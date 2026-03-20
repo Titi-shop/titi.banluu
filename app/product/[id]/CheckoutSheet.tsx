@@ -192,7 +192,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   const validateBeforePay = () => {
     if (!window.Pi || !piReady) {
-      showMessage("Pi chưa sẵn sàng");
+      showMessage(t.pi_not_ready || "Pi is not ready");
       return false;
     }
 
@@ -202,12 +202,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     }
 
     if (!shipping) {
-      showMessage("Vui lòng thêm địa chỉ giao hàng");
+      showMessage(t.please_add_shipping_address || "Please add a shipping address");
       return false;
     }
 
     if (!item || quantity < 1 || quantity > 99) {
-      showMessage("Số lượng không hợp lệ");
+      showMessage(t.invalid_quantity || "Invalid quantity");
       return false;
     }
 
@@ -229,7 +229,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       await window.Pi?.createPayment(
         {
           amount: total,
-          memo: "Thanh toán đơn hàng TiTi",
+          memo: t.payment_memo_order || "Order payment";
           metadata: {
             shipping,
             product: {
@@ -257,14 +257,14 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
               if (!res.ok) {
                 setProcessing(false);
-                showMessage("Approve thất bại");
+                showMessage(t.payment_approve_failed || "Payment approval failed");
                 return;
               }
 
               callback();
             } catch {
               setProcessing(false);
-              showMessage("Approve lỗi");
+              showMessage(t.payment_approve_error || "Payment approval error");
             }
           },
 
@@ -291,7 +291,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
               if (!res.ok) {
                 setProcessing(false);
-                showMessage("Complete thất bại");
+                showMessage(t.payment_complete_failed || "Payment completion failed");
                 return;
               }
 
@@ -301,18 +301,18 @@ router.push("/customer/pending");
 showMessage(t.payment_success || "Payment successful", "success");
             } catch {
               setProcessing(false);
-              showMessage("Thanh toán lỗi");
+              showMessage(t.payment_failed || "Payment failed");
             }
           },
 
           onCancel: () => {
             setProcessing(false);
-            showMessage("Thanh toán bị huỷ");
+            showMessage(t.payment_cancelled || "Payment was cancelled");
           },
 
           onError: () => {
             setProcessing(false);
-            showMessage("Thanh toán thất bại");
+            showMessage(t.payment_failed || "Payment failed");
           },
         }
       );
