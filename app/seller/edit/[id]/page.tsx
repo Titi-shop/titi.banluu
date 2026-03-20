@@ -28,60 +28,78 @@ interface ProductPayload {
   is_active: boolean;
 }
 
+function toDateTimeLocal(value: string | null | undefined): string {
+  if (!value) return "";
+
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60 * 1000);
+
+  return localDate.toISOString().slice(0, 16);
+}
+
 export default function SellerEditPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { id } = useParams(); // id sản phẩm cần edit
+  const params = useParams();
   const { user, loading } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [product, setProduct] = useState<ProductPayload | null>(null);
 
+  const id = typeof params.id === "string" ? params.id : "";
+
   useEffect(() => {
     fetch("/api/categories", { cache: "no-store" })
       .then((r) => r.json())
-      .then((d: unknown) => setCategories(Array.isArray(d) ? (d as Category[]) : []))
+      .then((d: unknown) =>
+        setCategories(Array.isArray(d) ? (d as Category[]) : [])
+      )
       .catch(() => setCategories([]));
   }, []);
 
   useEffect(() => {
-  if (!id) return;
+    if (!id) return;
 
-  apiAuthFetch(`/api/products/${id}`, { method: "GET" })
-    .then((r) => r.json())
-    .then((data: ProductPayload) =>
-      setProduct({
-        ...data,
-        saleStart: toDateTimeLocal(data.saleStart),
-        saleEnd: toDateTimeLocal(data.saleEnd),
-      })
-    )
-    .catch(() => setProduct(null));
-}, [id]);
+    apiAuthFetch(`/api/products/${id}`, { method: "GET" })
+      .then((r) => r.json())
+      .then((data: ProductPayload) =>
+        setProduct({
+          ...data,
+          saleStart: toDateTimeLocal(data.saleStart),
+          saleEnd: toDateTimeLocal(data.saleEnd),
+        })
+      )
+      .catch(() => setProduct(null));
+  }, [id]);
 
-  if (loading || !user || !product) return <div className="p-8 text-center">{t.loading}</div>;
+  if (loading || !user || !product) {
+    return <div className="p-8 text-center">{t.loading}</div>;
+  }
 
   const updateProduct = async (payload: ProductPayload) => {
     const res = await apiAuthFetch(`/api/products/${payload.id}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("PATCH_FAILED");
+
+    if (!res.ok) {
+      throw new Error("PATCH_FAILED");
+    }
+
     router.push("/seller/stock");
   };
 
   return (
     <main className="max-w-2xl mx-auto p-4 pb-28">
-      <h1 className="text-xl font-bold text-center mb-4 text-[#ff6600]">✏️ {t.edit_product}</h1>
-      <ProductForm categories={categories} initialData={product} onSubmit={updateProduct} />
+      <h1 className="text-xl font-bold text-center mb-4 text-[#ff6600]">
+        ✏️ {t.edit_product}
+      </h1>
+
+      <ProductForm
+        categories={categories}
+        initialData={product}
+        onSubmit={updateProduct}
+      />
     </main>
   );
 }
-
-
-.then((data: ProductPayload) =>
-  setProduct({
-    ...data,
-    saleStart: toDateTimeLocal(data.saleStart),
-    saleEnd: toDateTimeLocal(data.saleEnd),
-  })
-)
