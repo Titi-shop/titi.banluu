@@ -1,5 +1,3 @@
-Chỉnh luôn app/product/[id]/CheckoutSheet.tsx
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -77,12 +75,13 @@ interface Props {
   open: boolean;
   onClose: () => void;
   product: {
-    id: number;
+  id: string;
     name: string;
     price: number;
     finalPrice?: number;
     image?: string;
     images?: string[];
+     thumbnail?: string;
   };
 }
 
@@ -130,7 +129,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       name: product.name,
       price: product.price,
       finalPrice: product.finalPrice,
-      image: product.image,
+      image: product.thumbnail || product.image || product.images?.[0] || "",
       images: product.images,
     };
   }, [product]);
@@ -296,9 +295,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
                 return;
               }
 
-              onClose();
-              router.push("/customer/pending");
-              showMessage("Thanh toán thành công", "success");
+              setProcessing(false);
+onClose();
+router.push("/customer/pending");
+showMessage(t.payment_success || "Payment successful", "success");
             } catch {
               setProcessing(false);
               showMessage("Thanh toán lỗi");
@@ -363,9 +363,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
           <div className="flex items-center gap-3 border-b pb-3">
             <img
-              src={item.image || item.images?.[0] || "/placeholder.png"}
-              className="w-16 h-16 rounded object-cover"
-            />
+  src={item.image || "/placeholder.png"}
+  alt={item.name}
+  className="w-16 h-16 rounded object-cover"
+/>
 
             <div className="flex-1">
               <p className="text-sm font-medium line-clamp-2">
