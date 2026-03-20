@@ -10,13 +10,13 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
    TYPES
 ========================= */
 interface Category {
-  id: number;
+  id: string;
   key: string;
   icon?: string;
 }
 
 interface ProductPayload {
-  id?: number; // khi edit
+  id?: string;
   name: string;
   price: number;
   salePrice?: number | null;
@@ -26,7 +26,7 @@ interface ProductPayload {
   detail: string;
   images: string[];
   thumbnail: string;
-  categoryId: number;
+  categoryId: string;
   stock: number;
   is_active: boolean;
 }
@@ -122,7 +122,10 @@ export default function ProductForm({
     const form = e.currentTarget;
     const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim();
     const price = Number((form.elements.namedItem("price") as HTMLInputElement).value);
-    const categoryId = Number((form.elements.namedItem("categoryId") as HTMLSelectElement).value);
+
+     const categoryId = (
+  form.elements.namedItem("categoryId") as HTMLSelectElement
+).value;
     const description = (form.elements.namedItem("description") as HTMLTextAreaElement).value;
     const detail = (form.elements.namedItem("detail") as HTMLTextAreaElement).value;
 
