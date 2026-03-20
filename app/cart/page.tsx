@@ -337,56 +337,57 @@ export default function CartPage() {
         </div>
       )}
 
-      {/* CART ITEMS */}
-      {cart.map((item) => {
-  const unit =
-    typeof item.sale_price === "number" ? item.sale_price : item.price;
+    {/* CART ITEMS */}
+<div className="bg-white divide-y">
+  {cart.map((item) => {
+    const unit =
+      typeof item.sale_price === "number" ? item.sale_price : item.price;
 
-  return (
-    <div key={item.id} className="flex gap-3 p-4 items-center">
-      <input
-        type="checkbox"
-        checked={selectedIds.includes(item.id)}
-        onChange={() => toggleItem(item.id)}
-      />
+    return (
+      <div key={item.id} className="flex gap-3 p-4 items-center">
+        <input
+          type="checkbox"
+          checked={selectedIds.includes(item.id)}
+          onChange={() => toggleItem(item.id)}
+        />
 
-      <img
-        src={item.thumbnail || item.image || item.images?.[0] || "/placeholder.png"}
-        alt={item.name}
-        className="w-16 h-16 rounded object-cover"
-      />
+        <img
+          src={item.thumbnail || item.image || item.images?.[0] || "/placeholder.png"}
+          alt={item.name}
+          className="w-16 h-16 rounded object-cover"
+        />
 
-      <div className="flex-1">
-        <p className="text-sm font-medium line-clamp-2">{item.name}</p>
+        <div className="flex-1">
+          <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
-        <div className="flex items-center gap-2 mt-1">
-          <input
-            type="number"
-            min={1}
-            max={99}
-            value={item.quantity}
-            onChange={(e) => updateQty(item.id, Number(e.target.value))}
-            className="w-16 border rounded text-center"
-          />
-          <span className="text-xs text-gray-500">× {formatPi(unit)} π</span>
+          <div className="flex items-center gap-2 mt-1">
+            <input
+              type="number"
+              min={1}
+              max={99}
+              value={item.quantity}
+              onChange={(e) => updateQty(item.id, Number(e.target.value))}
+              className="w-16 border rounded text-center"
+            />
+            <span className="text-xs text-gray-500">× {formatPi(unit)} π</span>
+          </div>
+        </div>
+
+        <div className="text-right">
+          <p className="text-orange-600 font-semibold">
+            {formatPi(unit * item.quantity)} π
+          </p>
+          <button
+            onClick={() => removeFromCart(item.id)}
+            className="text-xs text-red-500"
+          >
+            {t.delete}
+          </button>
         </div>
       </div>
-
-      <div className="text-right">
-        <p className="text-orange-600 font-semibold">
-          {formatPi(unit * item.quantity)} π
-        </p>
-        <button
-          onClick={() => removeFromCart(item.id)}
-          className="text-xs text-red-500"
-        >
-          {t.delete}
-        </button>
-      </div>
-    </div>
-  );
-})}
-      </div>
+    );
+  })}
+</div>
 
       {/* FOOTER */}
       <div className="fixed bottom-7 left-0 right-0 bg-white border-t p-5 pb-8">
