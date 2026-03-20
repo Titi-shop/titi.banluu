@@ -23,6 +23,7 @@ interface Product {
   isSale: boolean;
   finalPrice: number;
 
+  thumbnail?: string;
   images: string[];
   categoryId: number | null;
   sold: number;
@@ -46,7 +47,7 @@ function ProductCard({
 }) {
   const router = useRouter();
   const [added, setAdded] = useState(false);
-
+const mainImage = product.thumbnail || product.images?.[0] || "/placeholder.png";
   const discount =
     product.price > 0
       ? Math.round(
@@ -63,12 +64,12 @@ function ProductCard({
     >
       <div className="relative">
         <Image
-          src={product.images?.[0] || "/placeholder.png"}
-          alt={product.name}
-          width={300}
-          height={300}
-          className="w-full h-44 object-cover"
-        />
+  src={mainImage}
+  alt={product.name}
+  width={300}
+  height={300}
+  className="w-full h-44 object-cover"
+/>
 
         {product.isSale && (
           <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
