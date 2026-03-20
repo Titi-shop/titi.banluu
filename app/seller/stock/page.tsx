@@ -21,6 +21,8 @@ interface Product {
   saleStart: string | null;
   saleEnd: string | null;
   images: string[];
+  thumbnail: string | null;
+
 }
 
 interface RawProduct {
@@ -31,6 +33,7 @@ interface RawProduct {
   sale_start?: unknown;
   sale_end?: unknown;
   images?: unknown;
+  thumbnail?: unknown;
 }
 
 interface Message {
@@ -101,31 +104,32 @@ export default function SellerStockPage() {
       }
 
       const mapped: Product[] = raw.map((item) => {
-        const p = item as RawProduct;
+  const p = item as RawProduct;
 
-        return {
-          id: typeof p.id === "string" ? p.id : String(p.id ?? ""),
-          name: typeof p.name === "string" ? p.name : "Unnamed",
-          price:
-            typeof p.price === "number" && !Number.isNaN(p.price)
-              ? p.price
-              : 0,
-          salePrice:
-            typeof p.sale_price === "number" &&
-            !Number.isNaN(p.sale_price)
-              ? p.sale_price
-              : null,
-          saleStart:
-            typeof p.sale_start === "string" ? p.sale_start : null,
-          saleEnd:
-            typeof p.sale_end === "string" ? p.sale_end : null,
-          images: Array.isArray(p.images)
-            ? p.images.filter(
-                (i): i is string => typeof i === "string"
-              )
-            : [],
-        };
-      });
+  const images = Array.isArray(p.images)
+    ? p.images.filter((i): i is string => typeof i === "string")
+    : [];
+
+  return {
+    id: typeof p.id === "string" ? p.id : String(p.id ?? ""),
+    name: typeof p.name === "string" ? p.name : "Unnamed",
+    price:
+      typeof p.price === "number" && !Number.isNaN(p.price)
+        ? p.price
+        : 0,
+    salePrice:
+      typeof p.sale_price === "number" && !Number.isNaN(p.sale_price)
+        ? p.sale_price
+        : null,
+    saleStart: typeof p.sale_start === "string" ? p.sale_start : null,
+    saleEnd: typeof p.sale_end === "string" ? p.sale_end : null,
+    images,
+    thumbnail:
+      typeof p.thumbnail === "string" && p.thumbnail.trim()
+        ? p.thumbnail
+        : images[0] || null,
+  };
+});
 
       setProducts(mapped);
     } catch {
@@ -439,15 +443,15 @@ export default function SellerStockPage() {
                     </span>
                   )}
 
-                  {product.images?.length ? (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.name}
-                      fill
-                      sizes="96px"
-                      className="object-cover"
-                    />
-                  ) : (
+                  {product.thumbnail ? (
+  <Image
+    src={product.thumbnail}
+    alt={product.name}
+    fill
+    sizes="96px"
+    className="object-cover"
+  />
+) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
                       {t.no_image}
                     </div>
