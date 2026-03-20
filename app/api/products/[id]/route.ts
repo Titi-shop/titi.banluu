@@ -54,18 +54,34 @@ export async function PATCH(
           Prefer: "return=representation",
         },
         body: JSON.stringify({
-          name: body.name,
-          description: body.description,
-          detail: body.detail,
-          images: body.images,
-          category_id: body.categoryId,
-          price: body.price,
-          sale_price: body.salePrice,
-          sale_start: body.saleStart,
-          sale_end: body.saleEnd,
-          stock: body.stock,
-          is_active: body.is_active,
-          thumbnail: body.thumbnail,
+          name: typeof body.name === "string" ? body.name : "",
+          description:
+            typeof body.description === "string" ? body.description : "",
+          detail: typeof body.detail === "string" ? body.detail : "",
+          images: Array.isArray(body.images)
+            ? body.images.filter((item: unknown) => typeof item === "string")
+            : [],
+          category_id:
+            typeof body.categoryId === "string" && body.categoryId.trim() !== ""
+              ? body.categoryId
+              : null,
+          price: typeof body.price === "number" ? body.price : 0,
+          sale_price:
+            typeof body.salePrice === "number" ? body.salePrice : null,
+          sale_start:
+            typeof body.saleStart === "string" && body.saleStart.trim() !== ""
+              ? body.saleStart
+              : null,
+          sale_end:
+            typeof body.saleEnd === "string" && body.saleEnd.trim() !== ""
+              ? body.saleEnd
+              : null,
+          stock:
+            typeof body.stock === "number" && body.stock >= 0 ? body.stock : 0,
+          is_active:
+            typeof body.is_active === "boolean" ? body.is_active : true,
+          thumbnail:
+            typeof body.thumbnail === "string" ? body.thumbnail : null,
         }),
       }
     );
@@ -140,7 +156,7 @@ export async function GET(
     const p = data[0];
 
     return NextResponse.json({
-      id: Number(p.id),
+      id: p.id,
       name: p.name,
       price: p.price,
 
@@ -154,7 +170,7 @@ export async function GET(
       images: p.images ?? [],
       thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
 
-      categoryId: Number(p.category_id) || 0,
+      categoryId: p.category_id ?? "",
       stock: p.stock ?? 0,
       is_active: p.is_active ?? true,
     });
