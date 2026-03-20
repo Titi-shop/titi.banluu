@@ -405,5 +405,24 @@
   "return_rejected": "Bị từ chối",
   "refunded_at": "Thời gian hoàn tiền",
   "province_city": "Tỉnh / Thành phố",
-  "postal_code_optional": "Mã bưu điện (tùy chọn)"
+  "postal_code_optional": "Mã bưu điện (tùy chọn)",
+
+
+
+  
+  "max_6_images": "⚠️ Tối đa 6 ảnh cho mỗi sản phẩm",
+  "upload_failed": "❌ Upload ảnh thất bại",
+  "upload_detail_failed": "❌ Upload ảnh mô tả thất bại",
+  "need_image": "⚠️ Cần ít nhất 1 ảnh sản phẩm",
+  "enter_valid_name_price": "⚠️ Nhập đầy đủ danh mục, tên và giá",
+  "need_sale_date": "⚠️ Sale cần ngày bắt đầu và kết thúc",
+  "invalid_sale_range": "⚠️ Ngày kết thúc phải sau ngày bắt đầu",
+  "active": "Hiển thị sản phẩm",
+  "sale_time": "Thời gian khuyến mãi",
+  "product_detail_html": "Chi tiết sản phẩm (HTML + ảnh)",
+  "add_detail_image": "🖼️ Thêm ảnh mô tả",
+  "update_success": "🎉 Cập nhật sản phẩm thành công",
+  "update_failed": "❌ Cập nhật thất bại",
+  "stock": "Số lượng"
+
 }
