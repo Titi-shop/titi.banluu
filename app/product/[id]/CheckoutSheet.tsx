@@ -174,17 +174,19 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
      PRICE
   ========================= */
 
-  const unitPrice = useMemo(() => {
-    if (!item) return 0;
-    return typeof item.finalPrice === "number"
-      ? item.finalPrice
-      : item.price;
-  }, [item]);
+  const item = useMemo(() => {
+  if (!product) return null;
 
-  const total = useMemo(
-    () => Number((unitPrice * quantity).toFixed(6)),
-    [unitPrice, quantity]
-  );
+  return {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    finalPrice: product.finalPrice,
+    thumbnail: product.thumbnail || "",
+    image: product.thumbnail || product.image || product.images?.[0] || "",
+    images: product.images || [],
+  };
+}, [product]);
 
   /* =========================
      VALIDATION
@@ -235,7 +237,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
             product: {
               id: item!.id,
               name: item!.name,
-              image: item!.image || item!.images?.[0] || "",
+              image: item!.thumbnail || item!.image || item!.images?.[0] || "",
               price: unitPrice,
             },
             quantity,
