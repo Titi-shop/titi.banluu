@@ -172,43 +172,53 @@ export default function ProductDetail() {
       p.categoryId === product.categoryId
   );
 
-  const images = [
+  const displayImages = [
   ...(product.thumbnail ? [product.thumbnail] : []),
   ...product.images.filter((img) => img && img !== product.thumbnail),
 ];
 
-const displayImages =
-  images.length > 0 ? images : ["/placeholder.png"];
+const gallery =
+  displayImages.length > 0 ? displayImages : ["/placeholder.png"];
 
   const next = () =>
-    setCurrentIndex((i) => (i + 1) % images.length);
+  setCurrentIndex((i) => (i + 1) % gallery.length);
 
-  const prev = () =>
-    setCurrentIndex((i) =>
-      i === 0 ? images.length - 1 : i - 1
-    );
+const prev = () =>
+  setCurrentIndex((i) =>
+    i === 0 ? gallery.length - 1 : i - 1
+  );
 
   /* =======================
      ACTIONS
   ======================= */
 
   const add = () => {
-    addToCart({
-      ...product,
-      price: product.finalPrice,
-      quantity,
-    });
-    router.push("/cart");
-  };
+  addToCart({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    sale_price: product.finalPrice,
+    thumbnail: product.thumbnail,
+    image: product.thumbnail || product.images?.[0] || "",
+    images: product.images,
+    quantity,
+  });
+  router.push("/cart");
+};
 
   const buy = () => {
-    addToCart({
-      ...product,
-      price: product.finalPrice,
-      quantity,
-    });
-    setOpenCheckout(true);
-  };
+  addToCart({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    sale_price: product.finalPrice,
+    thumbnail: product.thumbnail,
+    image: product.thumbnail || product.images?.[0] || "",
+    images: product.images,
+    quantity,
+  });
+  setOpenCheckout(true);
+};
 
   /* =======================
      RENDER
@@ -218,10 +228,10 @@ const displayImages =
       {/* MAIN IMAGES */}
       <div className="mt-14 relative w-full h-80 bg-white">
         <img
-          src={images[currentIndex]}
-          alt={product.name}
-          className="w-full h-full object-cover"
-        />
+  src={gallery[currentIndex]}
+  alt={product.name}
+  className="w-full h-full object-cover"
+/>
 
         {product.isSale && (
           <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
@@ -229,35 +239,35 @@ const displayImages =
           </div>
         )}
 
-        {images.length > 1 && (
-          <>
-            <button
-              onClick={prev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
-            >
-              ‹
-            </button>
-            <button
-              onClick={next}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
-            >
-              ›
-            </button>
+        {gallery.length > 1 && (
+  <>
+    <button
+      onClick={prev}
+      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
+    >
+      ‹
+    </button>
+    <button
+      onClick={next}
+      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
+    >
+      ›
+    </button>
 
-            <div className="absolute bottom-3 flex gap-2 w-full justify-center">
-              {images.map((_, i) => (
-                <span
-                  key={i}
-                  className={`w-2 h-2 rounded-full ${
-                    i === currentIndex
-                      ? "bg-orange-700"
-                      : "bg-gray-700"
-                  }`}
-                />
-              ))}
-            </div>
-          </>
-        )}
+    <div className="absolute bottom-3 flex gap-2 w-full justify-center">
+      {gallery.map((_, i) => (
+        <span
+          key={i}
+          className={`w-2 h-2 rounded-full ${
+            i === currentIndex
+              ? "bg-orange-700"
+              : "bg-gray-700"
+          }`}
+        />
+      ))}
+    </div>
+  </>
+)}
       </div>
 
       {/* INFO */}
@@ -407,16 +417,18 @@ const displayImages =
 
       {/* CHECKOUT */}
       <CheckoutSheet
-        open={openCheckout}
-        onClose={() => setOpenCheckout(false)}
-        product={{
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          finalPrice: product.finalPrice,
-          images: product.images,
-        }}
-      />
+  open={openCheckout}
+  onClose={() => setOpenCheckout(false)}
+  product={{
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    finalPrice: product.finalPrice,
+    thumbnail: product.thumbnail,
+    image: product.thumbnail || product.images?.[0] || "",
+    images: product.images,
+  }}
+/>
     </div>
   );
 }
