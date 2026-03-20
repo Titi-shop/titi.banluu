@@ -437,7 +437,14 @@
   "payment_complete_failed": "Hoàn tất thanh toán thất bại",
   "payment_success": "Thanh toán thành công",
   "payment_failed": "Thanh toán thất bại",
-  "payment_cancelled": "Thanh toán bị huỷ"
+  "payment_cancelled": "Thanh toán bị huỷ",
+
+  
+  
+  "please_select_product": "Vui lòng chọn sản phẩm",
+  "only_one_product_supported": "Hiện chỉ hỗ trợ 1 sản phẩm mỗi lần",
+  "transaction_failed": "Thanh toán lỗi"
+
 
 
   
