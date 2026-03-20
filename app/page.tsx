@@ -1,3 +1,4 @@
+
 "use client";
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,6 @@ interface Product {
   isSale: boolean;
   finalPrice: number;
 
-  thumbnail?: string;
   images: string[];
   categoryId: number | null;
   sold: number;
@@ -47,7 +47,7 @@ function ProductCard({
 }) {
   const router = useRouter();
   const [added, setAdded] = useState(false);
-const mainImage = product.thumbnail || product.images?.[0] || "/placeholder.png";
+
   const discount =
     product.price > 0
       ? Math.round(
@@ -64,12 +64,12 @@ const mainImage = product.thumbnail || product.images?.[0] || "/placeholder.png"
     >
       <div className="relative">
         <Image
-  src={mainImage}
-  alt={product.name}
-  width={300}
-  height={300}
-  className="w-full h-44 object-cover"
-/>
+          src={product.images?.[0] || "/placeholder.png"}
+          alt={product.name}
+          width={300}
+          height={300}
+          className="w-full h-44 object-cover"
+        />
 
         {product.isSale && (
           <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
@@ -223,19 +223,18 @@ export default function HomePage() {
               .filter((p) => p.isSale)
               .slice(0, 10)
               .map((p) => (
-                const mainImage = p.thumbnail || p.images?.[0] || "/placeholder.png";
                 <div
                   key={p.id}
                   className="min-w-[140px] bg-white rounded-lg overflow-hidden text-black"
                 >
                   <div className="relative">
                     <Image
-              src={mainImage}
-             alt={p.name}
-             width={200}
-            height={200}
-            className="w-full h-28 object-cover"
-              />
+                      src={p.images?.[0] || "/placeholder.png"}
+                      alt={p.name}
+                      width={200}
+                      height={200}
+                      className="w-full h-28 object-cover"
+                    />
 
                     <div className="absolute top-1 left-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded">
                       {t.flash_sale || "Sale"}
@@ -245,15 +244,14 @@ export default function HomePage() {
                       onClick={(e) => {
                         e.stopPropagation();
                         addToCart({
-  id: p.id,
-  name: p.name,
-  price: p.price,
-  sale_price: p.finalPrice,
-  quantity: 1,
-  thumbnail: p.thumbnail,
-  image: p.thumbnail || p.images?.[0],
-  images: p.images,
-});
+                          id: p.id,
+                          name: p.name,
+                          price: p.price,
+                          sale_price: p.finalPrice,
+                          quantity: 1,
+                          image: p.images?.[0],
+                          images: p.images,
+                        });
                       }}
                       className="absolute top-1 right-1 bg-white p-1.5 rounded-full shadow active:scale-95"
                     >
