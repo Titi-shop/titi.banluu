@@ -423,6 +423,11 @@
   "add_detail_image": "🖼️ Thêm ảnh mô tả",
   "update_success": "🎉 Cập nhật sản phẩm thành công",
   "update_failed": "❌ Cập nhật thất bại",
-  "stock": "Số lượng"
+  "stock": "Số lượng",
+   "posting": "Đang đăng",
+  "update_product": "Cập nhật sản phẩm",
+    "post_product": "Đăng sản phẩm"
+
+  
 
 }
