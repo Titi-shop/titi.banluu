@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -10,7 +10,9 @@ type ProductRow = {
   id: string;
   name: string;
   description: string | null;
+  detail: string | null;
   images: string[] | null;
+  thumbnail: string | null;
   category_id: string | null;
   price: number;
   sale_price: number | null;
@@ -18,53 +20,63 @@ type ProductRow = {
   sale_end: string | null;
   views: number | null;
   sold: number | null;
+  stock: number | null;
+  is_active: boolean | null;
 };
-
-
 
 /* =========================
    PATCH /api/products/[id]
 ========================= */
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const { id } = params;
-    if (!id) return NextResponse.json({ error: "MISSING_PRODUCT_ID" }, { status: 400 });
 
-    // ✅ Lấy body
+    if (!id) {
+      return NextResponse.json(
+        { error: "MISSING_PRODUCT_ID" },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
 
-    // TODO: Validate payload nếu cần
-    // e.g. name, price, images, categoryId, salePrice, saleStart, saleEnd, stock, is_active
-
-    // Cập nhật Supabase
-    const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${id}`, {
-      method: "PATCH",
-      headers: {
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation", // trả về bản ghi mới
-      },
-      body: JSON.stringify({
-        name: body.name,
-        description: body.description,
-        detail: body.detail,
-        images: body.images,
-        category_id: body.categoryId,
-        price: body.price,
-        sale_price: body.salePrice,
-        sale_start: body.saleStart,
-        sale_end: body.saleEnd,
-        stock: body.stock,
-        is_active: body.is_active,
-        thumbnail: body.thumbnail,
-      }),
-    });
+    const updateRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${id}`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({
+          name: body.name,
+          description: body.description,
+          detail: body.detail,
+          images: body.images,
+          category_id: body.categoryId,
+          price: body.price,
+          sale_price: body.salePrice,
+          sale_start: body.saleStart,
+          sale_end: body.saleEnd,
+          stock: body.stock,
+          is_active: body.is_active,
+          thumbnail: body.thumbnail,
+        }),
+      }
+    );
 
     if (!updateRes.ok) {
       const text = await updateRes.text();
       console.error("❌ PATCH PRODUCT ERROR:", text);
-      return NextResponse.json({ error: "FAILED_TO_UPDATE_PRODUCT" }, { status: 500 });
+      return NextResponse.json(
+        { error: "FAILED_TO_UPDATE_PRODUCT" },
+        { status: 500 }
+      );
     }
 
     const data = await updateRes.json();
@@ -72,9 +84,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json(data[0]);
   } catch (err) {
     console.error("❌ PRODUCT PATCH ERROR:", err);
-    return NextResponse.json({ error: "INTERNAL_SERVER_ERROR" }, { status: 500 });
+    return NextResponse.json(
+      { error: "INTERNAL_SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
+
 /* =========================
    GET /api/products/[id]
 ========================= */
@@ -123,32 +139,24 @@ export async function GET(
 
     const p = data[0];
 
-    /* =========================
-       SALE LOGIC
-    ========================= */
-    const now = new Date();
-    const start = p.sale_start ? new Date(p.sale_start) : null;
-    const end = p.sale_end ? new Date(p.sale_end) : null;
-
-    const isSale =
-      !!p.sale_price &&
-      !!start &&
-      !!end &&
-      now >= start &&
-      now <= end;
-
     return NextResponse.json({
-      id: p.id,
+      id: Number(p.id),
       name: p.name,
-      description: p.description ?? "",
-      images: p.images ?? [],
-      categoryId: p.category_id,
       price: p.price,
-      sale_price: p.sale_price,
-      isSale,
-      finalPrice: isSale ? p.sale_price : p.price,
-      views: p.views ?? 0,
-      sold: p.sold ?? 0,
+
+      salePrice: p.sale_price ?? null,
+      saleStart: p.sale_start ?? null,
+      saleEnd: p.sale_end ?? null,
+
+      description: p.description ?? "",
+      detail: p.detail ?? "",
+
+      images: p.images ?? [],
+      thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
+
+      categoryId: Number(p.category_id) || 0,
+      stock: p.stock ?? 0,
+      is_active: p.is_active ?? true,
     });
   } catch (err) {
     console.error("❌ PRODUCT [ID] ERROR:", err);
