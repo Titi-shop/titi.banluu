@@ -44,6 +44,7 @@ interface ApiProduct {
   detail?: string;
   views?: number;
   sold?: number;
+  thumbnail?: string;
   images?: string[];
   stock?: number;
   isActive?: boolean;
@@ -60,6 +61,7 @@ interface Product {
   detail: string;
   views: number;
   sold: number;
+  thumbnail?: string;
   images: string[];
   stock: number;
   isActive: boolean;
@@ -108,25 +110,26 @@ export default function ProductDetail() {
           const isActive = api.isActive !== false;
 
           return {
-            id: api.id,
-            name: api.name,
-            price: api.price,
-            finalPrice,
-            isSale: finalPrice < api.price,
+  id: api.id,
+  name: api.name,
+  price: api.price,
+  finalPrice,
+  isSale: finalPrice < api.price,
 
-            description: api.description ?? "",
-            detail: api.detail ?? "",
+  description: api.description ?? "",
+  detail: api.detail ?? "",
 
-            views: api.views ?? 0,
-            sold: api.sold ?? 0,
+  views: api.views ?? 0,
+  sold: api.sold ?? 0,
 
-            images: Array.isArray(api.images) ? api.images : [],
-            categoryId: api.categoryId ?? null,
+  thumbnail: api.thumbnail ?? "",
+  images: Array.isArray(api.images) ? api.images : [],
+  categoryId: api.categoryId ?? null,
 
-            stock,
-            isActive,
-            isOutOfStock: stock <= 0 || !isActive,
-          };
+  stock,
+  isActive,
+  isOutOfStock: stock <= 0 || !isActive,
+};
         });
 
         setProducts(normalized);
@@ -169,10 +172,13 @@ export default function ProductDetail() {
       p.categoryId === product.categoryId
   );
 
-  const images =
-    product.images.length > 0
-      ? product.images
-      : ["/placeholder.png"];
+  const images = [
+  ...(product.thumbnail ? [product.thumbnail] : []),
+  ...product.images.filter((img) => img && img !== product.thumbnail),
+];
+
+const displayImages =
+  images.length > 0 ? images : ["/placeholder.png"];
 
   const next = () =>
     setCurrentIndex((i) => (i + 1) % images.length);
@@ -349,7 +355,7 @@ export default function ProductDetail() {
                 className="min-w-[140px] bg-gray-50 rounded-lg p-2"
               >
                 <img
-                  src={p.images[0] || "/placeholder.png"}
+                  src={p.thumbnail || p.images[0] || "/placeholder.png"}
                   className="w-full h-24 object-cover rounded"
                 />
 
