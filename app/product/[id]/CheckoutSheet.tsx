@@ -229,7 +229,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       await window.Pi?.createPayment(
         {
           amount: total,
-          memo: t.payment_memo_order || "Order payment";
+          memo: t.payment_memo_order || "Order payment",
           metadata: {
             shipping,
             product: {
