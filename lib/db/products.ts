@@ -258,7 +258,7 @@ export async function createProduct(
       product.sale_price !== null
         ? toDbPrice(product.sale_price)
         : null,
-    currency: null,
+    currency: "PI"
     stock:
       typeof product.stock === "number" && product.stock >= 0
         ? product.stock
