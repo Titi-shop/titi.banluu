@@ -176,7 +176,20 @@ const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
   ======================= */
   if (loading) return <p className="p-4">{t.loading}</p>;
   if (!product) return <p className="p-4">{t.no_products}</p>;
+const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
 
+const selectedVariant =
+  hasVariants && product.variants[selectedVariantIndex]
+    ? product.variants[selectedVariantIndex]
+    : null;
+
+const displayPrice = selectedVariant ? selectedVariant.price : product.finalPrice;
+const displayStock = selectedVariant ? selectedVariant.stock : product.stock;
+const isVariantOutOfStock = selectedVariant ? selectedVariant.stock <= 0 : false;
+
+const finalOutOfStock = hasVariants
+  ? isVariantOutOfStock || !product.isActive
+  : product.isOutOfStock;
   const relatedProducts = products.filter(
     (p) =>
       p.id !== product.id &&
