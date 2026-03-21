@@ -447,7 +447,15 @@
     "color_optional": "颜色（可选）",
    "price_pi": "价格",
     "size": "尺码",
-    "product_variants": "产品变体"
+    "product_variants": "产品变体",
+    
+  "in_stock": "剩余",
+  "out_of_stock": "缺货",
+  "out_of_stock_short": "无货",
+  "products": "件",
+  
+  "views": "浏览",
+  "reviews": "评价"
 
 
 
