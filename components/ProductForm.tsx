@@ -54,7 +54,9 @@ export default function ProductForm({
   const [saleEnd, setSaleEnd] = useState("");
   const [stock, setStock] = useState<number | "">(1);
   const [isActive, setIsActive] = useState(true);
-
+const [variants, setVariants] = useState<
+  { option1: string; option2?: string; option3?: string; price: number; stock: number; sku: string }[]
+>(initialData?.variants || []);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [message, setMessage] = useState<{
@@ -226,21 +228,22 @@ export default function ProductForm({
       }
     }
 
-    const payload: ProductPayload = {
-      id: initialData?.id,
-      name,
-      price,
-      salePrice: salePrice || null,
-      saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-      saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
-      description,
-      detail,
-      images,
-      thumbnail: images[0],
-      categoryId,
-      stock: Number(stock),
-      is_active: isActive,
-    };
+    const payload: ProductPayload & { variants?: typeof variants } = {
+  id: initialData?.id,
+  name,
+  price,
+  salePrice: salePrice || null,
+  saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
+  saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
+  description,
+  detail,
+  images,
+  thumbnail: images[0],
+  categoryId,
+  stock: Number(stock),
+  is_active: isActive,
+  variants, // <-- thêm dòng này
+};
 
     setSaving(true);
     setMessage({ text: "", type: "" });
@@ -381,6 +384,102 @@ export default function ProductForm({
         </div>
       )}
 
+
+       <div className="space-y-2">
+  <p className="font-medium">{t.product_variants}</p>
+
+  {variants.map((v, i) => (
+    <div key={i} className="grid grid-cols-6 gap-2 items-center">
+      <input
+        type="text"
+        placeholder={t.size}
+        value={v.option1}
+        onChange={(e) =>
+          setVariants(prev => {
+            const newV = [...prev];
+            newV[i].option1 = e.target.value;
+            return newV;
+          })
+        }
+        className="border p-2 rounded col-span-1"
+      />
+      <input
+        type="text"
+        placeholder={t.color_optional}
+        value={v.option2 || ""}
+        onChange={(e) =>
+          setVariants(prev => {
+            const newV = [...prev];
+            newV[i].option2 = e.target.value;
+            return newV;
+          })
+        }
+        className="border p-2 rounded col-span-1"
+      />
+      <input
+        type="number"
+        placeholder={t.price_pi}
+        value={v.price}
+        onChange={(e) =>
+          setVariants(prev => {
+            const newV = [...prev];
+            newV[i].price = Number(e.target.value);
+            return newV;
+          })
+        }
+        className="border p-2 rounded col-span-1"
+      />
+      <input
+        type="number"
+        placeholder={t.stock}
+        value={v.stock}
+        onChange={(e) =>
+          setVariants(prev => {
+            const newV = [...prev];
+            newV[i].stock = Number(e.target.value);
+            return newV;
+          })
+        }
+        className="border p-2 rounded col-span-1"
+      />
+      <input
+        type="text"
+        placeholder="SKU"
+        value={v.sku}
+        onChange={(e) =>
+          setVariants(prev => {
+            const newV = [...prev];
+            newV[i].sku = e.target.value;
+            return newV;
+          })
+        }
+        className="border p-2 rounded col-span-1"
+      />
+      <button
+        type="button"
+        onClick={() =>
+          setVariants(prev => prev.filter((_, idx) => idx !== i))
+        }
+        className="bg-red-500 text-white px-2 rounded col-span-1"
+      >
+        ✕
+      </button>
+    </div>
+  ))}
+
+  <button
+    type="button"
+    onClick={() =>
+      setVariants(prev => [
+        ...prev,
+        { option1: "", option2: "", option3: "", price: 0, stock: 0, sku: "" },
+      ])
+    }
+    className="bg-green-500 text-white px-3 py-1 rounded"
+  >
+    + {t.add_variant}
+  </button>
+</div>
       <textarea
         name="description"
         defaultValue={initialData?.description || ""}
