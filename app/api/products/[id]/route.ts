@@ -7,6 +7,19 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 /* =========================
    TYPES
 ========================= */
+type ProductVariantRow = {
+  id: string;
+  product_id: string;
+  sku: string;
+  price: number;
+  stock: number;
+  option1: string | null;
+  option2: string | null;
+  option3: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+};
+
 type ProductVariant = {
   option1: string;
   option2?: string | null;
@@ -32,7 +45,6 @@ type ProductRow = {
   sold: number | null;
   stock: number | null;
   is_active: boolean | null;
-  variants: ProductVariant[] | null;
   deleted_at?: string | null;
 };
 
@@ -47,30 +59,113 @@ function supabaseHeaders() {
 function normalizeVariants(input: unknown, fallbackPrice = 0): ProductVariant[] {
   if (!Array.isArray(input)) return [];
 
-  return input.map((v) => {
-    const item = v as Record<string, unknown>;
+  return input
+    .map((v) => {
+      const item = v as Record<string, unknown>;
 
-    return {
-      option1: typeof item.option1 === "string" ? item.option1.trim() : "",
-      option2:
-        typeof item.option2 === "string" && item.option2.trim() !== ""
-          ? item.option2.trim()
-          : null,
-      option3:
-        typeof item.option3 === "string" && item.option3.trim() !== ""
-          ? item.option3.trim()
-          : null,
-      price:
-        typeof item.price === "number" && !Number.isNaN(item.price)
-          ? item.price
-          : fallbackPrice,
-      stock:
-        typeof item.stock === "number" && !Number.isNaN(item.stock) && item.stock >= 0
-          ? item.stock
-          : 0,
-      sku: typeof item.sku === "string" ? item.sku.trim() : "",
-    };
+      return {
+        option1:
+          typeof item.option1 === "string" ? item.option1.trim() : "",
+        option2:
+          typeof item.option2 === "string" && item.option2.trim() !== ""
+            ? item.option2.trim()
+            : null,
+        option3:
+          typeof item.option3 === "string" && item.option3.trim() !== ""
+            ? item.option3.trim()
+            : null,
+        price:
+          typeof item.price === "number" && !Number.isNaN(item.price)
+            ? item.price
+            : fallbackPrice,
+        stock:
+          typeof item.stock === "number" &&
+          !Number.isNaN(item.stock) &&
+          item.stock >= 0
+            ? item.stock
+            : 0,
+        sku: typeof item.sku === "string" ? item.sku.trim() : "",
+      };
+    })
+    .filter((v) => v.option1 !== "");
+}
+
+async function getProductVariants(productId: string): Promise<ProductVariant[]> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/variants?product_id=eq.${encodeURIComponent(
+      productId
+    )}&select=*`,
+    {
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("❌ FETCH VARIANTS ERROR:", text);
+    throw new Error("FAILED_TO_FETCH_VARIANTS");
+  }
+
+  const rows: ProductVariantRow[] = await res.json();
+
+  return rows.map((v) => ({
+    option1: v.option1 ?? "",
+    option2: v.option2 ?? null,
+    option3: v.option3 ?? null,
+    price: typeof v.price === "number" ? v.price : 0,
+    stock: typeof v.stock === "number" ? v.stock : 0,
+    sku: v.sku ?? "",
+  }));
+}
+
+async function replaceProductVariants(productId: string, variants: ProductVariant[]) {
+  const deleteRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/variants?product_id=eq.${encodeURIComponent(productId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      },
+    }
+  );
+
+  if (!deleteRes.ok) {
+    const text = await deleteRes.text();
+    console.error("❌ DELETE OLD VARIANTS ERROR:", text);
+    throw new Error("FAILED_TO_DELETE_OLD_VARIANTS");
+  }
+
+  if (!variants.length) return;
+
+  const insertPayload = variants.map((v) => ({
+    product_id: productId,
+    sku: v.sku || "",
+    price: v.price,
+    stock: v.stock,
+    option1: v.option1 || null,
+    option2: v.option2 || null,
+    option3: v.option3 || null,
+  }));
+
+  const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/variants`, {
+    method: "POST",
+    headers: {
+      ...supabaseHeaders(),
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(insertPayload),
   });
+
+  if (!insertRes.ok) {
+    const text = await insertRes.text();
+    console.error("❌ INSERT VARIANTS ERROR:", text);
+    throw new Error("FAILED_TO_INSERT_VARIANTS");
+  }
 }
 
 /* =========================
@@ -110,7 +205,9 @@ export async function PATCH(
     const cleanedVariants = normalizeVariants(body.variants, price);
 
     const updateRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}&seller_id=eq.${encodeURIComponent(auth.user.pi_uid)}`,
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(
+        id
+      )}&seller_id=eq.${encodeURIComponent(auth.user.pi_uid)}`,
       {
         method: "PATCH",
         headers: {
@@ -146,7 +243,6 @@ export async function PATCH(
             typeof body.stock === "number" && body.stock >= 0 ? body.stock : 0,
           is_active:
             typeof body.is_active === "boolean" ? body.is_active : true,
-          variants: cleanedVariants,
         }),
       }
     );
@@ -169,7 +265,10 @@ export async function PATCH(
       );
     }
 
+    await replaceProductVariants(id, cleanedVariants);
+
     const p = data[0];
+    const variants = await getProductVariants(id);
 
     return NextResponse.json({
       id: p.id,
@@ -185,7 +284,7 @@ export async function PATCH(
       categoryId: p.category_id ?? "",
       stock: p.stock ?? 0,
       is_active: p.is_active ?? true,
-      variants: Array.isArray(p.variants) ? p.variants : [],
+      variants,
     });
   } catch (err) {
     console.error("❌ PRODUCT PATCH ERROR:", err);
@@ -214,7 +313,9 @@ export async function GET(
     }
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}&deleted_at=is.null&select=*`,
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(
+        id
+      )}&deleted_at=is.null&select=*`,
       {
         headers: {
           apikey: SERVICE_KEY,
@@ -243,6 +344,7 @@ export async function GET(
     }
 
     const p = data[0];
+    const variants = await getProductVariants(id);
 
     return NextResponse.json({
       id: p.id,
@@ -258,7 +360,7 @@ export async function GET(
       categoryId: p.category_id ?? "",
       stock: p.stock ?? 0,
       is_active: p.is_active ?? true,
-      variants: Array.isArray(p.variants) ? p.variants : [],
+      variants,
     });
   } catch (err) {
     console.error("❌ PRODUCT [ID] ERROR:", err);
