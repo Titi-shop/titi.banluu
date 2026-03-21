@@ -209,12 +209,23 @@ const prev = () =>
     id: product.id,
     name: product.name,
     price: product.price,
-    sale_price: product.finalPrice,
+    sale_price: displayPrice,
     thumbnail: product.thumbnail,
     image: product.thumbnail || product.images?.[0] || "",
     images: product.images,
     quantity,
+    variant: selectedVariant
+      ? {
+          option1: selectedVariant.option1,
+          option2: selectedVariant.option2 ?? null,
+          option3: selectedVariant.option3 ?? null,
+          sku: selectedVariant.sku,
+          price: selectedVariant.price,
+          stock: selectedVariant.stock,
+        }
+      : null,
   });
+
   router.push("/cart");
 };
 
@@ -223,12 +234,23 @@ const prev = () =>
     id: product.id,
     name: product.name,
     price: product.price,
-    sale_price: product.finalPrice,
+    sale_price: displayPrice,
     thumbnail: product.thumbnail,
     image: product.thumbnail || product.images?.[0] || "",
     images: product.images,
     quantity,
+    variant: selectedVariant
+      ? {
+          option1: selectedVariant.option1,
+          option2: selectedVariant.option2 ?? null,
+          option3: selectedVariant.option3 ?? null,
+          sku: selectedVariant.sku,
+          price: selectedVariant.price,
+          stock: selectedVariant.stock,
+        }
+      : null,
   });
+
   setOpenCheckout(true);
 };
 
@@ -289,9 +311,11 @@ const prev = () =>
         </h2>
 
         <div className="text-right">
-          <p className="text-xl font-bold text-orange-600">
-            π {formatPi(product.finalPrice)}
-          </p>
+          {!hasVariants && product.isSale && (
+  <p className="text-sm text-gray-400 line-through">
+    π {formatPi(product.price)}
+  </p>
+)}
 
           {product.isSale && (
             <p className="text-sm text-gray-400 line-through">
@@ -311,16 +335,70 @@ const prev = () =>
 
       {/* STOCK */}
       <div className="bg-white px-4 pb-4 text-sm">
-        {product.isOutOfStock ? (
-          <span className="text-red-500 font-semibold">
-            ❌ Hết hàng
-          </span>
-        ) : (
-          <span className="text-green-600">
-            ✅ Còn {product.stock} sản phẩm
-          </span>
-        )}
+        {finalOutOfStock ? (
+  <span className="text-red-500 font-semibold">
+    ❌ Hết hàng
+  </span>
+) : (
+  <span className="text-green-600">
+    ✅ Còn {displayStock} sản phẩm
+  </span>
+)}
       </div>
+
+      {/* VARIANTS */}
+{hasVariants && (
+  <div className="bg-white mt-2 px-4 py-4">
+    <h3 className="text-sm font-semibold mb-3">
+      {t.product_variants ?? "Phân loại"}
+    </h3>
+
+    <div className="space-y-2">
+      {product.variants.map((variant, index) => {
+        const active = index === selectedVariantIndex;
+        const out = variant.stock <= 0;
+
+        return (
+          <button
+            key={`${variant.sku}-${index}`}
+            type="button"
+            onClick={() => setSelectedVariantIndex(index)}
+            className={`w-full text-left border rounded-lg p-3 ${
+              active
+                ? "border-orange-500 bg-orange-50"
+                : "border-gray-200 bg-white"
+            } ${out ? "opacity-60" : ""}`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-medium text-sm">
+                  {variant.option1}
+                  {variant.option2 ? ` - ${variant.option2}` : ""}
+                  {variant.option3 ? ` - ${variant.option3}` : ""}
+                </p>
+
+                {variant.sku && (
+                  <p className="text-xs text-gray-500">
+                    SKU: {variant.sku}
+                  </p>
+                )}
+              </div>
+
+              <div className="text-right">
+                <p className="text-sm font-semibold text-orange-600">
+                  π {formatPi(variant.price)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {out ? "Hết hàng" : `Còn ${variant.stock}`}
+                </p>
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+)}
 
       {/* DESCRIPTION */}
       <div className="bg-white p-4">
@@ -416,9 +494,9 @@ const prev = () =>
 
         <button
           onClick={buy}
-          disabled={product.isOutOfStock}
+          disabled={finalOutOfStock}
           className={`flex-1 py-2 rounded-md text-white ${
-            product.isOutOfStock
+            finalOutOfStock
               ? "bg-gray-400"
               : "bg-red-500"
           }`}
@@ -435,10 +513,20 @@ const prev = () =>
     id: product.id,
     name: product.name,
     price: product.price,
-    finalPrice: product.finalPrice,
+    finalPrice: displayPrice,
     thumbnail: product.thumbnail,
     image: product.thumbnail || product.images?.[0] || "",
     images: product.images,
+    variant: selectedVariant
+      ? {
+          option1: selectedVariant.option1,
+          option2: selectedVariant.option2 ?? null,
+          option3: selectedVariant.option3 ?? null,
+          sku: selectedVariant.sku,
+          price: selectedVariant.price,
+          stock: selectedVariant.stock,
+        }
+      : null,
   }}
 />
     </div>
