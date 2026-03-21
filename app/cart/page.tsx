@@ -365,12 +365,25 @@ if (!item.variant && item.stock !== undefined && item.stock <= 0) {
         </div>
 
         <button
-          onClick={handlePay}
-          disabled={processing || selectedItems.length === 0}
-          className="w-full rounded-lg bg-orange-600 py-3 text-white"
-        >
-          {processing ? t.processing : t.pay_now}
-        </button>
+          <button
+  onClick={handlePay}
+  disabled={
+    processing ||
+    selectedItems.length === 0 ||
+    !user ||
+    !shipping
+  }
+  className={`w-full rounded-lg py-3 text-white ${
+    processing ||
+    selectedItems.length === 0 ||
+    !user ||
+    !shipping
+      ? "bg-gray-400"
+      : "bg-orange-600"
+  }`}
+>
+  {processing ? t.processing : t.pay_now}
+</button>
       </div>
     </main>
   );
