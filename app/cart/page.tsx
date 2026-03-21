@@ -134,24 +134,29 @@ export default function CartPage() {
     return false;
   }
 
-  // ✅ CHỈ KHAI BÁO 1 LẦN
+  // ✅ CHỈ 1 BIẾN item
   const item = selectedItems[0];
 
-  // check tồn tại
   if (!item) {
     showMessage(t.invalid_product || "Invalid product", "error");
     return false;
   }
 
-  // check quantity
-  if (item.quantity < 1 || item.quantity > 100) {
-    showMessage(t.invalid_quantity || "Invalid quantity", "error");
+  // ❗ check variant
+  if (item.variant && item.variant.stock <= 0) {
+    showMessage(t.out_of_stock || "Out of stock", "error");
     return false;
   }
 
-  // check stock
-  if (item.stock !== undefined && item.stock <= 0) {
+  // ❗ check stock thường
+  if ("variant" in item && item.variant?.stock <= 0) {
     showMessage(t.out_of_stock || "Out of stock", "error");
+    return false;
+  }
+
+  // ❗ check quantity
+  if (item.quantity < 1 || item.quantity > 100) {
+    showMessage(t.invalid_quantity || "Invalid quantity", "error");
     return false;
   }
 
@@ -160,8 +165,6 @@ export default function CartPage() {
 
   const handlePay = async () => {
     if (!validateBeforePay()) return;
-
-    const item = selectedItems[0];
     const unit =
       typeof item.sale_price === "number" ? item.sale_price : item.price;
     const quantity = item.quantity;
