@@ -169,7 +169,20 @@ export async function POST(req: Request) {
   saleEnd,
   stock,
   is_active,
+  variants, // <-- thêm dòng này
 } = body as Record<string, unknown>;
+
+// kiểm tra variants nếu muốn
+const cleanedVariants = Array.isArray(variants)
+  ? variants.map(v => ({
+      option1: typeof v.option1 === "string" ? v.option1 : "",
+      option2: typeof v.option2 === "string" ? v.option2 : null,
+      option3: typeof v.option3 === "string" ? v.option3 : null,
+      price: typeof v.price === "number" ? v.price : price,
+      stock: typeof v.stock === "number" ? v.stock : 0,
+      sku: typeof v.sku === "string" ? v.sku : "",
+    }))
+  : [];
 
     if (typeof name !== "string" || typeof price !== "number") {
       return NextResponse.json(
@@ -233,20 +246,32 @@ export async function PUT(req: Request) {
     }
 
     const {
-      id,
-      name,
-      price,
-      description,
-      detail,
-      images,
-      thumbnail,
-      categoryId,
-      salePrice,
-      saleStart,
-      saleEnd,
-      stock,
-      is_active,
-    } = body as Record<string, unknown>;
+  id,
+  name,
+  price,
+  description,
+  detail,
+  images,
+  thumbnail,
+  categoryId,
+  salePrice,
+  saleStart,
+  saleEnd,
+  stock,
+  is_active,
+  variants, // <-- thêm dòng này
+} = body as Record<string, unknown>;
+
+const cleanedVariants = Array.isArray(variants)
+  ? variants.map(v => ({
+      option1: typeof v.option1 === "string" ? v.option1 : "",
+      option2: typeof v.option2 === "string" ? v.option2 : null,
+      option3: typeof v.option3 === "string" ? v.option3 : null,
+      price: typeof v.price === "number" ? v.price : price,
+      stock: typeof v.stock === "number" ? v.stock : 0,
+      sku: typeof v.sku === "string" ? v.sku : "",
+    }))
+  : [];
 
     if (
       typeof id !== "string" &&
