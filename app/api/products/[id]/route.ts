@@ -35,6 +35,8 @@ type ProductRow = {
   sold: number | null;
   stock: number | null;
   is_active: boolean | null;
+  rating_avg: number | null;
+  rating_count: number | null;
 };
 
 type PatchBody = {
@@ -53,6 +55,56 @@ type PatchBody = {
   variants?: ProductVariant[];
 };
 
+
+function normalizeVariants(input: unknown): ProductVariant[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((item, index) => {
+      if (typeof item !== "object" || item === null) return null;
+
+      const row = item as Record<string, unknown>;
+
+      const optionValue =
+        typeof row.optionValue === "string"
+          ? row.optionValue.trim()
+          : "";
+
+      if (!optionValue) return null;
+
+      return {
+        id: typeof row.id === "string" ? row.id : undefined,
+        optionName:
+          typeof row.optionName === "string" && row.optionName.trim() !== ""
+            ? row.optionName.trim()
+            : "size",
+        optionValue,
+        stock:
+          typeof row.stock === "number" &&
+          !Number.isNaN(row.stock) &&
+          row.stock >= 0
+            ? row.stock
+            : 0,
+        sku:
+          typeof row.sku === "string" && row.sku.trim() !== ""
+            ? row.sku.trim()
+            : null,
+        sortOrder:
+          typeof row.sortOrder === "number" && !Number.isNaN(row.sortOrder)
+            ? row.sortOrder
+            : index,
+        isActive:
+          typeof row.isActive === "boolean"
+            ? row.isActive
+            : true,
+      };
+    })
+    .filter((item): item is ProductVariant => item !== null);
+}
+
+function getTotalVariantStock(variants: ProductVariant[]) {
+  return variants.reduce((sum, item) => sum + (item.stock || 0), 0);
+}
 /* =========================
    HELPERS
 ========================= */
@@ -82,8 +134,16 @@ export async function PATCH(
     }
 
     const body = (await req.json()) as PatchBody;
+const normalizedVariants = normalizeVariants(body.variants);
+const hasVariants = normalizedVariants.length > 0;
 
-    const updatePayload = {
+const finalStock = hasVariants
+  ? getTotalVariantStock(normalizedVariants)
+  : typeof body.stock === "number" && body.stock >= 0
+  ? body.stock
+  : 0;
+
+const updatePayload = {
       name: typeof body.name === "string" ? body.name.trim() : "",
       description:
         typeof body.description === "string" ? body.description : "",
@@ -151,8 +211,8 @@ export async function PATCH(
     }
 
     if (Array.isArray(body.variants)) {
-      await replaceVariantsByProductId(id, body.variants);
-    }
+  await replaceVariantsByProductId(id, normalizedVariants);
+}
 
     const updatedVariants = await getVariantsByProductId(id);
 
@@ -174,6 +234,11 @@ export async function PATCH(
       categoryId: data[0].category_id ?? "",
       stock: data[0].stock ?? 0,
       is_active: data[0].is_active ?? true,
+
+      views: data[0].views ?? 0,
+     sold: data[0].sold ?? 0,
+     rating_avg: data[0].rating_avg ?? 0,
+     rating_count: data[0].rating_count ?? 0,
 
       variants: updatedVariants,
     });
@@ -253,6 +318,11 @@ export async function GET(
       categoryId: p.category_id ?? "",
       stock: p.stock ?? 0,
       is_active: p.is_active ?? true,
+
+      views: p.views ?? 0,
+sold: p.sold ?? 0,
+rating_avg: p.rating_avg ?? 0,
+rating_count: p.rating_count ?? 0,
 
       variants,
     });
