@@ -16,12 +16,9 @@ interface Category {
 }
 
 interface ProductVariant {
-  option1: string;
-  option2?: string | null;
-  option3?: string | null;
-  price: number;
+  optionValue: string;
   stock: number;
-  sku: string;
+  sku?: string | null;
 }
 
 interface ProductPayload {
@@ -240,14 +237,14 @@ export default function ProductForm({
     }
 
     for (const v of variants) {
-      if (!v.option1.trim() || v.price <= 0 || v.stock < 0 || !v.sku.trim()) {
-        setMessage({
-          text: t.invalid_variant,
-          type: "error",
-        });
-        return;
-      }
-    }
+  if (!v.optionValue.trim() || v.stock < 0) {
+    setMessage({
+      text: t.invalid_variant,
+      type: "error",
+    });
+    return;
+  }
+}
 
     const payload: ProductPayload = {
       id: initialData?.id,
@@ -423,77 +420,64 @@ export default function ProductForm({
       )}
 
       <div className="space-y-2">
-        <p className="font-medium">{t.product_variants}</p>
+  <p className="font-medium">{t.product_variants ?? "Biến thể sản phẩm"}</p>
 
-        {variants.map((v, i) => (
-          <div key={i} className="grid grid-cols-6 gap-2 items-center">
-            <input
-              type="text"
-              placeholder={t.size}
-              value={v.option1}
-              onChange={(e) => updateVariant(i, "option1", e.target.value)}
-              className="border p-2 rounded col-span-1"
-            />
-            <input
-              type="text"
-              placeholder={t.color_optional}
-              value={v.option2 || ""}
-              onChange={(e) => updateVariant(i, "option2", e.target.value || null)}
-              className="border p-2 rounded col-span-1"
-            />
-            <input
-              type="number"
-              placeholder={t.price_pi}
-              value={v.price}
-              onChange={(e) => updateVariant(i, "price", Number(e.target.value))}
-              className="border p-2 rounded col-span-1"
-            />
-            <input
-              type="number"
-              placeholder={t.stock}
-              value={v.stock}
-              onChange={(e) => updateVariant(i, "stock", Number(e.target.value))}
-              className="border p-2 rounded col-span-1"
-            />
-            <input
-              type="text"
-              placeholder="SKU"
-              value={v.sku}
-              onChange={(e) => updateVariant(i, "sku", e.target.value)}
-              className="border p-2 rounded col-span-1"
-            />
-            <button
-              type="button"
-              onClick={() =>
-                setVariants((prev) => prev.filter((_, idx) => idx !== i))
-              }
-              className="bg-red-500 text-white px-2 rounded col-span-1"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
+  {variants.map((v, i) => (
+    <div key={i} className="grid grid-cols-3 gap-2 items-center">
+      <input
+        type="text"
+        placeholder={t.size ?? "Size / Phân loại"}
+        value={v.optionValue}
+        onChange={(e) => updateVariant(i, "optionValue", e.target.value)}
+        className="border p-2 rounded"
+      />
 
-        <button
-          type="button"
-          onClick={() =>
-            setVariants((prev) => [
-              ...prev,
-              {
-                option1: "",
-                option2: null,
-                option3: null,
-                price: 0,
-                stock: 0,
-                sku: "",
-              },
-            ])
-          }
-          className="bg-green-500 text-white px-3 py-1 rounded"
-        >
-          + {t.add_variant}
-        </button>
-      </div>
+      <input
+        type="number"
+        min={0}
+        placeholder={t.stock ?? "Tồn kho"}
+        value={v.stock}
+        onChange={(e) => updateVariant(i, "stock", Number(e.target.value))}
+        className="border p-2 rounded"
+      />
+
+      <input
+        type="text"
+        placeholder="SKU"
+        value={v.sku ?? ""}
+        onChange={(e) => updateVariant(i, "sku", e.target.value)}
+        className="border p-2 rounded"
+      />
+
+      <button
+        type="button"
+        onClick={() =>
+          setVariants((prev) => prev.filter((_, idx) => idx !== i))
+        }
+        className="bg-red-500 text-white px-2 py-2 rounded col-span-3"
+      >
+        ✕ Xóa biến thể
+      </button>
+    </div>
+  ))}
+
+  <button
+    type="button"
+    onClick={() =>
+      setVariants((prev) => [
+        ...prev,
+        {
+          optionValue: "",
+          stock: 0,
+          sku: "",
+        },
+      ])
+    }
+    className="bg-green-500 text-white px-3 py-1 rounded"
+  >
+    + {t.add_variant ?? "Thêm biến thể"}
+  </button>
+</div>
 
       <textarea
         name="description"
