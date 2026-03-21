@@ -103,65 +103,60 @@ export default function CartPage() {
   };
 
   const validateBeforePay = (): boolean => {
-    if (!window.Pi || !piReady) {
-      showMessage(t.pi_not_ready || "Pi is not ready", "error");
-      return false;
-    }
+  if (!window.Pi || !piReady) {
+    showMessage(t.pi_not_ready || "Pi is not ready", "error");
+    return false;
+  }
 
-    if (!user) {
-  showMessage(t.please_login || "Please login first", "error");
-  return false;
-}
+  if (!user) {
+    showMessage(t.please_login || "Please login first", "error");
+    return false;
+  }
 
-    if (!shipping) {
-      showMessage(
-        t.please_add_shipping_address || "Please add a shipping address",
-        "error"
-      );
-      return false;
-    }
+  if (!shipping) {
+    showMessage(
+      t.please_add_shipping_address || "Please add a shipping address",
+      "error"
+    );
+    return false;
+  }
 
-    if (selectedItems.length === 0) {
-      showMessage(t.please_select_product || "Please select a product", "error");
-      return false;
-    }
+  if (selectedItems.length === 0) {
+    showMessage(t.please_select_product || "Please select a product", "error");
+    return false;
+  }
 
-    if (selectedItems.length > 1) {
-      showMessage(
-        t.only_one_product_supported || "Only 1 product is supported at a time",
-        "error"
-      );
-      return false;
-    }
+  if (selectedItems.length > 1) {
+    showMessage(
+      t.only_one_product_supported || "Only 1 product is supported at a time",
+      "error"
+    );
+    return false;
+  }
 
+  // ✅ CHỈ KHAI BÁO 1 LẦN
+  const item = selectedItems[0];
 
-    // check sản phẩm tồn tại / còn hàng
-const item = selectedItems[0];
+  // check tồn tại
+  if (!item) {
+    showMessage(t.invalid_product || "Invalid product", "error");
+    return false;
+  }
 
-if (!item) {
-  showMessage(t.invalid_product || "Invalid product", "error");
-  return false;
-}
+  // check quantity
+  if (item.quantity < 1 || item.quantity > 100) {
+    showMessage(t.invalid_quantity || "Invalid quantity", "error");
+    return false;
+  }
 
-// ❗ nếu có variant
-if (item.variant && item.variant.stock <= 0) {
-  showMessage(t.out_of_stock || "Out of stock", "error");
-  return false;
-}
+  // check stock
+  if (item.stock !== undefined && item.stock <= 0) {
+    showMessage(t.out_of_stock || "Out of stock", "error");
+    return false;
+  }
 
-// ❗ nếu dùng stock thường
-if (!item.variant && item.stock !== undefined && item.stock <= 0) {
-  showMessage(t.out_of_stock || "Out of stock", "error");
-  return false;
-}
-    const item = selectedItems[0];
-    if (!item || item.quantity < 1 || item.quantity > 100) {
-      showMessage(t.invalid_quantity || "Invalid quantity", "error");
-      return false;
-    }
-
-    return true;
-  };
+  return true;
+};
 
   const handlePay = async () => {
     if (!validateBeforePay()) return;
