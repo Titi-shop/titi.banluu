@@ -443,7 +443,12 @@
   
   "please_select_product": "Vui lòng chọn sản phẩm",
   "only_one_product_supported": "Hiện chỉ hỗ trợ 1 sản phẩm mỗi lần",
-  "transaction_failed": "Thanh toán lỗi"
+  "transaction_failed": "Thanh toán lỗi",
+
+   "invalid_variant": "Các biến thể không hợp lệ: phải có Size, Giá > 0, Số lượng ≥ 0",
+ "add_variant": "Thêm biến thể"
+
+  
 
 
 
