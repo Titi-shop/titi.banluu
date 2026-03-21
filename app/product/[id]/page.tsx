@@ -35,6 +35,15 @@ function calcSalePercent(price: number, finalPrice: number) {
    TYPES
 ======================= */
 
+interface ProductVariant {
+  option1: string;
+  option2?: string | null;
+  option3?: string | null;
+  price: number;
+  stock: number;
+  sku: string;
+}
+
 interface ApiProduct {
   id: string;
   name: string;
@@ -49,6 +58,7 @@ interface ApiProduct {
   stock?: number;
   isActive?: boolean;
   categoryId?: string | null;
+  variants?: ProductVariant[];
 }
 
 interface Product {
@@ -67,6 +77,7 @@ interface Product {
   isActive: boolean;
   isOutOfStock: boolean;
   categoryId: string | null;
+  variants: ProductVariant[];
 }
 
 /* =======================
@@ -84,7 +95,7 @@ export default function ProductDetail() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
-
+const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
   const quantity = 1;
 
   /* =======================
@@ -129,6 +140,7 @@ export default function ProductDetail() {
   stock,
   isActive,
   isOutOfStock: stock <= 0 || !isActive,
+  variants: Array.isArray(api.variants) ? api.variants : [],
 };
         });
 
