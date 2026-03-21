@@ -192,7 +192,15 @@ export default function ProductDetail() {
         setProducts(normalized);
 
         const found = normalized.find((p) => p.id === id);
-        if (found) setProduct(found);
+
+if (found) {
+  setProduct(found);
+
+  const firstAvailableVariant =
+    found.variants.find((v) => (v.isActive ?? true) && v.stock > 0) ?? null;
+
+  setSelectedVariant(firstAvailableVariant);
+}
       } finally {
         setLoading(false);
       }
@@ -245,14 +253,39 @@ const prev = () =>
     i === 0 ? gallery.length - 1 : i - 1
   );
 
+
+  const hasVariants = product.variants.length > 0;
+
+const availableVariants = product.variants.filter(
+  (v) => (v.isActive ?? true) && v.optionValue
+);
+
+const selectedStock = hasVariants
+  ? selectedVariant?.stock ?? 0
+  : product.stock;
+
+const canBuy = hasVariants
+  ? !!selectedVariant && selectedStock > 0
+  : !product.isOutOfStock;
   /* =======================
      ACTIONS
   ======================= */
 
   const add = () => {
+  if (hasVariants && !selectedVariant) {
+    alert("Vui lòng chọn size trước khi thêm vào giỏ hàng");
+    return;
+  }
+
+  if (!canBuy) return;
+
   addToCart({
-    id: product.id,
-    name: product.name,
+    id: hasVariants && selectedVariant?.id
+      ? `${product.id}-${selectedVariant.id}`
+      : product.id,
+    name: hasVariants && selectedVariant
+      ? `${product.name} - ${selectedVariant.optionValue}`
+      : product.name,
     price: product.price,
     sale_price: product.finalPrice,
     thumbnail: product.thumbnail,
@@ -260,13 +293,25 @@ const prev = () =>
     images: product.images,
     quantity,
   });
+
   router.push("/cart");
 };
 
   const buy = () => {
+  if (hasVariants && !selectedVariant) {
+    alert("Vui lòng chọn size trước khi mua hàng");
+    return;
+  }
+
+  if (!canBuy) return;
+
   addToCart({
-    id: product.id,
-    name: product.name,
+    id: hasVariants && selectedVariant?.id
+      ? `${product.id}-${selectedVariant.id}`
+      : product.id,
+    name: hasVariants && selectedVariant
+      ? `${product.name} - ${selectedVariant.optionValue}`
+      : product.name,
     price: product.price,
     sale_price: product.finalPrice,
     thumbnail: product.thumbnail,
@@ -274,6 +319,7 @@ const prev = () =>
     images: product.images,
     quantity,
   });
+
   setOpenCheckout(true);
 };
 
