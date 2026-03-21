@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getVariantsByProductId,
+  replaceVariantsByProductId,
+  type ProductVariant,
+} from "@/lib/db/variants";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+if (!SUPABASE_URL) {
+  throw new Error("NEXT_PUBLIC_SUPABASE_URL is missing");
+}
+
+if (!SERVICE_KEY) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
+}
 
 /* =========================
    TYPES
@@ -24,6 +37,33 @@ type ProductRow = {
   is_active: boolean | null;
 };
 
+type PatchBody = {
+  name?: string;
+  description?: string;
+  detail?: string;
+  images?: string[];
+  thumbnail?: string | null;
+  categoryId?: string | null;
+  price?: number;
+  salePrice?: number | null;
+  saleStart?: string | null;
+  saleEnd?: string | null;
+  stock?: number;
+  is_active?: boolean;
+  variants?: ProductVariant[];
+};
+
+/* =========================
+   HELPERS
+========================= */
+function supabaseHeaders() {
+  return {
+    apikey: SERVICE_KEY,
+    Authorization: `Bearer ${SERVICE_KEY}`,
+    "Content-Type": "application/json",
+  };
+}
+
 /* =========================
    PATCH /api/products/[id]
 ========================= */
@@ -41,48 +81,54 @@ export async function PATCH(
       );
     }
 
-    const body = await req.json();
+    const body = (await req.json()) as PatchBody;
+
+    const updatePayload = {
+      name: typeof body.name === "string" ? body.name.trim() : "",
+      description:
+        typeof body.description === "string" ? body.description : "",
+      detail: typeof body.detail === "string" ? body.detail : "",
+      images: Array.isArray(body.images)
+        ? body.images.filter((item): item is string => typeof item === "string")
+        : [],
+      category_id:
+        typeof body.categoryId === "string" && body.categoryId.trim() !== ""
+          ? body.categoryId
+          : null,
+      price: typeof body.price === "number" && !Number.isNaN(body.price) ? body.price : 0,
+      sale_price:
+        typeof body.salePrice === "number" && !Number.isNaN(body.salePrice)
+          ? body.salePrice
+          : null,
+      sale_start:
+        typeof body.saleStart === "string" && body.saleStart.trim() !== ""
+          ? body.saleStart
+          : null,
+      sale_end:
+        typeof body.saleEnd === "string" && body.saleEnd.trim() !== ""
+          ? body.saleEnd
+          : null,
+      stock:
+        typeof body.stock === "number" && body.stock >= 0 ? body.stock : 0,
+      is_active:
+        typeof body.is_active === "boolean" ? body.is_active : true,
+      thumbnail:
+        typeof body.thumbnail === "string" && body.thumbnail.trim() !== ""
+          ? body.thumbnail
+          : Array.isArray(body.images) && body.images.length > 0
+          ? body.images[0]
+          : null,
+    };
 
     const updateRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${id}`,
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}`,
       {
         method: "PATCH",
         headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-          "Content-Type": "application/json",
+          ...supabaseHeaders(),
           Prefer: "return=representation",
         },
-        body: JSON.stringify({
-          name: typeof body.name === "string" ? body.name : "",
-          description:
-            typeof body.description === "string" ? body.description : "",
-          detail: typeof body.detail === "string" ? body.detail : "",
-          images: Array.isArray(body.images)
-            ? body.images.filter((item: unknown) => typeof item === "string")
-            : [],
-          category_id:
-            typeof body.categoryId === "string" && body.categoryId.trim() !== ""
-              ? body.categoryId
-              : null,
-          price: typeof body.price === "number" ? body.price : 0,
-          sale_price:
-            typeof body.salePrice === "number" ? body.salePrice : null,
-          sale_start:
-            typeof body.saleStart === "string" && body.saleStart.trim() !== ""
-              ? body.saleStart
-              : null,
-          sale_end:
-            typeof body.saleEnd === "string" && body.saleEnd.trim() !== ""
-              ? body.saleEnd
-              : null,
-          stock:
-            typeof body.stock === "number" && body.stock >= 0 ? body.stock : 0,
-          is_active:
-            typeof body.is_active === "boolean" ? body.is_active : true,
-          thumbnail:
-            typeof body.thumbnail === "string" ? body.thumbnail : null,
-        }),
+        body: JSON.stringify(updatePayload),
       }
     );
 
@@ -95,9 +141,42 @@ export async function PATCH(
       );
     }
 
-    const data = await updateRes.json();
+    const data: ProductRow[] = await updateRes.json();
 
-    return NextResponse.json(data[0]);
+    if (!data.length) {
+      return NextResponse.json(
+        { error: "PRODUCT_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    if (Array.isArray(body.variants)) {
+      await replaceVariantsByProductId(id, body.variants);
+    }
+
+    const updatedVariants = await getVariantsByProductId(id);
+
+    return NextResponse.json({
+      id: data[0].id,
+      name: data[0].name,
+      price: data[0].price,
+
+      salePrice: data[0].sale_price ?? null,
+      saleStart: data[0].sale_start ?? null,
+      saleEnd: data[0].sale_end ?? null,
+
+      description: data[0].description ?? "",
+      detail: data[0].detail ?? "",
+
+      images: data[0].images ?? [],
+      thumbnail: data[0].thumbnail ?? (data[0].images?.[0] ?? ""),
+
+      categoryId: data[0].category_id ?? "",
+      stock: data[0].stock ?? 0,
+      is_active: data[0].is_active ?? true,
+
+      variants: updatedVariants,
+    });
   } catch (err) {
     console.error("❌ PRODUCT PATCH ERROR:", err);
     return NextResponse.json(
@@ -125,7 +204,7 @@ export async function GET(
     }
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${id}&select=*`,
+      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}&select=*`,
       {
         headers: {
           apikey: SERVICE_KEY,
@@ -154,6 +233,7 @@ export async function GET(
     }
 
     const p = data[0];
+    const variants = await getVariantsByProductId(id);
 
     return NextResponse.json({
       id: p.id,
@@ -173,6 +253,8 @@ export async function GET(
       categoryId: p.category_id ?? "",
       stock: p.stock ?? 0,
       is_active: p.is_active ?? true,
+
+      variants,
     });
   } catch (err) {
     console.error("❌ PRODUCT [ID] ERROR:", err);
