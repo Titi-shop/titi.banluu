@@ -457,7 +457,13 @@
   "products": "sản phẩm",
   "no_reviews": "Chưa có đánh giá",
   "views": "lượt xem",
-  "reviews": "đánh giá"
+  "reviews": "đánh giá",
+
+  "please_login": "Vui lòng đăng nhập",
+  "please_add_shipping_address": "Vui lòng thêm địa chỉ",
+  "invalid_product": "Sản phẩm không hợp lệ",
+  "out_of_stock": "Hết hàng"
+
 
 
     
