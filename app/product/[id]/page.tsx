@@ -393,25 +393,93 @@ const canBuy = hasVariants
       </div>
 
       {/* META */}
-      <div className="bg-white px-4 pb-4 flex gap-4 text-gray-600 text-sm">
-        <span>👁 {product.views}</span>
-        <span>
-          🛒 {product.sold} {t.orders}
-        </span>
-      </div>
+      <div className="bg-white px-4 pb-4 flex flex-wrap gap-4 text-gray-600 text-sm items-center">
+  <span>👁 {product.views}</span>
+
+  <span className="flex items-center gap-1">
+    <ShoppingCart className="w-4 h-4" />
+    {product.sold} {t.orders}
+  </span>
+
+  <span className="flex items-center gap-1">
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`w-4 h-4 ${
+            star <= Math.round(product.ratingAvg)
+              ? "fill-yellow-400 text-yellow-400"
+              : "text-gray-300"
+          }`}
+        />
+      ))}
+    </span>
+    <span className="font-medium">
+      {product.ratingAvg.toFixed(1)}
+    </span>
+    <span className="text-gray-400">
+      ({product.ratingCount})
+    </span>
+  </span>
+</div>
 
       {/* STOCK */}
       <div className="bg-white px-4 pb-4 text-sm">
-        {product.isOutOfStock ? (
+  {hasVariants ? (
+    <div className="space-y-3">
+      <div>
+        {canBuy ? (
+          <span className="text-green-600">
+            ✅ Còn {selectedStock} sản phẩm
+          </span>
+        ) : (
           <span className="text-red-500 font-semibold">
             ❌ Hết hàng
           </span>
-        ) : (
-          <span className="text-green-600">
-            ✅ Còn {product.stock} sản phẩm
-          </span>
         )}
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        {availableVariants.map((variant) => {
+          const isSelected = selectedVariant?.id === variant.id;
+          const isDisabled = variant.stock <= 0;
+
+          return (
+            <button
+              key={variant.id ?? variant.optionValue}
+              type="button"
+              onClick={() => {
+                if (isDisabled) return;
+                setSelectedVariant(variant);
+              }}
+              disabled={isDisabled}
+              className={`min-w-[52px] rounded-md border px-3 py-2 text-sm transition ${
+                isDisabled
+                  ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                  : isSelected
+                  ? "border-orange-500 bg-orange-50 text-orange-600"
+                  : "border-gray-300 bg-white text-gray-700"
+              }`}
+            >
+              <div className="font-medium">{variant.optionValue}</div>
+              <div className="text-[11px]">
+                {variant.stock > 0 ? `Còn ${variant.stock}` : "Hết"}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ) : product.isOutOfStock ? (
+    <span className="text-red-500 font-semibold">
+      ❌ Hết hàng
+    </span>
+  ) : (
+    <span className="text-green-600">
+      ✅ Còn {product.stock} sản phẩm
+    </span>
+  )}
+</div>
 
       {/* DESCRIPTION */}
       <div className="bg-white p-4">
@@ -494,28 +562,24 @@ const canBuy = hasVariants
       {/* ACTIONS */}
       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
         <button
-          onClick={add}
-          disabled={product.isOutOfStock}
-          className={`flex-1 py-2 rounded-md text-white ${
-            product.isOutOfStock
-              ? "bg-gray-400"
-              : "bg-yellow-500"
-          }`}
-        >
-          {t.add_to_cart}
-        </button>
+  onClick={add}
+  disabled={!canBuy}
+  className={`flex-1 py-2 rounded-md text-white ${
+    !canBuy ? "bg-gray-400" : "bg-yellow-500"
+  }`}
+>
+  {t.add_to_cart}
+</button>
 
-        <button
-          onClick={buy}
-          disabled={product.isOutOfStock}
-          className={`flex-1 py-2 rounded-md text-white ${
-            product.isOutOfStock
-              ? "bg-gray-400"
-              : "bg-red-500"
-          }`}
-        >
-          {product.isOutOfStock ? "Hết hàng" : t.buy_now}
-        </button>
+<button
+  onClick={buy}
+  disabled={!canBuy}
+  className={`flex-1 py-2 rounded-md text-white ${
+    !canBuy ? "bg-gray-400" : "bg-red-500"
+  }`}
+>
+  {!canBuy ? "Hết hàng" : t.buy_now}
+</button>
       </div>
 
       {/* CHECKOUT */}
@@ -523,8 +587,14 @@ const canBuy = hasVariants
   open={openCheckout}
   onClose={() => setOpenCheckout(false)}
   product={{
-    id: product.id,
-    name: product.name,
+    id:
+      hasVariants && selectedVariant?.id
+        ? `${product.id}-${selectedVariant.id}`
+        : product.id,
+    name:
+      hasVariants && selectedVariant
+        ? `${product.name} - ${selectedVariant.optionValue}`
+        : product.name,
     price: product.price,
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
