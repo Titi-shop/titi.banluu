@@ -35,15 +35,6 @@ function calcSalePercent(price: number, finalPrice: number) {
    TYPES
 ======================= */
 
-interface ProductVariant {
-  option1: string;
-  option2?: string | null;
-  option3?: string | null;
-  price: number;
-  stock: number;
-  sku: string;
-}
-
 interface ApiProduct {
   id: string;
   name: string;
@@ -58,7 +49,6 @@ interface ApiProduct {
   stock?: number;
   isActive?: boolean;
   categoryId?: string | null;
-  variants?: ProductVariant[];
 }
 
 interface Product {
@@ -77,7 +67,6 @@ interface Product {
   isActive: boolean;
   isOutOfStock: boolean;
   categoryId: string | null;
-  variants: ProductVariant[];
 }
 
 /* =======================
@@ -95,7 +84,7 @@ export default function ProductDetail() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
-const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
+
   const quantity = 1;
 
   /* =======================
@@ -140,7 +129,6 @@ const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
   stock,
   isActive,
   isOutOfStock: stock <= 0 || !isActive,
-  variants: Array.isArray(api.variants) ? api.variants : [],
 };
         });
 
@@ -176,20 +164,7 @@ const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
   ======================= */
   if (loading) return <p className="p-4">{t.loading}</p>;
   if (!product) return <p className="p-4">{t.no_products}</p>;
-const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
 
-const selectedVariant =
-  hasVariants && product.variants[selectedVariantIndex]
-    ? product.variants[selectedVariantIndex]
-    : null;
-
-const displayPrice = selectedVariant ? selectedVariant.price : product.finalPrice;
-const displayStock = selectedVariant ? selectedVariant.stock : product.stock;
-const isVariantOutOfStock = selectedVariant ? selectedVariant.stock <= 0 : false;
-
-const finalOutOfStock = hasVariants
-  ? isVariantOutOfStock || !product.isActive
-  : product.isOutOfStock;
   const relatedProducts = products.filter(
     (p) =>
       p.id !== product.id &&
@@ -222,23 +197,12 @@ const prev = () =>
     id: product.id,
     name: product.name,
     price: product.price,
-    sale_price: displayPrice,
+    sale_price: product.finalPrice,
     thumbnail: product.thumbnail,
     image: product.thumbnail || product.images?.[0] || "",
     images: product.images,
     quantity,
-    variant: selectedVariant
-      ? {
-          option1: selectedVariant.option1,
-          option2: selectedVariant.option2 ?? null,
-          option3: selectedVariant.option3 ?? null,
-          sku: selectedVariant.sku,
-          price: selectedVariant.price,
-          stock: selectedVariant.stock,
-        }
-      : null,
   });
-
   router.push("/cart");
 };
 
@@ -247,23 +211,12 @@ const prev = () =>
     id: product.id,
     name: product.name,
     price: product.price,
-    sale_price: displayPrice,
+    sale_price: product.finalPrice,
     thumbnail: product.thumbnail,
     image: product.thumbnail || product.images?.[0] || "",
     images: product.images,
     quantity,
-    variant: selectedVariant
-      ? {
-          option1: selectedVariant.option1,
-          option2: selectedVariant.option2 ?? null,
-          option3: selectedVariant.option3 ?? null,
-          sku: selectedVariant.sku,
-          price: selectedVariant.price,
-          stock: selectedVariant.stock,
-        }
-      : null,
   });
-
   setOpenCheckout(true);
 };
 
@@ -324,11 +277,9 @@ const prev = () =>
         </h2>
 
         <div className="text-right">
-          {!hasVariants && product.isSale && (
-  <p className="text-sm text-gray-400 line-through">
-    π {formatPi(product.price)}
-  </p>
-)}
+          <p className="text-xl font-bold text-orange-600">
+            π {formatPi(product.finalPrice)}
+          </p>
 
           {product.isSale && (
             <p className="text-sm text-gray-400 line-through">
@@ -348,70 +299,16 @@ const prev = () =>
 
       {/* STOCK */}
       <div className="bg-white px-4 pb-4 text-sm">
-        {finalOutOfStock ? (
-  <span className="text-red-500 font-semibold">
-    ❌ Hết hàng
-  </span>
-) : (
-  <span className="text-green-600">
-    ✅ Còn {displayStock} sản phẩm
-  </span>
-)}
+        {product.isOutOfStock ? (
+          <span className="text-red-500 font-semibold">
+            ❌ Hết hàng
+          </span>
+        ) : (
+          <span className="text-green-600">
+            ✅ Còn {product.stock} sản phẩm
+          </span>
+        )}
       </div>
-
-      {/* VARIANTS */}
-{hasVariants && (
-  <div className="bg-white mt-2 px-4 py-4">
-    <h3 className="text-sm font-semibold mb-3">
-      {t.product_variants ?? "Phân loại"}
-    </h3>
-
-    <div className="space-y-2">
-      {product.variants.map((variant, index) => {
-        const active = index === selectedVariantIndex;
-        const out = variant.stock <= 0;
-
-        return (
-          <button
-            key={`${variant.sku}-${index}`}
-            type="button"
-            onClick={() => setSelectedVariantIndex(index)}
-            className={`w-full text-left border rounded-lg p-3 ${
-              active
-                ? "border-orange-500 bg-orange-50"
-                : "border-gray-200 bg-white"
-            } ${out ? "opacity-60" : ""}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-medium text-sm">
-                  {variant.option1}
-                  {variant.option2 ? ` - ${variant.option2}` : ""}
-                  {variant.option3 ? ` - ${variant.option3}` : ""}
-                </p>
-
-                {variant.sku && (
-                  <p className="text-xs text-gray-500">
-                    SKU: {variant.sku}
-                  </p>
-                )}
-              </div>
-
-              <div className="text-right">
-                <p className="text-sm font-semibold text-orange-600">
-                  π {formatPi(variant.price)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {out ? "Hết hàng" : `Còn ${variant.stock}`}
-                </p>
-              </div>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  </div>
-)}
 
       {/* DESCRIPTION */}
       <div className="bg-white p-4">
@@ -507,9 +404,9 @@ const prev = () =>
 
         <button
           onClick={buy}
-          disabled={finalOutOfStock}
+          disabled={product.isOutOfStock}
           className={`flex-1 py-2 rounded-md text-white ${
-            finalOutOfStock
+            product.isOutOfStock
               ? "bg-gray-400"
               : "bg-red-500"
           }`}
@@ -526,20 +423,10 @@ const prev = () =>
     id: product.id,
     name: product.name,
     price: product.price,
-    finalPrice: displayPrice,
+    finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
     image: product.thumbnail || product.images?.[0] || "",
     images: product.images,
-    variant: selectedVariant
-      ? {
-          option1: selectedVariant.option1,
-          option2: selectedVariant.option2 ?? null,
-          option3: selectedVariant.option3 ?? null,
-          sku: selectedVariant.sku,
-          price: selectedVariant.price,
-          stock: selectedVariant.stock,
-        }
-      : null,
   }}
 />
     </div>
