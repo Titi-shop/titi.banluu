@@ -9,24 +9,18 @@ if (!SERVICE_KEY) {
   throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
 }
 
-import {
-  createVariantsForProduct,
-  getVariantsByProductId,
-  replaceVariantsByProductId,
-  type ProductVariant,
-} from "@/lib/db/variants";
-
 /* =========================================================
    TYPES
 ========================================================= */
 
+/** Row đúng theo DB (price lưu decimal PI) */
 type ProductRow = {
   id: string;
 
   name: string;
-  slug: string | null;
+  slug: string;
 
-  short_description: string | null;
+  short_description: string;
   description: string;
   detail: string;
 
@@ -36,14 +30,14 @@ type ProductRow = {
 
   video_url: string | null;
 
-  price: number;
-  sale_price: number | null;
-  currency: string | null;
+  price: number; // decimal PI
+sale_price: number | null; // decimal PI
+  currency: string;
 
   stock: number;
   is_unlimited: boolean;
 
-  category_id: string | null;
+  category_id: number | null;
 
   seller_id: string;
 
@@ -53,7 +47,7 @@ type ProductRow = {
   rating_avg: number;
   rating_count: number;
 
-  is_active: boolean;
+  status: "draft" | "active" | "inactive" | "archived" | "banned";
 
   is_featured: boolean;
   is_digital: boolean;
@@ -70,43 +64,11 @@ type ProductRow = {
   updated_at: string | null;
 };
 
-export type ProductRecord = ProductRow & {
-  variants: ProductVariant[];
-};
-
-export type CreateProductInput = {
-  name: string;
-  description: string;
-  detail: string;
-  thumbnail: string | null;
-  images: string[];
-  detail_images?: string[];
-  variants?: ProductVariant[];
+/** Type dùng trong app (price dạng decimal) */
+export type ProductRecord = Omit<ProductRow, "price" | "sale_price"> & {
   price: number;
   sale_price: number | null;
-  stock: number;
-  category_id: string | null;
-  sale_start: string | null;
-  sale_end: string | null;
-  is_active: boolean;
 };
-
-export type UpdateProductInput = Partial<{
-  name: string;
-  description: string;
-  detail: string;
-  thumbnail: string | null;
-  images: string[];
-  detail_images: string[];
-  variants: ProductVariant[];
-  price: number;
-  sale_price: number | null;
-  stock: number;
-  category_id: string | null;
-  sale_start: string | null;
-  sale_end: string | null;
-  is_active: boolean;
-}>;
 
 /* =========================================================
    INTERNAL HELPERS
@@ -120,23 +82,19 @@ function supabaseHeaders() {
   };
 }
 
-function toDbPrice(value: number): number {
-  return Number(value);
-}
-
-async function toAppProduct(row: ProductRow): Promise<ProductRecord> {
-  const variants = await getVariantsByProductId(row.id);
-
+function toAppProduct(row: ProductRow): ProductRecord {
   return {
     ...row,
     price: Number(row.price),
-    sale_price: row.sale_price !== null ? Number(row.sale_price) : null,
-    variants,
+    sale_price:
+      row.sale_price !== null
+        ? Number(row.sale_price)
+        : null,
   };
 }
 
-async function attachVariants(rows: ProductRow[]): Promise<ProductRecord[]> {
-  return await Promise.all(rows.map(toAppProduct));
+function toDbPrice(value: number): number {
+  return Number(value);
 }
 
 /* =========================================================
@@ -144,9 +102,7 @@ async function attachVariants(rows: ProductRow[]): Promise<ProductRecord[]> {
 ========================================================= */
 
 export async function getAllProducts(): Promise<ProductRecord[]> {
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?is_active=eq.true&deleted_at=is.null&select=*`;
+  const url = `${SUPABASE_URL}/rest/v1/products?status=eq.active&deleted_at=is.null&select=*`;
 
   const res = await fetch(url, {
     headers: supabaseHeaders(),
@@ -160,12 +116,13 @@ export async function getAllProducts(): Promise<ProductRecord[]> {
   }
 
   const rows: ProductRow[] = await res.json();
-  return await attachVariants(rows);
+  return rows.map(toAppProduct);
 }
 
 /* =========================================================
    GET — PRODUCTS BY SELLER
 ========================================================= */
+
 
 export async function getSellerProducts(
   sellerPiUid: string
@@ -187,48 +144,18 @@ export async function getSellerProducts(
   }
 
   const rows: ProductRow[] = await res.json();
-  return await attachVariants(rows);
+  return rows.map(toAppProduct);
 }
-
-/* =========================================================
-   GET — PRODUCT BY ID
-========================================================= */
-
-export async function getProductById(
-  productId: string
-): Promise<ProductRecord | null> {
-  const url =
-    `${SUPABASE_URL}/rest/v1/products` +
-    `?id=eq.${encodeURIComponent(productId)}` +
-    `&deleted_at=is.null&select=*`;
-
-  const res = await fetch(url, {
-    headers: supabaseHeaders(),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ SUPABASE GET PRODUCT BY ID ERROR:", text);
-    throw new Error("FAILED_TO_FETCH_PRODUCT");
-  }
-
-  const rows: ProductRow[] = await res.json();
-
-  if (!rows.length) {
-    return null;
-  }
-
-  return await toAppProduct(rows[0]);
-}
-
 /* =========================================================
    POST — CREATE PRODUCT
 ========================================================= */
 
 export async function createProduct(
   sellerPiUid: string,
-  product: CreateProductInput
+  product: Omit<
+    ProductRecord,
+    "id" | "seller_id" | "created_at" | "updated_at"
+  >
 ): Promise<ProductRecord> {
   if (Number.isNaN(product.price)) {
     throw new Error("INVALID_PRICE");
@@ -241,43 +168,14 @@ export async function createProduct(
     throw new Error("INVALID_SALE_PRICE");
   }
 
-  const payload = {
-    name: product.name.trim(),
-    slug: null,
-    short_description: null,
-    description: product.description,
-    detail: product.detail,
-    thumbnail: product.thumbnail,
-    images: Array.isArray(product.images) ? product.images : [],
-    detail_images: Array.isArray(product.detail_images)
-      ? product.detail_images
-      : [],
-    video_url: null,
+  const payload: Omit<ProductRow, "id" | "created_at" | "updated_at"> = {
+    ...product,
     price: toDbPrice(product.price),
     sale_price:
       product.sale_price !== null
         ? toDbPrice(product.sale_price)
         : null,
-    currency: "PI",
-    stock:
-      typeof product.stock === "number" && product.stock >= 0
-        ? product.stock
-        : 0,
-    is_unlimited: false,
-    category_id: product.category_id,
     seller_id: sellerPiUid,
-    views: 0,
-    sold: 0,
-    rating_avg: 0,
-    rating_count: 0,
-    is_active: product.is_active,
-    is_featured: false,
-    is_digital: false,
-    sale_start: product.sale_start,
-    sale_end: product.sale_end,
-    meta_title: null,
-    meta_description: null,
-    deleted_at: null,
   };
 
   const res = await fetch(`${SUPABASE_URL}/rest/v1/products`, {
@@ -296,20 +194,7 @@ export async function createProduct(
   }
 
   const rows: ProductRow[] = await res.json();
-
-  if (!rows.length) {
-    throw new Error("FAILED_TO_CREATE_PRODUCT");
-  }
-
-  const createdRow = rows[0];
-
-  await createVariantsForProduct(
-    createdRow.id,
-    Array.isArray(product.variants) ? product.variants : [],
-    product.price
-  );
-
-  return await toAppProduct(createdRow);
+  return toAppProduct(rows[0]);
 }
 
 /* =========================================================
@@ -319,35 +204,23 @@ export async function createProduct(
 export async function updateProductBySeller(
   sellerPiUid: string,
   productId: string,
-  data: UpdateProductInput
+  data: Partial<
+    Pick<
+      ProductRecord,
+      | "name"
+      | "description"
+      | "price"
+      | "sale_price"
+      | "images"
+      | "detail_images"
+      | "category_id"
+      | "sale_start"
+      | "sale_end"
+      | "status"
+    >
+  >
 ): Promise<boolean> {
-  const payload: Record<string, unknown> = {};
-
-  if (data.name !== undefined) {
-    payload.name = data.name.trim();
-  }
-
-  if (data.description !== undefined) {
-    payload.description = data.description;
-  }
-
-  if (data.detail !== undefined) {
-    payload.detail = data.detail;
-  }
-
-  if (data.thumbnail !== undefined) {
-    payload.thumbnail = data.thumbnail;
-  }
-
-  if (data.images !== undefined) {
-    payload.images = Array.isArray(data.images) ? data.images : [];
-  }
-
-  if (data.detail_images !== undefined) {
-    payload.detail_images = Array.isArray(data.detail_images)
-      ? data.detail_images
-      : [];
-  }
+  const payload: Partial<ProductRow> = { ...data };
 
   if (data.price !== undefined) {
     if (Number.isNaN(data.price)) {
@@ -363,30 +236,10 @@ export async function updateProductBySeller(
     ) {
       throw new Error("INVALID_SALE_PRICE");
     }
-
     payload.sale_price =
-      data.sale_price !== null ? toDbPrice(data.sale_price) : null;
-  }
-
-  if (data.stock !== undefined) {
-    payload.stock =
-      typeof data.stock === "number" && data.stock >= 0 ? data.stock : 0;
-  }
-
-  if (data.category_id !== undefined) {
-    payload.category_id = data.category_id;
-  }
-
-  if (data.sale_start !== undefined) {
-    payload.sale_start = data.sale_start;
-  }
-
-  if (data.sale_end !== undefined) {
-    payload.sale_end = data.sale_end;
-  }
-
-  if (data.is_active !== undefined) {
-    payload.is_active = data.is_active;
+      data.sale_price !== null
+        ? toDbPrice(data.sale_price)
+        : null;
   }
 
   const url =
@@ -398,7 +251,7 @@ export async function updateProductBySeller(
     method: "PATCH",
     headers: {
       ...supabaseHeaders(),
-      Prefer: "return=representation",
+      Prefer: "return=minimal",
     },
     body: JSON.stringify(payload),
   });
@@ -407,20 +260,6 @@ export async function updateProductBySeller(
     const text = await res.text();
     console.error("❌ SUPABASE UPDATE PRODUCT ERROR:", text);
     throw new Error("FAILED_TO_UPDATE_PRODUCT");
-  }
-
-  const rows: ProductRow[] = await res.json();
-
-  if (!rows.length) {
-    return false;
-  }
-
-  if (data.variants !== undefined) {
-    await replaceVariantsByProductId(
-      productId,
-      data.variants,
-      typeof data.price === "number" ? data.price : 0
-    );
   }
 
   return true;
