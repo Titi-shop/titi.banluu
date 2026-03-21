@@ -454,7 +454,11 @@
   "in_stock": "Còn",
   "out_of_stock": "Hết hàng",
   "out_of_stock_short": "Hết",
-  "products": "sản phẩm"
+  "products": "sản phẩm",
+  "no_reviews": "Chưa có đánh giá",
+  "views": "lượt xem",
+  "reviews": "đánh giá"
+
 
     
   
