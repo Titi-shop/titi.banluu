@@ -394,7 +394,9 @@ const canBuy = hasVariants
 
       {/* META */}
       <div className="bg-white px-4 pb-4 flex flex-wrap gap-4 text-gray-600 text-sm items-center">
-  <span>👁 {product.views}</span>
+  <span>
+    👁 {product.views} {t.views}
+  </span>
 
   <span className="flex items-center gap-1">
     <ShoppingCart className="w-4 h-4" />
@@ -414,11 +416,13 @@ const canBuy = hasVariants
         />
       ))}
     </span>
+
     <span className="font-medium">
       {product.ratingAvg.toFixed(1)}
     </span>
+
     <span className="text-gray-400">
-      ({product.ratingCount})
+      ({product.ratingCount} {t.reviews})
     </span>
   </span>
 </div>
@@ -430,11 +434,11 @@ const canBuy = hasVariants
       <div>
         {canBuy ? (
           <span className="text-green-600">
-            ✅ Còn {selectedStock} sản phẩm
+            ✅ {t.in_stock} {selectedStock} {t.products}
           </span>
         ) : (
           <span className="text-red-500 font-semibold">
-            ❌ Hết hàng
+            ❌ {t.out_of_stock}
           </span>
         )}
       </div>
@@ -463,7 +467,9 @@ const canBuy = hasVariants
             >
               <div className="font-medium">{variant.optionValue}</div>
               <div className="text-[11px]">
-                {variant.stock > 0 ? `Còn ${variant.stock}` : "Hết"}
+                {variant.stock > 0
+                  ? `${t.in_stock} ${variant.stock}`
+                  : t.out_of_stock_short}
               </div>
             </button>
           );
@@ -472,11 +478,11 @@ const canBuy = hasVariants
     </div>
   ) : product.isOutOfStock ? (
     <span className="text-red-500 font-semibold">
-      ❌ Hết hàng
+      ❌ {t.out_of_stock}
     </span>
   ) : (
     <span className="text-green-600">
-      ✅ Còn {product.stock} sản phẩm
+      ✅ {t.in_stock} {product.stock} {t.products}
     </span>
   )}
 </div>
