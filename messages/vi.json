@@ -446,8 +446,13 @@
   "transaction_failed": "Thanh toán lỗi",
 
    "invalid_variant": "Các biến thể không hợp lệ: phải có Size, Giá > 0, Số lượng ≥ 0",
- "add_variant": "Thêm biến thể"
-
+   "add_variant": "Thêm biến thể",
+  "color_optional": "Màu (tùy chọn)",
+   "price_pi": "Giá",
+    "size": "Size",
+   "product_variants": "Các biến thể sản phẩm"
+    
+  
   
 
 
