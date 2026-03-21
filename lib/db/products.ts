@@ -12,7 +12,14 @@ if (!SERVICE_KEY) {
 /* =========================================================
    TYPES
 ========================================================= */
-
+type ProductVariant = {
+  option1: string;
+  option2?: string | null;
+  option3?: string | null;
+  price: number;
+  stock: number;
+  sku: string;
+};
 /** Row đúng theo DB (price lưu decimal PI) */
 type ProductRow = {
   id: string;
@@ -33,7 +40,7 @@ type ProductRow = {
   price: number; // decimal PI
 sale_price: number | null; // decimal PI
   currency: string;
-
+variants: ProductVariant[];
   stock: number;
   is_unlimited: boolean;
 
@@ -90,6 +97,7 @@ function toAppProduct(row: ProductRow): ProductRecord {
       row.sale_price !== null
         ? Number(row.sale_price)
         : null,
+    variants: Array.isArray(row.variants) ? row.variants : [],
   };
 }
 
@@ -169,14 +177,15 @@ export async function createProduct(
   }
 
   const payload: Omit<ProductRow, "id" | "created_at" | "updated_at"> = {
-    ...product,
-    price: toDbPrice(product.price),
-    sale_price:
-      product.sale_price !== null
-        ? toDbPrice(product.sale_price)
-        : null,
-    seller_id: sellerPiUid,
-  };
+  ...product,
+  price: toDbPrice(product.price),
+  sale_price:
+    product.sale_price !== null
+      ? toDbPrice(product.sale_price)
+      : null,
+  seller_id: sellerPiUid,
+  variants: Array.isArray(product.variants) ? product.variants : [],
+};
 
   const res = await fetch(`${SUPABASE_URL}/rest/v1/products`, {
     method: "POST",
@@ -205,20 +214,25 @@ export async function updateProductBySeller(
   sellerPiUid: string,
   productId: string,
   data: Partial<
-    Pick<
-      ProductRecord,
-      | "name"
-      | "description"
-      | "price"
-      | "sale_price"
-      | "images"
-      | "detail_images"
-      | "category_id"
-      | "sale_start"
-      | "sale_end"
-      | "status"
-    >
+  Pick<
+    ProductRecord,
+    | "name"
+    | "description"
+    | "detail"
+    | "thumbnail"
+    | "price"
+    | "sale_price"
+    | "images"
+    | "detail_images"
+    | "variants"
+    | "stock"
+    | "category_id"
+    | "sale_start"
+    | "sale_end"
+    | "status"
+    | "is_active"
   >
+>
 ): Promise<boolean> {
   const payload: Partial<ProductRow> = { ...data };
 
