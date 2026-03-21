@@ -202,7 +202,11 @@ export async function GET(req: Request) {
           isOutOfStock: finalStock <= 0 || !isActive,
 
           views: typeof p.views === "number" ? p.views : 0,
-          sold: typeof p.sold === "number" ? p.sold : 0,
+sold: typeof p.sold === "number" ? p.sold : 0,
+rating_avg: typeof p.rating_avg === "number" ? p.rating_avg : 0,
+rating_count: typeof p.rating_count === "number" ? p.rating_count : 0,
+
+variants,
 
           variants,
         };
