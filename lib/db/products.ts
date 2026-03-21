@@ -13,62 +13,104 @@ if (!SERVICE_KEY) {
    TYPES
 ========================================================= */
 
-/** Row đúng theo DB (price lưu decimal PI) */
+type ProductStatus =
+  | "draft"
+  | "active"
+  | "inactive"
+  | "archived"
+  | "banned";
+
 type ProductRow = {
   id: string;
 
   name: string;
-  slug: string;
+  slug?: string | null;
 
-  short_description: string;
+  short_description?: string | null;
   description: string;
   detail: string;
 
   thumbnail: string | null;
   images: string[];
-  detail_images: string[];
+  detail_images?: string[] | null;
 
-  video_url: string | null;
+  video_url?: string | null;
 
-  price: number; // decimal PI
-sale_price: number | null; // decimal PI
-  currency: string;
+  price: number;
+  sale_price: number | null;
+  currency?: string | null;
 
   stock: number;
-  is_unlimited: boolean;
+  is_unlimited?: boolean | null;
+  is_active?: boolean | null;
 
-  category_id: number | null;
+  category_id: string | null;
 
   seller_id: string;
 
-  views: number;
-  sold: number;
+  views?: number | null;
+  sold?: number | null;
 
-  rating_avg: number;
-  rating_count: number;
+  rating_avg?: number | null;
+  rating_count?: number | null;
 
-  status: "draft" | "active" | "inactive" | "archived" | "banned";
+  status?: ProductStatus | null;
 
-  is_featured: boolean;
-  is_digital: boolean;
+  is_featured?: boolean | null;
+  is_digital?: boolean | null;
 
   sale_start: string | null;
   sale_end: string | null;
 
-  meta_title: string | null;
-  meta_description: string | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
 
-  deleted_at: string | null;
+  deleted_at?: string | null;
 
   created_at: string;
   updated_at: string | null;
 };
 
-/** Type dùng trong app (price dạng decimal) */
 export type ProductRecord = Omit<ProductRow, "price" | "sale_price"> & {
   price: number;
   sale_price: number | null;
 };
+
+export type CreateProductInput = {
+  name: string;
+  description: string;
+  detail: string;
+  images: string[];
+  thumbnail: string | null;
+  category_id: string | null;
+  price: number;
+  sale_price: number | null;
+  sale_start: string | null;
+  sale_end: string | null;
+  stock: number;
+  is_active: boolean;
+  views?: number;
+  sold?: number;
+};
+
+export type UpdateProductInput = Partial<
+  Pick<
+    ProductRecord,
+    | "name"
+    | "description"
+    | "detail"
+    | "images"
+    | "thumbnail"
+    | "category_id"
+    | "price"
+    | "sale_price"
+    | "sale_start"
+    | "sale_end"
+    | "stock"
+    | "is_active"
+    | "status"
+  >
+>;
 
 /* =========================================================
    INTERNAL HELPERS
@@ -86,10 +128,7 @@ function toAppProduct(row: ProductRow): ProductRecord {
   return {
     ...row,
     price: Number(row.price),
-    sale_price:
-      row.sale_price !== null
-        ? Number(row.sale_price)
-        : null,
+    sale_price: row.sale_price !== null ? Number(row.sale_price) : null,
   };
 }
 
@@ -102,7 +141,9 @@ function toDbPrice(value: number): number {
 ========================================================= */
 
 export async function getAllProducts(): Promise<ProductRecord[]> {
-  const url = `${SUPABASE_URL}/rest/v1/products?status=eq.active&deleted_at=is.null&select=*`;
+  const url =
+    `${SUPABASE_URL}/rest/v1/products` +
+    `?deleted_at=is.null&select=*`;
 
   const res = await fetch(url, {
     headers: supabaseHeaders(),
@@ -122,7 +163,6 @@ export async function getAllProducts(): Promise<ProductRecord[]> {
 /* =========================================================
    GET — PRODUCTS BY SELLER
 ========================================================= */
-
 
 export async function getSellerProducts(
   sellerPiUid: string
@@ -146,16 +186,14 @@ export async function getSellerProducts(
   const rows: ProductRow[] = await res.json();
   return rows.map(toAppProduct);
 }
+
 /* =========================================================
    POST — CREATE PRODUCT
 ========================================================= */
 
 export async function createProduct(
   sellerPiUid: string,
-  product: Omit<
-    ProductRecord,
-    "id" | "seller_id" | "created_at" | "updated_at"
-  >
+  product: CreateProductInput
 ): Promise<ProductRecord> {
   if (Number.isNaN(product.price)) {
     throw new Error("INVALID_PRICE");
@@ -168,13 +206,45 @@ export async function createProduct(
     throw new Error("INVALID_SALE_PRICE");
   }
 
-  const payload: Omit<ProductRow, "id" | "created_at" | "updated_at"> = {
-    ...product,
+  const payload = {
+    name: product.name.trim(),
+    description: product.description ?? "",
+    detail: product.detail ?? "",
+    images: Array.isArray(product.images) ? product.images : [],
+    thumbnail: product.thumbnail ?? null,
+    category_id: product.category_id ?? null,
+
     price: toDbPrice(product.price),
     sale_price:
       product.sale_price !== null
         ? toDbPrice(product.sale_price)
         : null,
+
+    sale_start: product.sale_start ?? null,
+    sale_end: product.sale_end ?? null,
+
+    stock:
+      typeof product.stock === "number" &&
+      !Number.isNaN(product.stock) &&
+      product.stock >= 0
+        ? product.stock
+        : 0,
+
+    is_active:
+      typeof product.is_active === "boolean"
+        ? product.is_active
+        : true,
+
+    views:
+      typeof product.views === "number" && !Number.isNaN(product.views)
+        ? product.views
+        : 0,
+
+    sold:
+      typeof product.sold === "number" && !Number.isNaN(product.sold)
+        ? product.sold
+        : 0,
+
     seller_id: sellerPiUid,
   };
 
@@ -194,6 +264,11 @@ export async function createProduct(
   }
 
   const rows: ProductRow[] = await res.json();
+
+  if (!rows.length) {
+    throw new Error("PRODUCT_CREATED_BUT_EMPTY_RESPONSE");
+  }
+
   return toAppProduct(rows[0]);
 }
 
@@ -204,23 +279,42 @@ export async function createProduct(
 export async function updateProductBySeller(
   sellerPiUid: string,
   productId: string,
-  data: Partial<
-    Pick<
-      ProductRecord,
-      | "name"
-      | "description"
-      | "price"
-      | "sale_price"
-      | "images"
-      | "detail_images"
-      | "category_id"
-      | "sale_start"
-      | "sale_end"
-      | "status"
-    >
-  >
+  data: UpdateProductInput
 ): Promise<boolean> {
-  const payload: Partial<ProductRow> = { ...data };
+  const payload: Record<string, unknown> = {};
+
+  if (data.name !== undefined) {
+    payload.name =
+      typeof data.name === "string" ? data.name.trim() : "";
+  }
+
+  if (data.description !== undefined) {
+    payload.description =
+      typeof data.description === "string" ? data.description : "";
+  }
+
+  if (data.detail !== undefined) {
+    payload.detail =
+      typeof data.detail === "string" ? data.detail : "";
+  }
+
+  if (data.images !== undefined) {
+    payload.images = Array.isArray(data.images)
+      ? data.images.filter((i): i is string => typeof i === "string")
+      : [];
+  }
+
+  if (data.thumbnail !== undefined) {
+    payload.thumbnail =
+      typeof data.thumbnail === "string" ? data.thumbnail : null;
+  }
+
+  if (data.category_id !== undefined) {
+    payload.category_id =
+      typeof data.category_id === "string" && data.category_id.trim() !== ""
+        ? data.category_id
+        : null;
+  }
 
   if (data.price !== undefined) {
     if (Number.isNaN(data.price)) {
@@ -230,16 +324,40 @@ export async function updateProductBySeller(
   }
 
   if (data.sale_price !== undefined) {
-    if (
-      data.sale_price !== null &&
-      Number.isNaN(data.sale_price)
-    ) {
+    if (data.sale_price !== null && Number.isNaN(data.sale_price)) {
       throw new Error("INVALID_SALE_PRICE");
     }
+
     payload.sale_price =
-      data.sale_price !== null
-        ? toDbPrice(data.sale_price)
-        : null;
+      data.sale_price !== null ? toDbPrice(data.sale_price) : null;
+  }
+
+  if (data.sale_start !== undefined) {
+    payload.sale_start =
+      typeof data.sale_start === "string" ? data.sale_start : null;
+  }
+
+  if (data.sale_end !== undefined) {
+    payload.sale_end =
+      typeof data.sale_end === "string" ? data.sale_end : null;
+  }
+
+  if (data.stock !== undefined) {
+    payload.stock =
+      typeof data.stock === "number" &&
+      !Number.isNaN(data.stock) &&
+      data.stock >= 0
+        ? data.stock
+        : 0;
+  }
+
+  if (data.is_active !== undefined) {
+    payload.is_active =
+      typeof data.is_active === "boolean" ? data.is_active : true;
+  }
+
+  if (data.status !== undefined) {
+    payload.status = data.status;
   }
 
   const url =
