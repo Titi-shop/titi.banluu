@@ -227,6 +227,13 @@ const [variants, setVariants] = useState<
         return;
       }
     }
+     for (const v of variants) {
+  if (!v.option1 || v.price <= 0 || v.stock < 0) {
+    setMessage({ text: t.invalid_variant, type: "error" });
+    setSaving(false);
+    return;
+  }
+}
 
     const payload: ProductPayload & { variants?: typeof variants } = {
   id: initialData?.id,
