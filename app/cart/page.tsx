@@ -109,9 +109,9 @@ export default function CartPage() {
     }
 
     if (!user) {
-      pilogin?.();
-      return false;
-    }
+  showMessage(t.please_login || "Please login first", "error");
+  return false;
+}
 
     if (!shipping) {
       showMessage(
@@ -134,6 +134,26 @@ export default function CartPage() {
       return false;
     }
 
+
+    // check sản phẩm tồn tại / còn hàng
+const item = selectedItems[0];
+
+if (!item) {
+  showMessage(t.invalid_product || "Invalid product", "error");
+  return false;
+}
+
+// ❗ nếu có variant
+if (item.variant && item.variant.stock <= 0) {
+  showMessage(t.out_of_stock || "Out of stock", "error");
+  return false;
+}
+
+// ❗ nếu dùng stock thường
+if (!item.variant && item.stock !== undefined && item.stock <= 0) {
+  showMessage(t.out_of_stock || "Out of stock", "error");
+  return false;
+}
     const item = selectedItems[0];
     if (!item || item.quantity < 1 || item.quantity > 100) {
       showMessage(t.invalid_quantity || "Invalid quantity", "error");
@@ -259,26 +279,6 @@ export default function CartPage() {
       showMessage(t.transaction_failed || "Transaction failed", "error");
     }
   };
-
-  if (!user) {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-6">
-        <h1 className="text-xl font-semibold mb-6">{t.cart}</h1>
-
-        <button
-          onClick={() => pilogin?.()}
-          disabled={!piReady}
-          className={`w-full py-3 rounded-full font-semibold text-white shadow ${
-            piReady
-              ? "bg-orange-500 hover:bg-orange-600"
-              : "bg-gray-300 cursor-not-allowed"
-          }`}
-        >
-          {t.login}
-        </button>
-      </main>
-    );
-  }
 
   if (cart.length === 0) {
     return (
