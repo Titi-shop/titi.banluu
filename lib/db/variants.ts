@@ -16,24 +16,24 @@ if (!SERVICE_KEY) {
 export type VariantRow = {
   id: string;
   product_id: string;
-  sku: string;
-  price: number;
+  option_name: string;
+  option_value: string;
   stock: number;
-  option1: string | null;
-  option2: string | null;
-  option3: string | null;
+  sku: string | null;
+  sort_order: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string | null;
 };
 
 export type ProductVariant = {
   id?: string;
-  sku: string;
-  price: number;
+  optionName?: string;
+  optionValue: string;
   stock: number;
-  option1: string;
-  option2?: string | null;
-  option3?: string | null;
+  sku?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
 };
 
 /* =========================================================
@@ -51,42 +51,46 @@ function supabaseHeaders() {
 function toAppVariant(row: VariantRow): ProductVariant {
   return {
     id: row.id,
-    sku: row.sku,
-    price: Number(row.price),
-    stock: typeof row.stock === "number" ? row.stock : 0,
-    option1: row.option1 ?? "",
-    option2: row.option2 ?? null,
-    option3: row.option3 ?? null,
+    optionName: row.option_name || "size",
+    optionValue: row.option_value || "",
+    stock: typeof row.stock === "number" && !Number.isNaN(row.stock) ? row.stock : 0,
+    sku: row.sku ?? null,
+    sortOrder:
+      typeof row.sort_order === "number" && !Number.isNaN(row.sort_order)
+        ? row.sort_order
+        : 0,
+    isActive: row.is_active !== false,
   };
 }
 
 function normalizeVariant(
   variant: ProductVariant,
-  fallbackPrice = 0
+  index = 0
 ): Omit<VariantRow, "id" | "created_at" | "updated_at"> {
   return {
-    product_id: "", // sẽ được gán ở hàm create/replace
-    sku: typeof variant.sku === "string" ? variant.sku.trim() : "",
-    price:
-      typeof variant.price === "number" && !Number.isNaN(variant.price)
-        ? Number(variant.price)
-        : fallbackPrice,
+    product_id: "",
+    option_name:
+      typeof variant.optionName === "string" && variant.optionName.trim() !== ""
+        ? variant.optionName.trim()
+        : "size",
+    option_value:
+      typeof variant.optionValue === "string" ? variant.optionValue.trim() : "",
     stock:
       typeof variant.stock === "number" &&
       !Number.isNaN(variant.stock) &&
       variant.stock >= 0
         ? variant.stock
         : 0,
-    option1:
-      typeof variant.option1 === "string" ? variant.option1.trim() : "",
-    option2:
-      typeof variant.option2 === "string" && variant.option2.trim() !== ""
-        ? variant.option2.trim()
+    sku:
+      typeof variant.sku === "string" && variant.sku.trim() !== ""
+        ? variant.sku.trim()
         : null,
-    option3:
-      typeof variant.option3 === "string" && variant.option3.trim() !== ""
-        ? variant.option3.trim()
-        : null,
+    sort_order:
+      typeof variant.sortOrder === "number" && !Number.isNaN(variant.sortOrder)
+        ? variant.sortOrder
+        : index,
+    is_active:
+      typeof variant.isActive === "boolean" ? variant.isActive : true,
   };
 }
 
@@ -98,9 +102,10 @@ export async function getVariantsByProductId(
   productId: string
 ): Promise<ProductVariant[]> {
   const url =
-    `${SUPABASE_URL}/rest/v1/variants` +
+    `${SUPABASE_URL}/rest/v1/product_variants` +
     `?product_id=eq.${encodeURIComponent(productId)}` +
-    `&order=created_at.asc`;
+    `&is_active=eq.true` +
+    `&order=sort_order.asc&order=created_at.asc`;
 
   const res = await fetch(url, {
     headers: supabaseHeaders(),
@@ -109,7 +114,7 @@ export async function getVariantsByProductId(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("❌ SUPABASE GET VARIANTS ERROR:", text);
+    console.error("❌ SUPABASE GET PRODUCT VARIANTS ERROR:", text);
     throw new Error("FAILED_TO_FETCH_VARIANTS");
   }
 
@@ -123,29 +128,28 @@ export async function getVariantsByProductId(
 
 export async function createVariantsForProduct(
   productId: string,
-  variants: ProductVariant[],
-  fallbackPrice = 0
+  variants: ProductVariant[]
 ): Promise<ProductVariant[]> {
   if (!Array.isArray(variants) || variants.length === 0) {
     return [];
   }
 
   const payload = variants
-    .map((variant) => {
-      const normalized = normalizeVariant(variant, fallbackPrice);
+    .map((variant, index) => {
+      const normalized = normalizeVariant(variant, index);
 
       return {
         ...normalized,
         product_id: productId,
       };
     })
-    .filter((variant) => variant.option1 !== "");
+    .filter((variant) => variant.option_value !== "");
 
   if (payload.length === 0) {
     return [];
   }
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/variants`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/product_variants`, {
     method: "POST",
     headers: {
       ...supabaseHeaders(),
@@ -156,7 +160,7 @@ export async function createVariantsForProduct(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("❌ SUPABASE CREATE VARIANTS ERROR:", text);
+    console.error("❌ SUPABASE CREATE PRODUCT VARIANTS ERROR:", text);
     throw new Error("FAILED_TO_CREATE_VARIANTS");
   }
 
@@ -172,7 +176,7 @@ export async function deleteVariantsByProductId(
   productId: string
 ): Promise<boolean> {
   const url =
-    `${SUPABASE_URL}/rest/v1/variants` +
+    `${SUPABASE_URL}/rest/v1/product_variants` +
     `?product_id=eq.${encodeURIComponent(productId)}`;
 
   const res = await fetch(url, {
@@ -185,7 +189,7 @@ export async function deleteVariantsByProductId(
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("❌ SUPABASE DELETE VARIANTS ERROR:", text);
+    console.error("❌ SUPABASE DELETE PRODUCT VARIANTS ERROR:", text);
     throw new Error("FAILED_TO_DELETE_VARIANTS");
   }
 
@@ -193,13 +197,12 @@ export async function deleteVariantsByProductId(
 }
 
 /* =========================================================
-   PUT/PATCH HELPER — REPLACE ALL VARIANTS OF PRODUCT
+   REPLACE — DELETE ALL THEN CREATE AGAIN
 ========================================================= */
 
 export async function replaceVariantsByProductId(
   productId: string,
-  variants: ProductVariant[],
-  fallbackPrice = 0
+  variants: ProductVariant[]
 ): Promise<ProductVariant[]> {
   await deleteVariantsByProductId(productId);
 
@@ -207,5 +210,5 @@ export async function replaceVariantsByProductId(
     return [];
   }
 
-  return await createVariantsForProduct(productId, variants, fallbackPrice);
+  return createVariantsForProduct(productId, variants);
 }
