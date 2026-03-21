@@ -404,27 +404,11 @@ const canBuy = hasVariants
   </span>
 
   <span className="flex items-center gap-1">
-    <span className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Star
-          key={star}
-          className={`w-4 h-4 ${
-            star <= Math.round(product.ratingAvg)
-              ? "fill-yellow-400 text-yellow-400"
-              : "text-gray-300"
-          }`}
-        />
-      ))}
-    </span>
-
-    <span className="font-medium">
-      {product.ratingAvg.toFixed(1)}
-    </span>
-
-    <span className="text-gray-400">
-      ({product.ratingCount} {t.reviews})
-    </span>
+  ⭐ {product.ratingAvg.toFixed(1)}
+  <span className="text-gray-400">
+    ({product.ratingCount} {t.reviews})
   </span>
+</span>
 </div>
 
       {/* STOCK */}
