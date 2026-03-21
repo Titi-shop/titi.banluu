@@ -439,9 +439,19 @@
   "payment_failed": "付款失败",
   "payment_cancelled": "付款已取消",
   "please_select_product": "请选择商品",
-"only_one_product_supported": "目前一次只支持购买 1 个商品",
- "transaction_failed": "交易失败"
+ "only_one_product_supported": "目前一次只支持购买 1 个商品",
+ "transaction_failed": "交易失败",
+  
+   "invalid_variant": "无效的变体：必须有尺寸，价格 > 0，库存 ≥ 0",
+   "add_variant": "添加变体",
+    "color_optional": "颜色（可选）",
+   "price_pi": "价格",
+    "size": "尺码",
+    "product_variants": "产品变体"
 
+
+
+  
 
 
   
