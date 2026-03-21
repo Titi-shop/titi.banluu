@@ -363,8 +363,6 @@ if (!item.variant && item.stock !== undefined && item.stock <= 0) {
           <span>{t.total}</span>
           <span className="font-bold text-orange-600">{formatPi(total)} π</span>
         </div>
-
-        <button
           <button
   onClick={handlePay}
   disabled={
