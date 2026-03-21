@@ -34,13 +34,14 @@ type ProductRow = {
   thumbnail: string | null;
   images: string[];
   detail_images: string[];
+  variants: ProductVariant[];
 
   video_url: string | null;
 
-  price: number; // decimal PI
-sale_price: number | null; // decimal PI
+  price: number;
+  sale_price: number | null;
   currency: string;
-variants: ProductVariant[];
+
   stock: number;
   is_unlimited: boolean;
 
@@ -54,7 +55,7 @@ variants: ProductVariant[];
   rating_avg: number;
   rating_count: number;
 
-  status: "draft" | "active" | "inactive" | "archived" | "banned";
+  is_active: boolean;
 
   is_featured: boolean;
   is_digital: boolean;
@@ -93,10 +94,7 @@ function toAppProduct(row: ProductRow): ProductRecord {
   return {
     ...row,
     price: Number(row.price),
-    sale_price:
-      row.sale_price !== null
-        ? Number(row.sale_price)
-        : null,
+    sale_price: row.sale_price !== null ? Number(row.sale_price) : null,
     variants: Array.isArray(row.variants) ? row.variants : [],
   };
 }
@@ -214,27 +212,29 @@ export async function updateProductBySeller(
   sellerPiUid: string,
   productId: string,
   data: Partial<
-  Pick<
-    ProductRecord,
-    | "name"
-    | "description"
-    | "detail"
-    | "thumbnail"
-    | "price"
-    | "sale_price"
-    | "images"
-    | "detail_images"
-    | "variants"
-    | "stock"
-    | "category_id"
-    | "sale_start"
-    | "sale_end"
-    | "status"
-    | "is_active"
+    Pick<
+      ProductRecord,
+      | "name"
+      | "description"
+      | "detail"
+      | "thumbnail"
+      | "price"
+      | "sale_price"
+      | "images"
+      | "detail_images"
+      | "variants"
+      | "stock"
+      | "category_id"
+      | "sale_start"
+      | "sale_end"
+      | "is_active"
+    >
   >
->
 ): Promise<boolean> {
-  const payload: Partial<ProductRow> = { ...data };
+  const payload: Partial<ProductRow> = {
+    ...data,
+    variants: Array.isArray(data.variants) ? data.variants : data.variants,
+  };
 
   if (data.price !== undefined) {
     if (Number.isNaN(data.price)) {
@@ -244,16 +244,11 @@ export async function updateProductBySeller(
   }
 
   if (data.sale_price !== undefined) {
-    if (
-      data.sale_price !== null &&
-      Number.isNaN(data.sale_price)
-    ) {
+    if (data.sale_price !== null && Number.isNaN(data.sale_price)) {
       throw new Error("INVALID_SALE_PRICE");
     }
     payload.sale_price =
-      data.sale_price !== null
-        ? toDbPrice(data.sale_price)
-        : null;
+      data.sale_price !== null ? toDbPrice(data.sale_price) : null;
   }
 
   const url =
