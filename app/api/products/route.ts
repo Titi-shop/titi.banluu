@@ -16,68 +16,67 @@ export const dynamic = "force-dynamic";
 /* =========================================================
    TYPES
 ========================================================= */
+
 type ProductVariantInput = {
-  sku: string;
-  price: number;
+  id?: string;
+  optionName?: string;
+  optionValue: string;
   stock: number;
-  option1: string;
-  option2?: string | null;
-  option3?: string | null;
+  sku?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
 };
 
 function normalizeVariants(input: unknown): ProductVariantInput[] {
   if (!Array.isArray(input)) return [];
 
   return input
-    .map((item) => {
+    .map((item, index) => {
       if (typeof item !== "object" || item === null) return null;
 
       const row = item as Record<string, unknown>;
 
-      const option1 =
-        typeof row.option1 === "string" ? row.option1.trim() : "";
+      const optionValue =
+        typeof row.optionValue === "string"
+          ? row.optionValue.trim()
+          : "";
 
-      const sku = typeof row.sku === "string" ? row.sku.trim() : "";
-
-      const price =
-        typeof row.price === "number" && !Number.isNaN(row.price)
-          ? row.price
-          : 0;
-
-      const stock =
-        typeof row.stock === "number" && !Number.isNaN(row.stock) && row.stock >= 0
-          ? row.stock
-          : 0;
-
-      const option2 =
-        typeof row.option2 === "string" && row.option2.trim() !== ""
-          ? row.option2.trim()
-          : null;
-
-      const option3 =
-        typeof row.option3 === "string" && row.option3.trim() !== ""
-          ? row.option3.trim()
-          : null;
-
-      if (!option1) return null;
-      if (price <= 0) return null;
-      if (!sku) return null;
+      if (!optionValue) return null;
 
       return {
-        sku,
-        price,
-        stock,
-        option1,
-        option2,
-        option3,
+        id: typeof row.id === "string" ? row.id : undefined,
+        optionName:
+          typeof row.optionName === "string" && row.optionName.trim() !== ""
+            ? row.optionName.trim()
+            : "size",
+        optionValue,
+        stock:
+          typeof row.stock === "number" &&
+          !Number.isNaN(row.stock) &&
+          row.stock >= 0
+            ? row.stock
+            : 0,
+        sku:
+          typeof row.sku === "string" && row.sku.trim() !== ""
+            ? row.sku.trim()
+            : null,
+        sortOrder:
+          typeof row.sortOrder === "number" && !Number.isNaN(row.sortOrder)
+            ? row.sortOrder
+            : index,
+        isActive:
+          typeof row.isActive === "boolean"
+            ? row.isActive
+            : true,
       };
     })
-    .filter((v): v is ProductVariantInput => v !== null);
+    .filter((item): item is ProductVariantInput => item !== null);
 }
 
 /* =========================================================
    GET — PUBLIC PRODUCTS (NO AUTH)
 ========================================================= */
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -85,9 +84,6 @@ export async function GET(req: Request) {
 
     let products: any[] = [];
 
-    /* ===============================
-       CASE 1 — /api/products?ids=...
-    =============================== */
     if (ids) {
       const idArray = ids
         .split(",")
@@ -118,12 +114,7 @@ export async function GET(req: Request) {
       }
 
       products = await res.json();
-    }
-
-    /* ===============================
-       CASE 2 — /api/products (ALL)
-    =============================== */
-    else {
+    } else {
       const res = await fetch(
         `${process.env.SUPABASE_URL}/rest/v1/products?select=*`,
         {
@@ -144,9 +135,6 @@ export async function GET(req: Request) {
       products = await res.json();
     }
 
-    /* ===============================
-       ENRICH + LOAD VARIANTS
-    =============================== */
     const now = Date.now();
 
     const enriched = await Promise.all(
@@ -168,15 +156,25 @@ export async function GET(req: Request) {
           now >= start &&
           now <= end;
 
-        const stock = typeof p.stock === "number" ? p.stock : 0;
+        const baseStock =
+          typeof p.stock === "number" && !Number.isNaN(p.stock) ? p.stock : 0;
+
         const isActive = p.is_active !== false;
 
         let variants: ProductVariantInput[] = [];
         try {
           variants = await getVariantsByProductId(p.id);
-        } catch (err) {
-          console.error(`❌ GET VARIANTS ERROR FOR PRODUCT ${p.id}:`, err);
+        } catch (error) {
+          console.error(`❌ GET VARIANTS ERROR: ${p.id}`, error);
         }
+
+        const hasVariants = Array.isArray(variants) && variants.length > 0;
+
+        const totalVariantStock = hasVariants
+          ? variants.reduce((sum, item) => sum + (item.stock || 0), 0)
+          : 0;
+
+        const finalStock = hasVariants ? totalVariantStock : baseStock;
 
         return {
           id: p.id,
@@ -190,14 +188,18 @@ export async function GET(req: Request) {
 
           categoryId: p.category_id ?? null,
           price: typeof p.price === "number" ? p.price : 0,
-          salePrice: typeof p.sale_price === "number" ? p.sale_price : null,
+          salePrice:
+            typeof p.sale_price === "number" ? p.sale_price : null,
 
           isSale,
-          finalPrice: isSale ? p.sale_price : p.price,
+          finalPrice:
+            isSale && typeof p.sale_price === "number"
+              ? p.sale_price
+              : p.price,
 
-          stock,
+          stock: finalStock,
           isActive,
-          isOutOfStock: stock <= 0 || !isActive,
+          isOutOfStock: finalStock <= 0 || !isActive,
 
           views: typeof p.views === "number" ? p.views : 0,
           sold: typeof p.sold === "number" ? p.sold : 0,
@@ -220,6 +222,7 @@ export async function GET(req: Request) {
 /* =========================================================
    POST — CREATE PRODUCT (SELLER ONLY)
 ========================================================= */
+
 export async function POST(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
@@ -258,6 +261,13 @@ export async function POST(req: Request) {
     }
 
     const normalizedVariants = normalizeVariants(variants);
+    const hasVariants = normalizedVariants.length > 0;
+
+    const finalStock = hasVariants
+      ? normalizedVariants.reduce((sum, item) => sum + item.stock, 0)
+      : typeof stock === "number" && stock >= 0
+      ? stock
+      : 0;
 
     const product = await createProduct(auth.user.pi_uid, {
       name: name.trim(),
@@ -281,7 +291,7 @@ export async function POST(req: Request) {
       sale_start: typeof saleStart === "string" ? saleStart : null,
       sale_end: typeof saleEnd === "string" ? saleEnd : null,
 
-      stock: typeof stock === "number" && stock >= 0 ? stock : 0,
+      stock: finalStock,
       is_active: typeof is_active === "boolean" ? is_active : true,
 
       views: 0,
@@ -289,11 +299,10 @@ export async function POST(req: Request) {
     });
 
     let createdVariants: ProductVariantInput[] = [];
-    if (normalizedVariants.length > 0) {
+    if (hasVariants) {
       createdVariants = await createVariantsForProduct(
         product.id,
-        normalizedVariants,
-        price
+        normalizedVariants
       );
     }
 
@@ -316,6 +325,7 @@ export async function POST(req: Request) {
 /* =========================================================
    PUT — UPDATE PRODUCT (SELLER ONLY)
 ========================================================= */
+
 export async function PUT(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
@@ -363,6 +373,13 @@ export async function PUT(req: Request) {
 
     const productId = String(id);
     const normalizedVariants = normalizeVariants(variants);
+    const hasVariants = normalizedVariants.length > 0;
+
+    const finalStock = hasVariants
+      ? normalizedVariants.reduce((sum, item) => sum + item.stock, 0)
+      : typeof stock === "number" && stock >= 0
+      ? stock
+      : 0;
 
     const updated = await updateProductBySeller(
       auth.user.pi_uid,
@@ -389,7 +406,7 @@ export async function PUT(req: Request) {
         sale_start: typeof saleStart === "string" ? saleStart : null,
         sale_end: typeof saleEnd === "string" ? saleEnd : null,
 
-        stock: typeof stock === "number" && stock >= 0 ? stock : 0,
+        stock: finalStock,
         is_active: typeof is_active === "boolean" ? is_active : true,
       }
     );
@@ -401,7 +418,7 @@ export async function PUT(req: Request) {
       );
     }
 
-    await replaceVariantsByProductId(productId, normalizedVariants, price);
+    await replaceVariantsByProductId(productId, normalizedVariants);
 
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -416,6 +433,7 @@ export async function PUT(req: Request) {
 /* =========================================================
    DELETE — DELETE PRODUCT (SELLER ONLY)
 ========================================================= */
+
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
