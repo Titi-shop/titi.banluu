@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Star } from "lucide-react";
 import CheckoutSheet from "./CheckoutSheet";
 import { formatPi } from "@/lib/pi";
 
@@ -36,6 +36,16 @@ function calcSalePercent(price: number, finalPrice: number) {
    TYPES
 ======================= */
 
+interface ProductVariant {
+  id?: string;
+  optionName?: string;
+  optionValue: string;
+  stock: number;
+  sku?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
 interface ApiProduct {
   id: string;
   name: string;
@@ -45,11 +55,14 @@ interface ApiProduct {
   detail?: string;
   views?: number;
   sold?: number;
+  rating_avg?: number;
+  rating_count?: number;
   thumbnail?: string;
   images?: string[];
   stock?: number;
   isActive?: boolean;
   categoryId?: string | null;
+  variants?: ProductVariant[];
 }
 
 interface Product {
@@ -62,12 +75,15 @@ interface Product {
   detail: string;
   views: number;
   sold: number;
+  ratingAvg: number;
+  ratingCount: number;
   thumbnail?: string;
   images: string[];
   stock: number;
   isActive: boolean;
   isOutOfStock: boolean;
   categoryId: string | null;
+  variants: ProductVariant[];
 }
 
 /* =======================
@@ -76,7 +92,8 @@ interface Product {
 
 export default function ProductDetail() {
   const { t } = useTranslation();
-  const { id } = useParams<{ id: string }>();
+  const params = useParams();
+  const id = String(params?.id ?? "");
   const router = useRouter();
   const { addToCart } = useCart();
 
@@ -85,7 +102,7 @@ export default function ProductDetail() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
-
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const quantity = 1;
 
   /* =======================
@@ -100,39 +117,78 @@ export default function ProductDetail() {
         if (!Array.isArray(data)) return;
 
         const normalized: Product[] = data.map((p) => {
-          const api = p as ApiProduct;
+  const api = p as ApiProduct;
 
-          const finalPrice =
-            typeof api.finalPrice === "number"
-              ? api.finalPrice
-              : api.price;
+  const finalPrice =
+    typeof api.finalPrice === "number"
+      ? api.finalPrice
+      : api.price;
 
-          const stock = typeof api.stock === "number" ? api.stock : 0;
-          const isActive = api.isActive !== false;
+  const variants: ProductVariant[] = Array.isArray(api.variants)
+    ? api.variants
+        .filter((v) => v && typeof v === "object")
+        .map((v: any) => ({
+          id: typeof v.id === "string" ? v.id : undefined,
+          optionName:
+            typeof v.optionName === "string"
+              ? v.optionName
+              : typeof v.option_name === "string"
+              ? v.option_name
+              : "size",
+          optionValue:
+            typeof v.optionValue === "string"
+              ? v.optionValue
+              : typeof v.option_value === "string"
+              ? v.option_value
+              : "",
+          stock: typeof v.stock === "number" ? v.stock : 0,
+          sku: typeof v.sku === "string" ? v.sku : null,
+          sortOrder:
+            typeof v.sortOrder === "number"
+              ? v.sortOrder
+              : typeof v.sort_order === "number"
+              ? v.sort_order
+              : 0,
+          isActive:
+            typeof v.isActive === "boolean"
+              ? v.isActive
+              : typeof v.is_active === "boolean"
+              ? v.is_active
+              : true,
+        }))
+        .filter((v) => v.optionValue !== "")
+    : [];
 
-          return {
-  id: api.id,
-  name: api.name,
-  price: api.price,
-  finalPrice,
-  isSale: finalPrice < api.price,
+  const stock = typeof api.stock === "number" ? api.stock : 0;
+  const isActive = api.isActive !== false;
 
-  description: api.description ?? "",
-  detail: api.detail ?? "",
+  return {
+    id: api.id,
+    name: api.name,
+    price: api.price,
+    finalPrice,
+    isSale: finalPrice < api.price,
 
-  views: api.views ?? 0,
-  sold: api.sold ?? 0,
+    description: api.description ?? "",
+    detail: api.detail ?? "",
 
-  thumbnail: api.thumbnail ?? "",
-  images: Array.isArray(api.images) ? api.images : [],
-  categoryId: api.categoryId ?? null,
+    views: api.views ?? 0,
+    sold: api.sold ?? 0,
+    ratingAvg:
+      typeof api.rating_avg === "number" ? api.rating_avg : 0,
+    ratingCount:
+      typeof api.rating_count === "number" ? api.rating_count : 0,
 
-  stock,
-  isActive,
-  isOutOfStock: stock <= 0 || !isActive,
-};
-        });
+    thumbnail: api.thumbnail ?? "",
+    images: Array.isArray(api.images) ? api.images : [],
+    categoryId: api.categoryId ?? null,
 
+    stock,
+    isActive,
+    isOutOfStock: stock <= 0 || !isActive,
+    variants,
+  };
+});
         setProducts(normalized);
 
         const found = normalized.find((p) => p.id === id);
