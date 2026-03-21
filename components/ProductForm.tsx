@@ -15,6 +15,15 @@ interface Category {
   icon?: string;
 }
 
+interface ProductVariant {
+  option1: string;
+  option2?: string | null;
+  option3?: string | null;
+  price: number;
+  stock: number;
+  sku: string;
+}
+
 interface ProductPayload {
   id?: string;
   name: string;
@@ -25,10 +34,11 @@ interface ProductPayload {
   description: string;
   detail: string;
   images: string[];
-  thumbnail: string;
+  thumbnail: string | null;
   categoryId: string;
   stock: number;
   is_active: boolean;
+  variants?: ProductVariant[];
 }
 
 interface ProductFormProps {
@@ -54,9 +64,8 @@ export default function ProductForm({
   const [saleEnd, setSaleEnd] = useState("");
   const [stock, setStock] = useState<number | "">(1);
   const [isActive, setIsActive] = useState(true);
-const [variants, setVariants] = useState<
-  { option1: string; option2?: string; option3?: string; price: number; stock: number; sku: string }[]
->(initialData?.variants || []);
+  const [detail, setDetail] = useState("");
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [message, setMessage] = useState<{
@@ -72,17 +81,29 @@ const [variants, setVariants] = useState<
 
     setImages(initialData.images || []);
     setSalePrice(initialData.salePrice ?? "");
-    setSaleStart(initialData.saleStart || "");
-    setSaleEnd(initialData.saleEnd || "");
+    setSaleStart(initialData.saleStart ? toLocalDateTime(initialData.saleStart) : "");
+    setSaleEnd(initialData.saleEnd ? toLocalDateTime(initialData.saleEnd) : "");
     setStock(initialData.stock ?? 1);
     setIsActive(initialData.is_active ?? true);
+    setDetail(initialData.detail || "");
+    setVariants(Array.isArray(initialData.variants) ? initialData.variants : []);
   }, [initialData]);
 
   if (loading || !user) {
     return <div className="text-center p-8">{t.loading}</div>;
   }
 
-  const localToUTC = (local: string) => new Date(local).toISOString();
+  function localToUTC(local: string) {
+    if (!local) return null;
+    return new Date(local).toISOString();
+  }
+
+  function toLocalDateTime(value: string) {
+    const date = new Date(value);
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - offset * 60 * 1000);
+    return localDate.toISOString().slice(0, 16);
+  }
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
@@ -119,7 +140,7 @@ const [variants, setVariants] = useState<
         const data = (await res.json()) as { url?: string };
         if (!data.url) throw new Error("NO_URL_RETURNED");
 
-        setter((prev) => [...prev, data.url]);
+        setter((prev) => [...prev, data.url!]);
       }
     } catch {
       setMessage({
@@ -151,13 +172,7 @@ const [variants, setVariants] = useState<
         const data = (await res.json()) as { url?: string };
         if (!data.url) throw new Error("NO_URL_RETURNED");
 
-        const textarea = document.querySelector(
-          "textarea[name='detail']"
-        ) as HTMLTextAreaElement | null;
-
-        if (textarea) {
-          textarea.value += `\n<img src="${data.url}" />\n`;
-        }
+        setDetail((prev) => `${prev}\n<img src="${data.url}" />\n`);
       }
     } catch {
       setMessage({
@@ -190,10 +205,6 @@ const [variants, setVariants] = useState<
       form.elements.namedItem("description") as HTMLTextAreaElement
     ).value;
 
-    const detail = (
-      form.elements.namedItem("detail") as HTMLTextAreaElement
-    ).value;
-
     if (!images.length) {
       setMessage({
         text: t.need_image,
@@ -210,7 +221,7 @@ const [variants, setVariants] = useState<
       return;
     }
 
-    if (salePrice) {
+    if (salePrice !== "") {
       if (!saleStart || !saleEnd) {
         setMessage({
           text: t.need_sale_date,
@@ -227,30 +238,33 @@ const [variants, setVariants] = useState<
         return;
       }
     }
-     for (const v of variants) {
-  if (!v.option1 || v.price <= 0 || v.stock < 0) {
-    setMessage({ text: t.invalid_variant, type: "error" });
-    setSaving(false);
-    return;
-  }
-}
 
-    const payload: ProductPayload & { variants?: typeof variants } = {
-  id: initialData?.id,
-  name,
-  price,
-  salePrice: salePrice || null,
-  saleStart: salePrice && saleStart ? localToUTC(saleStart) : null,
-  saleEnd: salePrice && saleEnd ? localToUTC(saleEnd) : null,
-  description,
-  detail,
-  images,
-  thumbnail: images[0],
-  categoryId,
-  stock: Number(stock),
-  is_active: isActive,
-  variants, // <-- thêm dòng này
-};
+    for (const v of variants) {
+      if (!v.option1.trim() || v.price <= 0 || v.stock < 0 || !v.sku.trim()) {
+        setMessage({
+          text: t.invalid_variant,
+          type: "error",
+        });
+        return;
+      }
+    }
+
+    const payload: ProductPayload = {
+      id: initialData?.id,
+      name,
+      price,
+      salePrice: salePrice === "" ? null : salePrice,
+      saleStart: salePrice !== "" && saleStart ? localToUTC(saleStart) : null,
+      saleEnd: salePrice !== "" && saleEnd ? localToUTC(saleEnd) : null,
+      description,
+      detail,
+      images,
+      thumbnail: images[0] ?? null,
+      categoryId,
+      stock: stock === "" ? 0 : Number(stock),
+      is_active: isActive,
+      variants,
+    };
 
     setSaving(true);
     setMessage({ text: "", type: "" });
@@ -269,6 +283,23 @@ const [variants, setVariants] = useState<
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateVariant = (
+    index: number,
+    key: keyof ProductVariant,
+    value: string | number | null
+  ) => {
+    setVariants((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [key]: value,
+            }
+          : item
+      )
+    );
   };
 
   return (
@@ -369,7 +400,7 @@ const [variants, setVariants] = useState<
         className="w-full border p-2 rounded"
       />
 
-      {salePrice && (
+      {salePrice !== "" && (
         <div className="space-y-2">
           <p className="text-sm text-gray-600 font-medium">
             📅 {t.sale_time}
@@ -391,102 +422,79 @@ const [variants, setVariants] = useState<
         </div>
       )}
 
+      <div className="space-y-2">
+        <p className="font-medium">{t.product_variants}</p>
 
-       <div className="space-y-2">
-  <p className="font-medium">{t.product_variants}</p>
+        {variants.map((v, i) => (
+          <div key={i} className="grid grid-cols-6 gap-2 items-center">
+            <input
+              type="text"
+              placeholder={t.size}
+              value={v.option1}
+              onChange={(e) => updateVariant(i, "option1", e.target.value)}
+              className="border p-2 rounded col-span-1"
+            />
+            <input
+              type="text"
+              placeholder={t.color_optional}
+              value={v.option2 || ""}
+              onChange={(e) => updateVariant(i, "option2", e.target.value || null)}
+              className="border p-2 rounded col-span-1"
+            />
+            <input
+              type="number"
+              placeholder={t.price_pi}
+              value={v.price}
+              onChange={(e) => updateVariant(i, "price", Number(e.target.value))}
+              className="border p-2 rounded col-span-1"
+            />
+            <input
+              type="number"
+              placeholder={t.stock}
+              value={v.stock}
+              onChange={(e) => updateVariant(i, "stock", Number(e.target.value))}
+              className="border p-2 rounded col-span-1"
+            />
+            <input
+              type="text"
+              placeholder="SKU"
+              value={v.sku}
+              onChange={(e) => updateVariant(i, "sku", e.target.value)}
+              className="border p-2 rounded col-span-1"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                setVariants((prev) => prev.filter((_, idx) => idx !== i))
+              }
+              className="bg-red-500 text-white px-2 rounded col-span-1"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
 
-  {variants.map((v, i) => (
-    <div key={i} className="grid grid-cols-6 gap-2 items-center">
-      <input
-        type="text"
-        placeholder={t.size}
-        value={v.option1}
-        onChange={(e) =>
-          setVariants(prev => {
-            const newV = [...prev];
-            newV[i].option1 = e.target.value;
-            return newV;
-          })
-        }
-        className="border p-2 rounded col-span-1"
-      />
-      <input
-        type="text"
-        placeholder={t.color_optional}
-        value={v.option2 || ""}
-        onChange={(e) =>
-          setVariants(prev => {
-            const newV = [...prev];
-            newV[i].option2 = e.target.value;
-            return newV;
-          })
-        }
-        className="border p-2 rounded col-span-1"
-      />
-      <input
-        type="number"
-        placeholder={t.price_pi}
-        value={v.price}
-        onChange={(e) =>
-          setVariants(prev => {
-            const newV = [...prev];
-            newV[i].price = Number(e.target.value);
-            return newV;
-          })
-        }
-        className="border p-2 rounded col-span-1"
-      />
-      <input
-        type="number"
-        placeholder={t.stock}
-        value={v.stock}
-        onChange={(e) =>
-          setVariants(prev => {
-            const newV = [...prev];
-            newV[i].stock = Number(e.target.value);
-            return newV;
-          })
-        }
-        className="border p-2 rounded col-span-1"
-      />
-      <input
-        type="text"
-        placeholder="SKU"
-        value={v.sku}
-        onChange={(e) =>
-          setVariants(prev => {
-            const newV = [...prev];
-            newV[i].sku = e.target.value;
-            return newV;
-          })
-        }
-        className="border p-2 rounded col-span-1"
-      />
-      <button
-        type="button"
-        onClick={() =>
-          setVariants(prev => prev.filter((_, idx) => idx !== i))
-        }
-        className="bg-red-500 text-white px-2 rounded col-span-1"
-      >
-        ✕
-      </button>
-    </div>
-  ))}
+        <button
+          type="button"
+          onClick={() =>
+            setVariants((prev) => [
+              ...prev,
+              {
+                option1: "",
+                option2: null,
+                option3: null,
+                price: 0,
+                stock: 0,
+                sku: "",
+              },
+            ])
+          }
+          className="bg-green-500 text-white px-3 py-1 rounded"
+        >
+          + {t.add_variant}
+        </button>
+      </div>
 
-  <button
-    type="button"
-    onClick={() =>
-      setVariants(prev => [
-        ...prev,
-        { option1: "", option2: "", option3: "", price: 0, stock: 0, sku: "" },
-      ])
-    }
-    className="bg-green-500 text-white px-3 py-1 rounded"
-  >
-    + {t.add_variant}
-  </button>
-</div>
       <textarea
         name="description"
         defaultValue={initialData?.description || ""}
@@ -497,7 +505,8 @@ const [variants, setVariants] = useState<
 
       <textarea
         name="detail"
-        defaultValue={initialData?.detail || ""}
+        value={detail}
+        onChange={(e) => setDetail(e.target.value)}
         placeholder={t.product_detail_html}
         className="w-full border p-2 rounded min-h-[120px]"
       />
