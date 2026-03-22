@@ -459,7 +459,13 @@
   "please_add_shipping_address": "请添加地址",
   "invalid_product": "商品无效",
   "out_of_stock": "缺货",
-  "pi_not_ready": "Pi 尚未准备就绪"
+  "pi_not_ready": "Pi 尚未准备就绪",
+   "product_unavailable": "商品当前不可用",
+  "select_variant": "请选择规格 / 尺码",
+  "out_of_stock": "商品已售罄",
+  "added_to_cart": "已加入购物车",
+ "please_select_product": "请选择商品",
+"invalid_quantity": "数量无效"
 
 
 
