@@ -104,59 +104,55 @@ export default function CartPage() {
 
   const validateBeforePay = (): boolean => {
   if (!window.Pi || !piReady) {
-    showMessage(t.pi_not_ready || "Pi is not ready", "error");
+    showMessage(t.pi_not_ready || "Pi is not ready");
     return false;
   }
 
   if (!user) {
-    showMessage(t.please_login || "Please login first", "error");
+    showMessage(t.please_login || "Please login first");
     return false;
   }
 
   if (!shipping) {
     showMessage(
-      t.please_add_shipping_address || "Please add a shipping address",
-      "error"
+      t.please_add_shipping_address || "Please add a shipping address"
     );
     return false;
   }
 
   if (selectedItems.length === 0) {
-    showMessage(t.please_select_product || "Please select a product", "error");
+    showMessage(t.please_select_product || "Please select a product");
     return false;
   }
 
   if (selectedItems.length > 1) {
     showMessage(
-      t.only_one_product_supported || "Only 1 product is supported at a time",
-      "error"
+      t.only_one_product_supported || "Only 1 product is supported at a time"
     );
     return false;
   }
 
-  // ✅ CHỈ 1 BIẾN item
   const item = selectedItems[0];
 
   if (!item) {
-    showMessage(t.invalid_product || "Invalid product", "error");
+    showMessage(t.invalid_product || "Invalid product");
     return false;
   }
 
-  // ❗ check variant
-  if (item.variant && item.variant.stock <= 0) {
-    showMessage(t.out_of_stock || "Out of stock", "error");
+  // ✅ check stock
+  if (item.variant?.stock <= 0) {
+    showMessage(t.out_of_stock || "Out of stock");
     return false;
   }
 
-  // ❗ check stock thường
-  if ("variant" in item && item.variant?.stock <= 0) {
-    showMessage(t.out_of_stock || "Out of stock", "error");
+  if (!item.variant && item.stock !== undefined && item.stock <= 0) {
+    showMessage(t.out_of_stock || "Out of stock");
     return false;
   }
 
-  // ❗ check quantity
+  // ✅ check quantity
   if (item.quantity < 1 || item.quantity > 100) {
-    showMessage(t.invalid_quantity || "Invalid quantity", "error");
+    showMessage(t.invalid_quantity || "Invalid quantity");
     return false;
   }
 
@@ -164,31 +160,35 @@ export default function CartPage() {
 };
 
   const handlePay = async () => {
-    if (!validateBeforePay()) return;
-    const unit =
-      typeof item.sale_price === "number" ? item.sale_price : item.price;
-    const quantity = item.quantity;
-    const totalPrice = Number((unit * quantity).toFixed(6));
+  if (!validateBeforePay()) return;
 
-    if (processing) return;
-    setProcessing(true);
+  const item = selectedItems[0]; // ✅ FIX QUAN TRỌNG
 
-    try {
-      await window.Pi?.createPayment(
-        {
-          amount: totalPrice,
-          memo: t.payment_memo_order || "Order payment",
-          metadata: {
-            shipping,
-            product: {
-              id: item.id,
-              name: item.name,
-              image: item.thumbnail || "",
-              price: unit,
-            },
-            quantity,
+  const unit =
+    typeof item.sale_price === "number" ? item.sale_price : item.price;
+
+  const quantity = item.quantity;
+  const totalPrice = Number((unit * quantity).toFixed(6));
+
+  if (processing) return;
+  setProcessing(true);
+
+  try {
+    await window.Pi?.createPayment(
+      {
+        amount: totalPrice,
+        memo: t.payment_memo_order || "Order payment",
+        metadata: {
+          shipping,
+          product: {
+            id: item.id,
+            name: item.name,
+            image: item.thumbnail || "",
+            price: unit,
           },
+          quantity,
         },
+      },
         {
           onReadyForServerApproval: async (paymentId, callback) => {
             try {
@@ -362,20 +362,11 @@ export default function CartPage() {
           <span className="font-bold text-orange-600">{formatPi(total)} π</span>
         </div>
           <button
+  <button
   onClick={handlePay}
-  disabled={
-    processing ||
-    selectedItems.length === 0 ||
-    !user ||
-    !shipping
-  }
+  disabled={processing}
   className={`w-full rounded-lg py-3 text-white ${
-    processing ||
-    selectedItems.length === 0 ||
-    !user ||
-    !shipping
-      ? "bg-gray-400"
-      : "bg-orange-600"
+    processing ? "bg-gray-400" : "bg-orange-600"
   }`}
 >
   {processing ? t.processing : t.pay_now}
