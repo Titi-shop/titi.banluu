@@ -345,95 +345,111 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   }
 }, [item, quantity, total, shipping, unitPrice, processing]);
 
-      {/* MESSAGE (GIỐNG CART) */}
-      {message && (
+      return (
+  <div className="fixed inset-0 z-[100]">
+
+    {/* MESSAGE */}
+    {message && (
+      <div
+        className={`fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded shadow-lg z-[200]
+        ${message.type === "error" ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}
+      >
+        {message.text}
+      </div>
+    )}
+
+    {/* OVERLAY */}
+    <div
+      className="absolute inset-0 bg-black/40"
+      onClick={onClose}
+    />
+
+    {/* SHEET */}
+    <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[45vh] flex flex-col">
+
+      <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
+
+        {/* ADDRESS */}
         <div
-          className={`fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded shadow-lg z-[200]
-          ${message.type === "error" ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}
+          className="border rounded-lg p-3 cursor-pointer mb-4"
+          onClick={() => router.push("/customer/address")}
         >
-          {message.text}
+          {shipping ? (
+            <>
+              <p className="font-medium">{shipping.name}</p>
+              <p className="text-sm text-gray-600">{shipping.phone}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {shipping.address_line}
+              </p>
+              <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
+                {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
+              </p>
+            </>
+          ) : (
+            <p className="text-gray-500">➕ {t.add_shipping}</p>
+          )}
         </div>
-      )}
 
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+        {/* PRODUCT */}
+        <div className="flex items-center gap-3 border-b pb-3">
+          <img
+            src={item.thumbnail || "/placeholder.png"}
+            alt={item.name}
+            className="w-16 h-16 rounded object-cover"
+          />
 
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[45vh] flex flex-col">
+          <div className="flex-1">
+            <p className="text-sm font-medium line-clamp-2">
+              {item.name}
+            </p>
 
-        <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
-
-          <div
-            className="border rounded-lg p-3 cursor-pointer mb-4"
-            onClick={() => router.push("/customer/address")}
-          >
-            {shipping ? (
-              <>
-                <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-600">{shipping.phone}</p>
-                <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
-                <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
-                  {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
-                </p>
-              </>
-            ) : (
-              <p className="text-gray-500">➕ {t.add_shipping}</p>
-            )}
+            <input
+              type="text"
+              inputMode="numeric"
+              value={qtyDraft}
+              onChange={(e) => {
+                if (/^\d*$/.test(e.target.value)) {
+                  setQtyDraft(e.target.value);
+                }
+              }}
+              onBlur={() => {
+                if (!qtyDraft || Number(qtyDraft) < 1) {
+                  setQtyDraft("1");
+                }
+              }}
+              className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
+            />
           </div>
 
-          <div className="flex items-center gap-3 border-b pb-3">
-            <img
-           src={item.thumbnail || "/placeholder.png"}
-        alt={item.name}
-         className="w-16 h-16 rounded object-cover"
-           />
+          <div className="text-right">
+            <p className="font-semibold text-orange-600">
+              {formatPi(total)} π
+            </p>
 
-            <div className="flex-1">
-              <p className="text-sm font-medium line-clamp-2">
-                {item.name}
+            {!user && (
+              <p className="text-xs text-red-500">
+                {t.please_login || "Please login first"}
               </p>
-
-              <input
-                type="text"
-                inputMode="numeric"
-                value={qtyDraft}
-                onChange={(e) => {
-                  if (/^\d*$/.test(e.target.value)) {
-                    setQtyDraft(e.target.value);
-                  }
-                }}
-                onBlur={() => {
-                  if (!qtyDraft || Number(qtyDraft) < 1) {
-                    setQtyDraft("1");
-                  }
-                }}
-                className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-              />
-            </div>
-
-            <div className="flex-1">
-  <p className="font-semibold text-orange-600">
-    {formatPi(total)} π
-  </p>
-
-  {!user && (
-    <p className="text-xs text-red-500">
-      {t.please_login || "Please login first"}
-    </p>
-  )}
-</div>
-
-        </div>
-
-        <div className="border-t p-4">
-          <button
-            onClick={handlePay}
-            disabled={processing}
-            className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold"
-          >
-            {processing ? t.processing : t.pay_now}
-          </button>
+            )}
+          </div>
         </div>
 
       </div>
+
+      {/* BUTTON */}
+      <div className="border-t p-4">
+        <button
+          onClick={handlePay}
+          disabled={processing}
+          className={`w-full py-3 text-white rounded-lg font-semibold ${
+            processing ? "bg-gray-400" : "bg-orange-600"
+          }`}
+        >
+          {processing ? t.processing : t.pay_now}
+        </button>
+      </div>
+
     </div>
-  );
+  </div>
+);
 }
