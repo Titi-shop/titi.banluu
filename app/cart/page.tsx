@@ -98,6 +98,8 @@ export default function CartPage() {
 
   useEffect(() => {
   if (!user) return;
+  if (!shipping) return; // ✅ QUAN TRỌNG
+  if (processing) return;
 
   if (typeof window === "undefined") return;
 
@@ -105,13 +107,13 @@ export default function CartPage() {
 
   if (!pending) return;
 
-  // ❗ xoá trước để tránh loop
+  // ✅ tránh loop
   localStorage.removeItem("pending_checkout");
 
   setTimeout(() => {
     handlePay();
   }, 300);
-}, [user]);
+}, [user, shipping, processing]);
 
   const toggleItem = (id: string) => {
     setSelectedIds((prev) =>
@@ -126,12 +128,11 @@ export default function CartPage() {
   }
 
     if (!user) {
-  // 👉 lưu intent checkout
   if (typeof window !== "undefined") {
     localStorage.setItem("pending_checkout", "1");
   }
 
-  pilogin?.();
+  pilogin?.(); // ✅ mở login Pi
 
   showMessage(
     t.please_login || "Please login first",
