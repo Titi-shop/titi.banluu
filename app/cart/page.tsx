@@ -371,6 +371,7 @@ export default function CartPage() {
 >
   {processing ? t.processing : t.pay_now}
 </button>
+        </button>
       </div>
     </main>
   );
