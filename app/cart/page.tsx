@@ -96,6 +96,23 @@ export default function CartPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+  if (!user) return;
+
+  if (typeof window === "undefined") return;
+
+  const pending = localStorage.getItem("pending_checkout");
+
+  if (!pending) return;
+
+  // ❗ xoá trước để tránh loop
+  localStorage.removeItem("pending_checkout");
+
+  setTimeout(() => {
+    handlePay();
+  }, 300);
+}, [user]);
+
   const toggleItem = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
