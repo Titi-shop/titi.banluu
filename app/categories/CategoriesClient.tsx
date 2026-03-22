@@ -16,16 +16,25 @@ type Category = {
   icon?: string | null;
 };
 
+type ProductVariant = {
+  id: string;
+  name: string;
+  stock: number;
+};
+
 type Product = {
   id: number | string;
   name: string;
   price: number;
-  salePrice: number | null;
-  isSale: boolean;
   finalPrice: number;
+  isSale: boolean;
   thumbnail?: string;
-  image?: string;
-  images: string[];
+
+  // ✅ chuẩn mới
+  isActive?: boolean;
+  stock?: number;
+  variants?: ProductVariant[];
+
   categoryId: number | string;
   sold: number;
 };
@@ -33,7 +42,7 @@ type Product = {
 /* ================= HELPERS ================= */
 
 function getMainImage(product: Product) {
-  return product.thumbnail || product.image || product.images?.[0] || "/placeholder.png";
+  return product.thumbnail || "/placeholder.png";
 }
 
 /* ================= CLIENT PAGE ================= */
@@ -46,6 +55,44 @@ export default function CategoriesClient() {
   const [activeCategoryId, setActiveCategoryId] =
     useState<number | string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [message, setMessage] = useState<{
+  text: string;
+  type: "error" | "success";
+} | null>(null);
+
+const showMessage = (text: string, type: "error" | "success" = "error") => {
+  setMessage({ text, type });
+  setTimeout(() => setMessage(null), 3000);
+};
+
+  const handleAddToCart = (product: Product) => {
+  if (product.isActive === false) {
+    showMessage(t.product_unavailable || "Product is unavailable");
+    return;
+  }
+
+  if (product.variants && product.variants.length > 0) {
+    showMessage(t.select_variant || "Please select size / variant");
+    return;
+  }
+
+  if (product.stock !== undefined && product.stock <= 0) {
+    showMessage(t.out_of_stock || "Out of stock");
+    return;
+  }
+
+  addToCart({
+    id: String(product.id),
+    name: product.name,
+    price: product.price,
+    sale_price: product.finalPrice,
+    quantity: 1,
+    thumbnail: product.thumbnail,
+  });
+
+  showMessage(t.added_to_cart || "Added to cart", "success");
+};
 
   /* ================= LOAD DATA ================= */
 
@@ -75,6 +122,17 @@ export default function CategoriesClient() {
 
   return (
     <main className="bg-gray-50 min-h-screen pb-24">
+      {message && (
+  <div
+    className={`fixed top-16 left-1/2 z-50 -translate-x-1/2 rounded px-4 py-2 shadow-lg ${
+      message.type === "error"
+        ? "bg-red-500 text-white"
+        : "bg-green-500 text-white"
+    }`}
+  >
+    {message.text}
+  </div>
+)}
       {/* BANNER */}
       <div className="mt-3">
         <Image
@@ -192,20 +250,10 @@ export default function CategoriesClient() {
                         <button
                           type="button"
                           onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-
-                            addToCart({
-                              id: String(p.id),
-                              name: p.name,
-                              price: p.price,
-                              sale_price: finalPrice,
-                              quantity: 1,
-                              thumbnail: p.thumbnail,
-                              image: getMainImage(p),
-                              images: p.images,
-                            });
-                          }}
+                       e.preventDefault();
+                      e.stopPropagation();
+                      handleAddToCart(p);
+                       }}
                           className="absolute top-2 right-2 bg-white p-2 rounded-full shadow active:scale-95"
                           aria-label="Add to cart"
                         >
