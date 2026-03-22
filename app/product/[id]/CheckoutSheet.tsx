@@ -167,6 +167,20 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     if (open && user) loadAddress();
   }, [open, user]);
 
+
+   useEffect(() => {
+  if (!user) return;
+  if (!shipping) return;
+
+  const pending = localStorage.getItem("pending_checkout");
+  if (!pending) return;
+
+  localStorage.removeItem("pending_checkout");
+
+  setTimeout(() => {
+    handlePay();
+  }, 300);
+}, [user, shipping]);
   /* =========================
      PRICE
   ========================= */
