@@ -164,17 +164,17 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   useEffect(() => {
-    if (!user || !shipping || processing) return;
+  if (!user || !shipping || processing) return;
 
-    const pending = localStorage.getItem("pending_checkout");
-    if (!pending) return;
+  const pending = localStorage.getItem("pending_checkout");
+  if (!pending) return;
 
-    localStorage.removeItem("pending_checkout");
+  localStorage.removeItem("pending_checkout");
 
-    setTimeout(() => {
-      handlePay();
-    }, 300);
-  }, [user, shipping, processing]);
+  setTimeout(() => {
+    handlePay();
+  }, 300);
+}, [user, shipping, processing, handlePay]);
 
   /* ========================= */
 
