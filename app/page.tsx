@@ -161,10 +161,9 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
 
   // ❗ có variants → bắt buộc chọn
   if (product.variants && product.variants.length > 0) {
-    showMessage(t.select_variant || "Please select size / variant");
-    router.push(`/product/${product.id}`);
-    return;
-  }
+  showMessage(t.select_variant || "Please select size / variant");
+  return;
+}
 
   // ❗ hết hàng
   if (product.stock !== undefined && product.stock <= 0) {
