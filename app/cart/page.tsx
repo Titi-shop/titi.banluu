@@ -109,6 +109,11 @@ export default function CartPage() {
   }
 
     if (!user) {
+  // 👉 lưu intent checkout
+  if (typeof window !== "undefined") {
+    localStorage.setItem("pending_checkout", "1");
+  }
+
   pilogin?.();
 
   showMessage(
@@ -118,11 +123,6 @@ export default function CartPage() {
 
   return false;
 }
-
-  if (!user) {
-    showMessage(t.please_login || "Please login first");
-    return false;
-  }
 
   if (!shipping) {
     showMessage(
@@ -151,10 +151,10 @@ export default function CartPage() {
   }
 
   // ✅ check stock
-  if (item.variant?.stock <= 0) {
-    showMessage(t.out_of_stock || "Out of stock");
-    return false;
-  }
+  if (item.variant && item.variant.stock <= 0) {
+  showMessage(t.out_of_stock || "Out of stock");
+  return false;
+}
 
   if (!item.variant && item.stock !== undefined && item.stock <= 0) {
     showMessage(t.out_of_stock || "Out of stock");
