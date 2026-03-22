@@ -144,24 +144,24 @@ export default function HomePage() {
   const handleAddToCart = (product: Product) => {
   // ❌ sản phẩm bị tắt
   if (product.isActive === false) {
-    alert(t.product_unavailable || "Product is unavailable");
+    showMessage(t.product_unavailable || "Product is unavailable");
     return;
   }
 
-  // ❗ có variants → bắt buộc vào detail
+  // ❗ có variants → bắt buộc chọn
   if (product.variants && product.variants.length > 0) {
-    alert(t.select_variant || "Please select size / variant");
+    showMessage(t.select_variant || "Please select size / variant");
     router.push(`/product/${product.id}`);
     return;
   }
 
-  // ❗ check stock thường
+  // ❗ hết hàng
   if (product.stock !== undefined && product.stock <= 0) {
-    alert(t.out_of_stock || "Out of stock");
+    showMessage(t.out_of_stock || "Out of stock");
     return;
   }
 
-  // ✅ add
+  // ✅ add thành công
   addToCart({
     id: product.id,
     name: product.name,
@@ -170,6 +170,18 @@ export default function HomePage() {
     quantity: 1,
     thumbnail: product.thumbnail,
   });
+
+  showMessage(t.added_to_cart || "Added to cart", "success");
+};
+
+  const [message, setMessage] = useState<{
+  text: string;
+  type: "error" | "success";
+} | null>(null);
+
+const showMessage = (text: string, type: "error" | "success" = "error") => {
+  setMessage({ text, type });
+  setTimeout(() => setMessage(null), 3000);
 };
 
   /* ===== COUNTDOWN ===== */
@@ -236,6 +248,17 @@ export default function HomePage() {
 
   return (
     <main className="bg-gray-50 min-h-screen pb-24">
+      {message && (
+  <div
+    className={`fixed top-16 left-1/2 z-50 -translate-x-1/2 rounded px-4 py-2 shadow-lg ${
+      message.type === "error"
+        ? "bg-red-500 text-white"
+        : "bg-green-500 text-white"
+    }`}
+  >
+    {message.text}
+  </div>
+)}
       <BannerCarousel />
 
       {/* PI PRICE + FLASH SALE */}
