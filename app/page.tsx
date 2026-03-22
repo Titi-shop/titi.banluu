@@ -14,16 +14,25 @@ import { formatPi } from "@/lib/pi";
 
 /* ================= TYPES ================= */
 
+interface ProductVariant {
+  id: string;
+  name: string;
+  stock: number;
+}
+
 interface Product {
   id: string;
   name: string;
   price: number;
-  salePrice?: number | null;
-  isSale: boolean;
   finalPrice: number;
+  isSale: boolean;
   thumbnail?: string;
-  image?: string;
-  images: string[];
+
+  // ✅ thêm chuẩn
+  isActive?: boolean;
+  stock?: number;
+  variants?: ProductVariant[];
+
   categoryId: string | null;
   sold: number;
 }
@@ -37,7 +46,7 @@ interface Category {
 /* ================= HELPERS ================= */
 
 function getMainImage(product: Product) {
-  return product.thumbnail || product.image || product.images?.[0] || "/placeholder.png";
+  return product.thumbnail || "/placeholder.png";
 }
 
 /* ================= PRODUCT CARD ================= */
@@ -131,6 +140,37 @@ export default function HomePage() {
   const [sortType, setSortType] = useState("sale");
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
+
+  const handleAddToCart = (product: Product) => {
+  // ❌ sản phẩm bị tắt
+  if (product.isActive === false) {
+    alert(t.product_unavailable || "Product is unavailable");
+    return;
+  }
+
+  // ❗ có variants → bắt buộc vào detail
+  if (product.variants && product.variants.length > 0) {
+    alert(t.select_variant || "Please select size / variant");
+    router.push(`/product/${product.id}`);
+    return;
+  }
+
+  // ❗ check stock thường
+  if (product.stock !== undefined && product.stock <= 0) {
+    alert(t.out_of_stock || "Out of stock");
+    return;
+  }
+
+  // ✅ add
+  addToCart({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    sale_price: product.finalPrice,
+    quantity: 1,
+    thumbnail: product.thumbnail,
+  });
+};
 
   /* ===== COUNTDOWN ===== */
   useEffect(() => {
@@ -245,17 +285,9 @@ export default function HomePage() {
 
                     <button
                       onClick={(e) => {
-                        e.stopPropagation();
-                        addToCart({
-                          id: p.id,
-                          name: p.name,
-                          price: p.price,
-                          sale_price: p.finalPrice,
-                          quantity: 1,
-                          thumbnail: p.thumbnail,
-                          image: getMainImage(p),
-                          images: p.images,
-                        });
+                   e.stopPropagation();
+                    handleAddToCart(p);
+                    }}
                       }}
                       className="absolute top-1 right-1 bg-white p-1.5 rounded-full shadow active:scale-95"
                       aria-label={t.add_to_cart || "Add to cart"}
@@ -307,18 +339,7 @@ export default function HomePage() {
               key={p.id}
               product={p}
               t={t}
-              onAddToCart={(product) =>
-                addToCart({
-                  id: product.id,
-                  name: product.name,
-                  price: product.price,
-                  sale_price: product.finalPrice,
-                  quantity: 1,
-                  thumbnail: product.thumbnail,
-                  image: getMainImage(product),
-                  images: product.images,
-                })
-              }
+            onAddToCart={handleAddToCart}
             />
           ))}
         </section>
