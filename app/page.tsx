@@ -288,7 +288,7 @@ export default function HomePage() {
                    e.stopPropagation();
                     handleAddToCart(p);
                     }}
-                      }}
+                      
                       className="absolute top-1 right-1 bg-white p-1.5 rounded-full shadow active:scale-95"
                       aria-label={t.add_to_cart || "Add to cart"}
                     >
