@@ -343,7 +343,18 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     setProcessing(false);
     showMessage(t.transaction_failed);
   }
-}, [item, quantity, total, shipping, unitPrice, processing]);
+}, [
+  item,
+  quantity,
+  total,
+  shipping,
+  unitPrice,
+  processing,
+  t,
+  user,
+  router,
+  onClose,
+]);
 
       return (
   <div className="fixed inset-0 z-[100]">
