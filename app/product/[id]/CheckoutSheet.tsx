@@ -164,17 +164,17 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   useEffect(() => {
-  if (!user || !shipping || processing) return;
+    if (!user || !shipping || processing) return;
 
-  const pending = localStorage.getItem("pending_checkout");
-  if (!pending) return;
+    const pending = localStorage.getItem("pending_checkout");
+    if (!pending) return;
 
-  localStorage.removeItem("pending_checkout");
+    localStorage.removeItem("pending_checkout");
 
-  setTimeout(() => {
-    handlePay();
-  }, 300);
-}, [user, shipping, processing, handlePay]);
+    setTimeout(() => {
+      handlePay();
+    }, 300);
+  }, [user, shipping, processing]);
 
   /* ========================= */
 
@@ -195,28 +195,16 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   const validateBeforePay = () => {
-
-     if (!window.Pi) {
-  showMessage("Pi not ready");
-  return false;
-}
-     
     if (!window.Pi || !piReady) {
       showMessage(t.pi_not_ready || "Pi is not ready");
       return false;
     }
 
     if (!user) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("pending_checkout", "1");
-  }
-
-  pilogin?.(); 
-
-  showMessage(t.please_login || "Please login first");
-
-  return false;
-}
+      localStorage.setItem("pending_checkout", "1");
+      showMessage(t.please_login || "Please login first");
+      return false;
+    }
 
     if (!item) {
       showMessage(t.invalid_product || "Invalid product");
