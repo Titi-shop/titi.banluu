@@ -1,5 +1,5 @@
 "use client";
-
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -220,7 +220,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   showMessage(t.invalid_product || "Invalid product");
   return false;
 }
-     if (item.variant?.stock <= 0) {
   showMessage(t.out_of_stock || "Out of stock");
   return false;
 }
@@ -231,10 +230,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       return false;
     }
 
-    if (!item || quantity < 1 || quantity > 99) {
-      showMessage(t.invalid_quantity || "Invalid quantity");
-      return false;
-    }
+    if (quantity < 1 || quantity > 99) {
+  showMessage(t.invalid_quantity || "Invalid quantity");
+  return false;
+}
 
     return true;
   };
@@ -245,7 +244,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   const handlePay = useCallback(async () => {
   if (!validateBeforePay()) return;
-
   if (processing) return;
 
   setProcessing(true);
@@ -267,105 +265,85 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         },
       },
       {
-        // giữ nguyên
+        onReadyForServerApproval: async (paymentId, callback) => {
+          try {
+            const token = await getPiAccessToken();
+
+            const res = await fetch("/api/pi/approve", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ paymentId }),
+            });
+
+            if (!res.ok) {
+              setProcessing(false);
+              showMessage(t.payment_approve_failed || "Payment approval failed");
+              return;
+            }
+
+            callback();
+          } catch {
+            setProcessing(false);
+            showMessage(t.payment_approve_error || "Payment approval error");
+          }
+        },
+
+        onReadyForServerCompletion: async (paymentId, txid) => {
+          try {
+            const token = await getPiAccessToken();
+
+            const res = await fetch("/api/pi/complete", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                paymentId,
+                txid,
+                product_id: item!.id,
+                quantity,
+                total,
+                shipping,
+                user: { pi_uid: user!.pi_uid },
+              }),
+            });
+
+            if (!res.ok) {
+              setProcessing(false);
+              showMessage(t.payment_complete_failed || "Payment completion failed");
+              return;
+            }
+
+            setProcessing(false);
+            onClose();
+            router.push("/customer/pending");
+            showMessage(t.payment_success || "Payment successful", "success");
+          } catch {
+            setProcessing(false);
+            showMessage(t.payment_failed || "Payment failed");
+          }
+        },
+
+        onCancel: () => {
+          setProcessing(false);
+          showMessage(t.payment_cancelled || "Payment was cancelled");
+        },
+
+        onError: () => {
+          setProcessing(false);
+          showMessage(t.payment_failed || "Payment failed");
+        },
       }
     );
   } catch {
     setProcessing(false);
     showMessage(t.transaction_failed);
   }
-}, [
-  item,
-  quantity,
-  total,
-  shipping,
-  unitPrice,
-  processing,
-]);
-          onReadyForServerApproval: async (paymentId, callback) => {
-            try {
-              const token = await getPiAccessToken();
-
-              const res = await fetch("/api/pi/approve", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ paymentId }),
-              });
-
-              if (!res.ok) {
-                setProcessing(false);
-                showMessage(t.payment_approve_failed || "Payment approval failed");
-                return;
-              }
-
-              callback();
-            } catch {
-              setProcessing(false);
-              showMessage(t.payment_approve_error || "Payment approval error");
-            }
-          },
-
-          onReadyForServerCompletion: async (paymentId, txid) => {
-            try {
-              const token = await getPiAccessToken();
-
-              const res = await fetch("/api/pi/complete", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  paymentId,
-                  txid,
-                  product_id: item!.id,
-                  quantity,
-                  total,
-                  shipping,
-                  user: { pi_uid: user!.pi_uid },
-                }),
-              });
-
-              if (!res.ok) {
-                setProcessing(false);
-                showMessage(t.payment_complete_failed || "Payment completion failed");
-                return;
-              }
-
-              setProcessing(false);
-onClose();
-router.push("/customer/pending");
-showMessage(t.payment_success || "Payment successful", "success");
-            } catch {
-              setProcessing(false);
-              showMessage(t.payment_failed || "Payment failed");
-            }
-          },
-
-          onCancel: () => {
-            setProcessing(false);
-            showMessage(t.payment_cancelled || "Payment was cancelled");
-          },
-
-          onError: () => {
-            setProcessing(false);
-            showMessage(t.payment_failed || "Payment failed");
-          },
-        }
-      );
-    } catch {
-      setProcessing(false);
-      showMessage(t.transaction_failed);
-    }
-  };
-
-  if (!open || !item) return null;
-
-  return (
-    <div className="fixed inset-0 z-[100]">
+}, [item, quantity, total, shipping, unitPrice, processing]);
 
       {/* MESSAGE (GIỐNG CART) */}
       {message && (
@@ -431,15 +409,17 @@ showMessage(t.payment_success || "Payment successful", "success");
               />
             </div>
 
-            <p className="font-semibold text-orange-600">
-              {formatPi(total)} π
-            </p>
-             {!user && (
-  <p className="text-xs text-red-500 mb-2">
-    {t.please_login || "Please login first"}
+            <div className="flex-1">
+  <p className="font-semibold text-orange-600">
+    {formatPi(total)} π
   </p>
-)}
-          </div>
+
+  {!user && (
+    <p className="text-xs text-red-500">
+      {t.please_login || "Please login first"}
+    </p>
+  )}
+</div>
 
         </div>
 
