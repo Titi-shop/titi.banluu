@@ -108,6 +108,17 @@ export default function CartPage() {
     return false;
   }
 
+    if (!user) {
+  pilogin?.();
+
+  showMessage(
+    t.please_login || "Please login first",
+    "error"
+  );
+
+  return false;
+}
+
   if (!user) {
     showMessage(t.please_login || "Please login first");
     return false;
