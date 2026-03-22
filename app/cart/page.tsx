@@ -362,7 +362,6 @@ export default function CartPage() {
           <span className="font-bold text-orange-600">{formatPi(total)} π</span>
         </div>
           <button
-  <button
   onClick={handlePay}
   disabled={processing}
   className={`w-full rounded-lg py-3 text-white ${
@@ -370,7 +369,6 @@ export default function CartPage() {
   }`}
 >
   {processing ? t.processing : t.pay_now}
-</button>
         </button>
       </div>
     </main>
