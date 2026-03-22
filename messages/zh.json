@@ -458,7 +458,8 @@
   "please_login": "请先登录",
   "please_add_shipping_address": "请添加地址",
   "invalid_product": "商品无效",
-  "out_of_stock": "缺货"
+  "out_of_stock": "缺货",
+  "pi_not_ready": "Pi 尚未准备就绪"
 
 
 
