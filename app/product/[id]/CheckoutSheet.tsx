@@ -208,17 +208,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     }
 
     if (!user) {
-  // 👉 lưu intent checkout
-  if (typeof window !== "undefined") {
-    localStorage.setItem("pending_checkout", "1");
-  }
+  localStorage.setItem("pending_checkout", "1");
 
-  pilogin?.();
-
-  showMessage(
-    t.please_login || "Please login first",
-    "error"
-  );
+  showMessage(t.please_login || "Please login first");
 
   return false;
 }
