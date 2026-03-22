@@ -308,9 +308,10 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
 
                     <button
                       onClick={(e) => {
-                   e.stopPropagation();
-                    handleAddToCart(p);
-                    }}
+                   e.preventDefault();
+                 e.stopPropagation();
+                 handleAddToCart(p);
+                  }}
                       
                       className="absolute top-1 right-1 bg-white p-1.5 rounded-full shadow active:scale-95"
                       aria-label={t.add_to_cart || "Add to cart"}
