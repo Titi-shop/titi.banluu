@@ -463,4 +463,4 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     </div>
   </div>
 );
-}
+
