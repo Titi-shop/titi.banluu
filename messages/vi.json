@@ -469,7 +469,9 @@
   "product_unavailable": "Sản phẩm hiện không khả dụng",
   "select_variant": "Vui lòng chọn kích thước / phân loại",
   "out_of_stock": "Sản phẩm đã hết hàng",
-  "added_to_cart": "Đã thêm vào giỏ hàng"
+  "added_to_cart": "Đã thêm vào giỏ hàng",
+   "invalid_quantity": "Số lượng không hợp lệ",
+   "please_select_product": "Vui lòng chọn sản phẩm"
 
 
 
