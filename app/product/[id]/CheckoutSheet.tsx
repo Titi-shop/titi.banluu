@@ -79,8 +79,6 @@ interface Props {
     name: string;
     price: number;
     finalPrice?: number;
-    image?: string;
-    images?: string[];
      thumbnail?: string;
   };
 }
@@ -130,8 +128,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     price: product.price,
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail || "",
-    image: product.thumbnail || product.image || product.images?.[0] || "",
-    images: product.images || [],
   };
 }, [product]);
 
@@ -198,9 +194,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     }
 
     if (!user) {
-      router.push("/pilogin");
-      return false;
-    }
+  localStorage.setItem("pending_checkout", "1");
+  showMessage(t.please_login || "Please login first");
+  return false;
+}
 
     if (!shipping) {
       showMessage(t.please_add_shipping_address || "Please add a shipping address");
@@ -236,7 +233,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
             product: {
               id: item!.id,
               name: item!.name,
-              image: item!.thumbnail || item!.image || item!.images?.[0] || "",
+             image: item!.thumbnail || "",
               price: unitPrice,
             },
             quantity,
@@ -364,10 +361,10 @@ showMessage(t.payment_success || "Payment successful", "success");
 
           <div className="flex items-center gap-3 border-b pb-3">
             <img
-  src={item.image || "/placeholder.png"}
-  alt={item.name}
-  className="w-16 h-16 rounded object-cover"
-/>
+           src={item.thumbnail || "/placeholder.png"}
+        alt={item.name}
+         className="w-16 h-16 rounded object-cover"
+           />
 
             <div className="flex-1">
               <p className="text-sm font-medium line-clamp-2">
