@@ -94,7 +94,7 @@ function getCountryDisplay(country?: string) {
 export default function CheckoutSheet({ open, onClose, product }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, piReady } = useAuth();
+  const { user, piReady, pilogin } = useAuth();
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -164,17 +164,17 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   useEffect(() => {
-    if (!user || !shipping || processing) return;
+  if (!user || !shipping || processing) return;
 
-    const pending = localStorage.getItem("pending_checkout");
-    if (!pending) return;
+  const pending = localStorage.getItem("pending_checkout");
+  if (!pending) return;
 
-    localStorage.removeItem("pending_checkout");
+  localStorage.removeItem("pending_checkout");
 
-    setTimeout(() => {
-      handlePay();
-    }, 300);
-  }, [user, shipping, processing]);
+  setTimeout(() => {
+    handlePay();
+  }, 300);
+}, [user, shipping, processing, handlePay]);
 
   /* ========================= */
 
@@ -201,10 +201,16 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     }
 
     if (!user) {
-      localStorage.setItem("pending_checkout", "1");
-      showMessage(t.please_login || "Please login first");
-      return false;
-    }
+  if (typeof window !== "undefined") {
+    localStorage.setItem("pending_checkout", "1");
+  }
+
+  pilogin?.(); 
+
+  showMessage(t.please_login || "Please login first");
+
+  return false;
+}
 
     if (!item) {
       showMessage(t.invalid_product || "Invalid product");
