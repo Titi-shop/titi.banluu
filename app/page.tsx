@@ -141,6 +141,17 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
 
+
+  const [message, setMessage] = useState<{
+  text: string;
+  type: "error" | "success";
+} | null>(null);
+
+const showMessage = (text: string, type: "error" | "success" = "error") => {
+  setMessage({ text, type });
+  setTimeout(() => setMessage(null), 3000);
+};
+
   const handleAddToCart = (product: Product) => {
   // ❌ sản phẩm bị tắt
   if (product.isActive === false) {
@@ -173,17 +184,6 @@ export default function HomePage() {
 
   showMessage(t.added_to_cart || "Added to cart", "success");
 };
-
-  const [message, setMessage] = useState<{
-  text: string;
-  type: "error" | "success";
-} | null>(null);
-
-const showMessage = (text: string, type: "error" | "success" = "error") => {
-  setMessage({ text, type });
-  setTimeout(() => setMessage(null), 3000);
-};
-
   /* ===== COUNTDOWN ===== */
   useEffect(() => {
     const target = new Date();
