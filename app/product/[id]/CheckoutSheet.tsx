@@ -200,11 +200,20 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       return false;
     }
 
-    if (!user) {
-      localStorage.setItem("pending_checkout", "1");
-      showMessage(t.please_login || "Please login first");
-      return false;
-    }
+      if (!user) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("pending_checkout", "1");
+  }
+
+  pilogin?.(); // ✅ mở login Pi
+
+  showMessage(
+    t.please_login || "Please login first",
+    "error"
+  );
+
+  return false;
+}
 
     if (!item) {
       showMessage(t.invalid_product || "Invalid product");
