@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -171,6 +171,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
    useEffect(() => {
   if (!user) return;
   if (!shipping) return;
+  if (processing) return;
 
   const pending = localStorage.getItem("pending_checkout");
   if (!pending) return;
@@ -180,7 +181,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   setTimeout(() => {
     handlePay();
   }, 300);
-}, [user, shipping]);
+}, [user, shipping, processing, handlePay]);
   /* =========================
      PRICE
   ========================= */
@@ -232,30 +233,45 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
      PAY WITH PI
   ========================= */
 
-  const handlePay = async () => {
-    if (!validateBeforePay()) return;
+  const handlePay = useCallback(async () => {
+  if (!validateBeforePay()) return;
 
-    if (processing) return;
+  if (processing) return;
 
-    setProcessing(true);
+  setProcessing(true);
 
-    try {
-      await window.Pi?.createPayment(
-        {
-          amount: total,
-          memo: t.payment_memo_order || "Order payment",
-          metadata: {
-            shipping,
-            product: {
-              id: item!.id,
-              name: item!.name,
-             image: item!.thumbnail || "",
-              price: unitPrice,
-            },
-            quantity,
+  try {
+    await window.Pi?.createPayment(
+      {
+        amount: total,
+        memo: t.payment_memo_order || "Order payment",
+        metadata: {
+          shipping,
+          product: {
+            id: item!.id,
+            name: item!.name,
+            image: item!.thumbnail || "",
+            price: unitPrice,
           },
+          quantity,
         },
-        {
+      },
+      {
+        // giữ nguyên
+      }
+    );
+  } catch {
+    setProcessing(false);
+    showMessage(t.transaction_failed);
+  }
+}, [
+  item,
+  quantity,
+  total,
+  shipping,
+  unitPrice,
+  processing,
+]);
           onReadyForServerApproval: async (paymentId, callback) => {
             try {
               const token = await getPiAccessToken();
