@@ -122,6 +122,13 @@ export default function CartPage() {
   };
 
   const validateBeforePay = (): boolean => {
+
+    if (!window.Pi || !piReady) {
+  showMessage(t.pi_not_ready || "Pi is not ready");
+  return false;
+}
+
+    
   if (!window.Pi || !piReady) {
     showMessage(t.pi_not_ready || "Pi is not ready");
     return false;
