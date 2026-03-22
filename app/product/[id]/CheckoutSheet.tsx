@@ -216,6 +216,16 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   return false;
 }
 
+     if (!item) {
+  showMessage(t.invalid_product || "Invalid product");
+  return false;
+}
+     if (item.variant?.stock <= 0) {
+  showMessage(t.out_of_stock || "Out of stock");
+  return false;
+}
+     
+
     if (!shipping) {
       showMessage(t.please_add_shipping_address || "Please add a shipping address");
       return false;
@@ -424,6 +434,11 @@ showMessage(t.payment_success || "Payment successful", "success");
             <p className="font-semibold text-orange-600">
               {formatPi(total)} π
             </p>
+             {!user && (
+  <p className="text-xs text-red-500 mb-2">
+    {t.please_login || "Please login first"}
+  </p>
+)}
           </div>
 
         </div>
