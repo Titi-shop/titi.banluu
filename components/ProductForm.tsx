@@ -1,11 +1,14 @@
 "use client";
-
+import { createClient } from "@supabase/supabase-js";
 import { useState, useEffect, FormEvent } from "react";
 import Image from "next/image";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 /* =========================
    TYPES
 ========================= */
@@ -107,79 +110,107 @@ export default function ProductForm({
   };
 
   const uploadImages = async (
-    files: File[],
-    setter: React.Dispatch<React.SetStateAction<string[]>>
-  ) => {
-    if (!files.length) return;
+  files: File[],
+  setter: React.Dispatch<React.SetStateAction<string[]>>
+) => {
+  if (!files.length) return;
 
-    if (images.length + files.length > 6) {
-      setMessage({
-        text: t.max_6_images,
-        type: "error",
-      });
-      return;
-    }
+  if (images.length + files.length > 6) {
+    setMessage({
+      text: t.max_6_images,
+      type: "error",
+    });
+    return;
+  }
 
-    setUploadingImage(true);
+  setUploadingImage(true);
 
-    try {
-      for (const file of files) {
-        const form = new FormData();
-        form.append("file", file);
+  try {
+    for (const file of files) {
 
-        const res = await apiAuthFetch("/api/upload", {
-          method: "POST",
-          body: form,
+      // ✅ check size
+      if (file.size > 2 * 1024 * 1024) {
+        throw new Error("FILE_TOO_LARGE");
+      }
+
+      // ✅ check type
+      if (!file.type.startsWith("image/")) {
+        throw new Error("INVALID_FILE_TYPE");
+      }
+
+      const ext = file.name.split(".").pop() || "jpg";
+
+      const filePath = `products/${user.id}/${crypto.randomUUID()}.${ext}`;
+
+      // ✅ upload trực tiếp
+      const { error } = await supabase.storage
+        .from("products")
+        .upload(filePath, file, {
+          contentType: file.type,
         });
 
-        if (!res.ok) throw new Error("UPLOAD_FAILED");
+      if (error) throw error;
 
-        const data = (await res.json()) as { url?: string };
-        if (!data.url) throw new Error("NO_URL_RETURNED");
+      const { data } = supabase.storage
+        .from("products")
+        .getPublicUrl(filePath);
 
-        setter((prev) => [...prev, data.url!]);
-      }
-    } catch {
-      setMessage({
-        text: t.upload_failed,
-        type: "error",
-      });
-    } finally {
-      setUploadingImage(false);
+      setter((prev) => [...prev, data.publicUrl]);
     }
-  };
 
+  } catch (err) {
+    console.error(err);
+
+    setMessage({
+      text: t.upload_failed,
+      type: "error",
+    });
+  } finally {
+    setUploadingImage(false);
+  }
+};
   const uploadDetailImages = async (files: File[]) => {
-    if (!files.length) return;
+  if (!files.length) return;
 
-    setUploadingImage(true);
+  setUploadingImage(true);
 
-    try {
-      for (const file of files) {
-        const form = new FormData();
-        form.append("file", file);
+  try {
+    for (const file of files) {
 
-        const res = await apiAuthFetch("/api/upload", {
-          method: "POST",
-          body: form,
+      if (file.size > 2 * 1024 * 1024) {
+        throw new Error("FILE_TOO_LARGE");
+      }
+
+      const ext = file.name.split(".").pop() || "jpg";
+
+      const filePath = `products/${user.id}/${crypto.randomUUID()}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from("products")
+        .upload(filePath, file, {
+          contentType: file.type,
         });
 
-        if (!res.ok) throw new Error("UPLOAD_DETAIL_FAILED");
+      if (error) throw error;
 
-        const data = (await res.json()) as { url?: string };
-        if (!data.url) throw new Error("NO_URL_RETURNED");
+      const { data } = supabase.storage
+        .from("products")
+        .getPublicUrl(filePath);
 
-        setDetail((prev) => `${prev}\n<img src="${data.url}" />\n`);
-      }
-    } catch {
-      setMessage({
-        text: t.upload_detail_failed,
-        type: "error",
-      });
-    } finally {
-      setUploadingImage(false);
+      setDetail((prev) => `${prev}\n<img src="${data.publicUrl}" />\n`);
     }
-  };
+
+  } catch (err) {
+    console.error(err);
+
+    setMessage({
+      text: t.upload_detail_failed,
+      type: "error",
+    });
+  } finally {
+    setUploadingImage(false);
+  }
+};
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
