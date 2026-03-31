@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
+import type { ProductRecord } from "@/lib/db/products";
 import {
   createProduct,
   updateProductBySeller,
+  getAllProducts,
+  getProductsByIds,
+  deleteProductBySeller
 } from "@/lib/db/products";
 import {
   getVariantsByProductId,
   createVariantsForProduct,
   replaceVariantsByProductId,
 } from "@/lib/db/variants";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -82,8 +85,9 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const ids = searchParams.get("ids");
 
-    let products: any[] = [];
+let products: ProductRecord[] = [];
 
+    /* ================= DB LAYER ================= */
     if (ids) {
       const idArray = ids
         .split(",")
@@ -94,51 +98,16 @@ export async function GET(req: Request) {
         return NextResponse.json([]);
       }
 
-      const inFilter = idArray.map((id) => `"${id}"`).join(",");
-
-      const res = await fetch(
-        `${process.env.SUPABASE_URL}/rest/v1/products?id=in.(${inFilter})&select=*`,
-        {
-          headers: {
-            apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          },
-          cache: "no-store",
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.text();
-        console.error("❌ FETCH PRODUCTS BY IDS ERROR:", err);
-        return NextResponse.json([]);
-      }
-
-      products = await res.json();
+      products = await getProductsByIds(idArray);
     } else {
-      const res = await fetch(
-        `${process.env.SUPABASE_URL}/rest/v1/products?select=*`,
-        {
-          headers: {
-            apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          },
-          cache: "no-store",
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.text();
-        console.error("❌ FETCH ALL PRODUCTS ERROR:", err);
-        return NextResponse.json([]);
-      }
-
-      products = await res.json();
+      products = await getAllProducts();
     }
 
+    /* ================= ENRICH ================= */
     const now = Date.now();
 
     const enriched = await Promise.all(
-      products.map(async (p: any) => {
+      products.map(async (p: ProductRecord) => {
         const start =
           typeof p.sale_start === "string"
             ? new Date(p.sale_start).getTime()
@@ -157,7 +126,9 @@ export async function GET(req: Request) {
           now <= end;
 
         const baseStock =
-          typeof p.stock === "number" && !Number.isNaN(p.stock) ? p.stock : 0;
+          typeof p.stock === "number" && !Number.isNaN(p.stock)
+            ? p.stock
+            : 0;
 
         const isActive = p.is_active !== false;
 
@@ -168,7 +139,7 @@ export async function GET(req: Request) {
           console.error(`❌ GET VARIANTS ERROR: ${p.id}`, error);
         }
 
-        const hasVariants = Array.isArray(variants) && variants.length > 0;
+        const hasVariants = variants.length > 0;
 
         const totalVariantStock = hasVariants
           ? variants.reduce((sum, item) => sum + (item.stock || 0), 0)
@@ -180,7 +151,8 @@ export async function GET(req: Request) {
           id: p.id,
           name: p.name,
 
-          description: typeof p.description === "string" ? p.description : "",
+          description:
+            typeof p.description === "string" ? p.description : "",
           detail: typeof p.detail === "string" ? p.detail : "",
 
           images: Array.isArray(p.images) ? p.images : [],
@@ -202,11 +174,11 @@ export async function GET(req: Request) {
           isOutOfStock: finalStock <= 0 || !isActive,
 
           views: typeof p.views === "number" ? p.views : 0,
-sold: typeof p.sold === "number" ? p.sold : 0,
-rating_avg: typeof p.rating_avg === "number" ? p.rating_avg : 0,
-rating_count: typeof p.rating_count === "number" ? p.rating_count : 0,
-
-variants,
+          sold: typeof p.sold === "number" ? p.sold : 0,
+          rating_avg:
+            typeof p.rating_avg === "number" ? p.rating_avg : 0,
+          rating_count:
+            typeof p.rating_count === "number" ? p.rating_count : 0,
 
           variants,
         };
@@ -216,6 +188,7 @@ variants,
     return NextResponse.json(enriched);
   } catch (err) {
     console.error("❌ GET PRODUCTS ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCTS" },
       { status: 500 }
@@ -229,7 +202,10 @@ variants,
 
 export async function POST(req: Request) {
   const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+if (!auth.ok) return auth.response;
+
+const userId = auth.userId;
+
 
   try {
     const body: unknown = await req.json();
@@ -273,7 +249,7 @@ export async function POST(req: Request) {
       ? stock
       : 0;
 
-    const product = await createProduct(auth.user.pi_uid, {
+    const product = await createProduct(userId , {
       name: name.trim(),
       price,
 
@@ -332,7 +308,10 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+if (!auth.ok) return auth.response;
+
+const userId = auth.userId;
+
 
   try {
     const body: unknown = await req.json();
@@ -386,7 +365,7 @@ export async function PUT(req: Request) {
       : 0;
 
     const updated = await updateProductBySeller(
-      auth.user.pi_uid,
+  userId,
       productId,
       {
         name: name.trim(),
@@ -437,10 +416,11 @@ export async function PUT(req: Request) {
 /* =========================================================
    DELETE — DELETE PRODUCT (SELLER ONLY)
 ========================================================= */
-
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
+
+  const userId = auth.userId;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -453,30 +433,9 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const res = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/products?id=eq.${id}&seller_id=eq.${auth.user.pi_uid}`,
-      {
-        method: "DELETE",
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          Prefer: "return=representation",
-        },
-      }
-    );
+    const deleted = await deleteProductBySeller(userId, id);
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("❌ DELETE ERROR:", text);
-      return NextResponse.json(
-        { error: "FAILED_TO_DELETE_PRODUCT" },
-        { status: 500 }
-      );
-    }
-
-    const deleted = await res.json();
-
-    if (!deleted.length) {
+    if (!deleted) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
         { status: 404 }
@@ -484,8 +443,10 @@ export async function DELETE(req: Request) {
     }
 
     return NextResponse.json({ success: true });
+
   } catch (err) {
     console.error("❌ DELETE PRODUCT ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_DELETE_PRODUCT" },
       { status: 500 }
