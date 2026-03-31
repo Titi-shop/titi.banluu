@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
+
 import type { ProductRecord } from "@/lib/db/products";
 import {
   createProduct,
   updateProductBySeller,
   getAllProducts,
   getProductsByIds,
-  deleteProductBySeller
+  deleteProductBySeller,
 } from "@/lib/db/products";
+
 import {
   getVariantsByProductId,
   createVariantsForProduct,
   replaceVariantsByProductId,
 } from "@/lib/db/variants";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -29,6 +32,10 @@ type ProductVariantInput = {
   sortOrder?: number;
   isActive?: boolean;
 };
+
+/* =========================================================
+   NORMALIZE VARIANTS
+========================================================= */
 
 function normalizeVariants(input: unknown): ProductVariantInput[] {
   if (!Array.isArray(input)) return [];
@@ -49,7 +56,7 @@ function normalizeVariants(input: unknown): ProductVariantInput[] {
       return {
         id: typeof row.id === "string" ? row.id : undefined,
         optionName:
-          typeof row.optionName === "string" && row.optionName.trim() !== ""
+          typeof row.optionName === "string" && row.optionName.trim()
             ? row.optionName.trim()
             : "size",
         optionValue,
@@ -60,11 +67,12 @@ function normalizeVariants(input: unknown): ProductVariantInput[] {
             ? row.stock
             : 0,
         sku:
-          typeof row.sku === "string" && row.sku.trim() !== ""
+          typeof row.sku === "string" && row.sku.trim()
             ? row.sku.trim()
             : null,
         sortOrder:
-          typeof row.sortOrder === "number" && !Number.isNaN(row.sortOrder)
+          typeof row.sortOrder === "number" &&
+          !Number.isNaN(row.sortOrder)
             ? row.sortOrder
             : index,
         isActive:
@@ -73,11 +81,11 @@ function normalizeVariants(input: unknown): ProductVariantInput[] {
             : true,
       };
     })
-    .filter((item): item is ProductVariantInput => item !== null);
+    .filter((i): i is ProductVariantInput => i !== null);
 }
 
 /* =========================================================
-   GET — PUBLIC PRODUCTS (NO AUTH)
+   GET — PUBLIC PRODUCTS
 ========================================================= */
 
 export async function GET(req: Request) {
@@ -85,38 +93,37 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const ids = searchParams.get("ids");
 
-let products: ProductRecord[] = [];
+    let products: ProductRecord[] = [];
 
-    /* ================= DB LAYER ================= */
+    /* ================= DB ================= */
     if (ids) {
       const idArray = ids
         .split(",")
         .map((id) => id.trim())
         .filter(Boolean);
 
-      if (idArray.length === 0) {
-        return NextResponse.json([]);
-      }
+      if (!idArray.length) return NextResponse.json([]);
 
       products = await getProductsByIds(idArray);
     } else {
       products = await getAllProducts();
     }
 
-    /* ================= ENRICH ================= */
     const now = Date.now();
 
+    /* ================= ENRICH ================= */
     const enriched = await Promise.all(
-      products.map(async (p: ProductRecord) => {
-        const start =
-          typeof p.sale_start === "string"
-            ? new Date(p.sale_start).getTime()
-            : null;
+      products.map(async (p) => {
+        let variants: ProductVariantInput[] = [];
 
-        const end =
-          typeof p.sale_end === "string"
-            ? new Date(p.sale_end).getTime()
-            : null;
+        try {
+          variants = await getVariantsByProductId(p.id);
+        } catch {
+          // không log verbose production
+        }
+
+        const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
+        const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
 
         const isSale =
           typeof p.sale_price === "number" &&
@@ -126,39 +133,30 @@ let products: ProductRecord[] = [];
           now <= end;
 
         const baseStock =
-          typeof p.stock === "number" && !Number.isNaN(p.stock)
-            ? p.stock
-            : 0;
-
-        const isActive = p.is_active !== false;
-
-        let variants: ProductVariantInput[] = [];
-        try {
-          variants = await getVariantsByProductId(p.id);
-        } catch (error) {
-          console.error(`❌ GET VARIANTS ERROR: ${p.id}`, error);
-        }
+          typeof p.stock === "number" ? p.stock : 0;
 
         const hasVariants = variants.length > 0;
 
         const totalVariantStock = hasVariants
-          ? variants.reduce((sum, item) => sum + (item.stock || 0), 0)
+          ? variants.reduce((s, v) => s + (v.stock || 0), 0)
           : 0;
 
         const finalStock = hasVariants ? totalVariantStock : baseStock;
+
+        const isActive = p.is_active !== false;
 
         return {
           id: p.id,
           name: p.name,
 
-          description:
-            typeof p.description === "string" ? p.description : "",
-          detail: typeof p.detail === "string" ? p.detail : "",
+          description: p.description ?? "",
+          detail: p.detail ?? "",
 
           images: Array.isArray(p.images) ? p.images : [],
           thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
 
           categoryId: p.category_id ?? null,
+
           price: typeof p.price === "number" ? p.price : 0,
           salePrice:
             typeof p.sale_price === "number" ? p.sale_price : null,
@@ -173,12 +171,11 @@ let products: ProductRecord[] = [];
           isActive,
           isOutOfStock: finalStock <= 0 || !isActive,
 
-          views: typeof p.views === "number" ? p.views : 0,
-          sold: typeof p.sold === "number" ? p.sold : 0,
-          rating_avg:
-            typeof p.rating_avg === "number" ? p.rating_avg : 0,
-          rating_count:
-            typeof p.rating_count === "number" ? p.rating_count : 0,
+          views: p.views ?? 0,
+          sold: p.sold ?? 0,
+
+          rating_avg: p.rating_avg ?? 0,
+          rating_count: p.rating_count ?? 0,
 
           variants,
         };
@@ -186,9 +183,7 @@ let products: ProductRecord[] = [];
     );
 
     return NextResponse.json(enriched);
-  } catch (err) {
-    console.error("❌ GET PRODUCTS ERROR:", err);
-
+  } catch {
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCTS" },
       { status: 500 }
@@ -197,104 +192,75 @@ let products: ProductRecord[] = [];
 }
 
 /* =========================================================
-   POST — CREATE PRODUCT (SELLER ONLY)
+   POST — CREATE PRODUCT
 ========================================================= */
 
 export async function POST(req: Request) {
   const auth = await requireSeller();
-if (!auth.ok) return auth.response;
+  if (!auth.ok) return auth.response;
 
-const userId = auth.userId;
-
+  const userId = auth.userId;
 
   try {
-    const body: unknown = await req.json();
+    const body = await req.json();
 
-    if (typeof body !== "object" || body === null) {
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
         { error: "INVALID_PAYLOAD" },
         { status: 400 }
       );
     }
 
-    const {
-      name,
-      price,
-      description,
-      detail,
-      images,
-      thumbnail,
-      categoryId,
-      salePrice,
-      saleStart,
-      saleEnd,
-      stock,
-      is_active,
-      variants,
-    } = body as Record<string, unknown>;
+    const normalizedVariants = normalizeVariants(body.variants);
 
-    if (typeof name !== "string" || typeof price !== "number") {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
-        { status: 400 }
-      );
-    }
-
-    const normalizedVariants = normalizeVariants(variants);
     const hasVariants = normalizedVariants.length > 0;
 
     const finalStock = hasVariants
-      ? normalizedVariants.reduce((sum, item) => sum + item.stock, 0)
-      : typeof stock === "number" && stock >= 0
-      ? stock
+      ? normalizedVariants.reduce((s, v) => s + v.stock, 0)
+      : typeof body.stock === "number" && body.stock >= 0
+      ? body.stock
       : 0;
 
-    const product = await createProduct(userId , {
-      name: name.trim(),
-      price,
+    const product = await createProduct(userId, {
+      name: String(body.name).trim(),
+      price: Number(body.price),
 
-      description: typeof description === "string" ? description : "",
-      detail: typeof detail === "string" ? detail : "",
+      description: body.description ?? "",
+      detail: body.detail ?? "",
 
-      images: Array.isArray(images)
-        ? images.filter((i): i is string => typeof i === "string")
+      images: Array.isArray(body.images)
+        ? body.images.filter((i: unknown): i is string => typeof i === "string")
         : [],
 
-      thumbnail: typeof thumbnail === "string" ? thumbnail : null,
+      thumbnail:
+        typeof body.thumbnail === "string" ? body.thumbnail : null,
 
       category_id:
-        typeof categoryId === "string" && categoryId.trim() !== ""
-          ? categoryId
-          : null,
+        typeof body.categoryId === "string" ? body.categoryId : null,
 
-      sale_price: typeof salePrice === "number" ? salePrice : null,
-      sale_start: typeof saleStart === "string" ? saleStart : null,
-      sale_end: typeof saleEnd === "string" ? saleEnd : null,
+      sale_price:
+        typeof body.salePrice === "number" ? body.salePrice : null,
+
+      sale_start:
+        typeof body.saleStart === "string" ? body.saleStart : null,
+
+      sale_end:
+        typeof body.saleEnd === "string" ? body.saleEnd : null,
 
       stock: finalStock,
-      is_active: typeof is_active === "boolean" ? is_active : true,
+      is_active:
+        typeof body.is_active === "boolean" ? body.is_active : true,
 
       views: 0,
       sold: 0,
     });
 
-    let createdVariants: ProductVariantInput[] = [];
     if (hasVariants) {
-      createdVariants = await createVariantsForProduct(
-        product.id,
-        normalizedVariants
-      );
+      await createVariantsForProduct(product.id, normalizedVariants);
     }
 
-    return NextResponse.json({
-      success: true,
-      product: {
-        ...product,
-        variants: createdVariants,
-      },
-    });
-  } catch (err) {
-    console.error("❌ CREATE PRODUCT ERROR:", err);
+    return NextResponse.json({ success: true, data: product });
+  } catch {
     return NextResponse.json(
       { error: "FAILED_TO_CREATE_PRODUCT" },
       { status: 500 }
@@ -303,94 +269,69 @@ const userId = auth.userId;
 }
 
 /* =========================================================
-   PUT — UPDATE PRODUCT (SELLER ONLY)
+   PUT — UPDATE PRODUCT
 ========================================================= */
 
 export async function PUT(req: Request) {
   const auth = await requireSeller();
-if (!auth.ok) return auth.response;
+  if (!auth.ok) return auth.response;
 
-const userId = auth.userId;
-
+  const userId = auth.userId;
 
   try {
-    const body: unknown = await req.json();
+    const body = await req.json();
 
-    if (typeof body !== "object" || body === null) {
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
         { error: "INVALID_PAYLOAD" },
         { status: 400 }
       );
     }
 
-    const {
-      id,
-      name,
-      price,
-      description,
-      detail,
-      images,
-      thumbnail,
-      categoryId,
-      salePrice,
-      saleStart,
-      saleEnd,
-      stock,
-      is_active,
-      variants,
-    } = body as Record<string, unknown>;
+    const productId = String(body.id);
 
-    if (typeof id !== "string" && typeof id !== "number") {
-      return NextResponse.json(
-        { error: "INVALID_PRODUCT_ID" },
-        { status: 400 }
-      );
-    }
+    const normalizedVariants = normalizeVariants(body.variants);
 
-    if (typeof name !== "string" || typeof price !== "number") {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD" },
-        { status: 400 }
-      );
-    }
-
-    const productId = String(id);
-    const normalizedVariants = normalizeVariants(variants);
     const hasVariants = normalizedVariants.length > 0;
 
     const finalStock = hasVariants
-      ? normalizedVariants.reduce((sum, item) => sum + item.stock, 0)
-      : typeof stock === "number" && stock >= 0
-      ? stock
+      ? normalizedVariants.reduce((s, v) => s + v.stock, 0)
+      : typeof body.stock === "number" && body.stock >= 0
+      ? body.stock
       : 0;
 
     const updated = await updateProductBySeller(
-  userId,
+      userId,
       productId,
       {
-        name: name.trim(),
-        price,
+        name: String(body.name).trim(),
+        price: Number(body.price),
 
-        description: typeof description === "string" ? description : "",
-        detail: typeof detail === "string" ? detail : "",
+        description: body.description ?? "",
+        detail: body.detail ?? "",
 
-        images: Array.isArray(images)
-          ? images.filter((i): i is string => typeof i === "string")
+        images: Array.isArray(body.images)
+          ? body.images.filter((i: unknown): i is string => typeof i === "string")
           : [],
 
-        thumbnail: typeof thumbnail === "string" ? thumbnail : null,
+        thumbnail:
+          typeof body.thumbnail === "string" ? body.thumbnail : null,
 
         category_id:
-          typeof categoryId === "string" && categoryId.trim() !== ""
-            ? categoryId
-            : null,
+          typeof body.categoryId === "string" ? body.categoryId : null,
 
-        sale_price: typeof salePrice === "number" ? salePrice : null,
-        sale_start: typeof saleStart === "string" ? saleStart : null,
-        sale_end: typeof saleEnd === "string" ? saleEnd : null,
+        sale_price:
+          typeof body.salePrice === "number" ? body.salePrice : null,
+
+        sale_start:
+          typeof body.saleStart === "string" ? body.saleStart : null,
+
+        sale_end:
+          typeof body.saleEnd === "string" ? body.saleEnd : null,
 
         stock: finalStock,
-        is_active: typeof is_active === "boolean" ? is_active : true,
+        is_active:
+          typeof body.is_active === "boolean" ? body.is_active : true,
       }
     );
 
@@ -404,8 +345,7 @@ const userId = auth.userId;
     await replaceVariantsByProductId(productId, normalizedVariants);
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("❌ UPDATE PRODUCT ERROR:", err);
+  } catch {
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
       { status: 500 }
@@ -414,8 +354,9 @@ const userId = auth.userId;
 }
 
 /* =========================================================
-   DELETE — DELETE PRODUCT (SELLER ONLY)
+   DELETE — DELETE PRODUCT
 ========================================================= */
+
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
@@ -443,10 +384,7 @@ export async function DELETE(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-
-  } catch (err) {
-    console.error("❌ DELETE PRODUCT ERROR:", err);
-
+  } catch {
     return NextResponse.json(
       { error: "FAILED_TO_DELETE_PRODUCT" },
       { status: 500 }
