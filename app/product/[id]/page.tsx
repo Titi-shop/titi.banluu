@@ -1,6 +1,5 @@
 
 "use client";
-
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -8,11 +7,17 @@ import { useCart } from "@/app/context/CartContext";
 import { ArrowLeft, ShoppingCart, Star } from "lucide-react";
 import CheckoutSheet from "./CheckoutSheet";
 import { formatPi } from "@/lib/pi";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
+
 
 function formatDetail(text: string) {
   return text
     .replace(/\\n/g, "\n")
     .replace(/\r\n/g, "\n")
+    .replace(/\n/g, "<br/>")
     .trim();
 }
 
@@ -31,7 +36,11 @@ function calcSalePercent(price: number, finalPrice: number) {
   if (finalPrice >= price) return 0;
   return Math.round(((price - finalPrice) / price) * 100);
 }
-
+function getDistance(touches: TouchList) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 /* =======================
    TYPES
 ======================= */
@@ -63,6 +72,10 @@ interface ApiProduct {
   isActive?: boolean;
   categoryId?: string | null;
   variants?: ProductVariant[];
+  shipping_rates?: {
+  zone: string;
+  price: number;
+}[];
 }
 
 interface Product {
@@ -84,6 +97,10 @@ interface Product {
   isOutOfStock: boolean;
   categoryId: string | null;
   variants: ProductVariant[];
+  shipping_rates: {
+  zone: string;
+  price: number;
+}[];
 }
 
 /* =======================
@@ -99,115 +116,148 @@ export default function ProductDetail() {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const quantity = 1;
+const [zoomImage, setZoomImage] = useState<string | null>(null);
+const [scale, setScale] = useState(1);
+const [position, setPosition] = useState({ x: 0, y: 0 });
+const [dragging, setDragging] = useState(false);
+const [start, setStart] = useState({ x: 0, y: 0 });
+const [initialDistance, setInitialDistance] = useState(0);
+const [initialScale, setInitialScale] = useState(1);
+
+  let lastTap = 0;
+
+const handleDoubleTap = () => {
+  const now = Date.now();
+  if (now - lastTap < 300) {
+    setScale(scale === 1 ? 2 : 1);
+    setPosition({ x: 0, y: 0 });
+  }
+  lastTap = now;
+};
 
   /* =======================
      LOAD PRODUCT
   ======================= */
-  useEffect(() => {
-    async function loadProduct() {
-      try {
-        const res = await fetch("/api/products");
-        const data: unknown = await res.json();
+ useEffect(() => {
+  async function loadProduct() {
+    try {
+      if (!id) return;
 
-        if (!Array.isArray(data)) return;
+      const res = await fetch(`/api/products/${id}`);
+      const data: unknown = await res.json();
 
-        const normalized: Product[] = data.map((p) => {
-  const api = p as ApiProduct;
+      if (!data || typeof data !== "object") return;
 
-  const finalPrice =
-    typeof api.finalPrice === "number"
-      ? api.finalPrice
-      : api.price;
+      const api = data as ApiProduct;
 
-  const variants: ProductVariant[] = Array.isArray(api.variants)
-    ? api.variants
-        .filter((v) => v && typeof v === "object")
-        .map((v: any) => ({
-          id: typeof v.id === "string" ? v.id : undefined,
-          optionName:
-            typeof v.optionName === "string"
-              ? v.optionName
-              : typeof v.option_name === "string"
-              ? v.option_name
-              : "size",
-          optionValue:
-            typeof v.optionValue === "string"
-              ? v.optionValue
-              : typeof v.option_value === "string"
-              ? v.option_value
-              : "",
-          stock: typeof v.stock === "number" ? v.stock : 0,
-          sku: typeof v.sku === "string" ? v.sku : null,
-          sortOrder:
-            typeof v.sortOrder === "number"
-              ? v.sortOrder
-              : typeof v.sort_order === "number"
-              ? v.sort_order
-              : 0,
-          isActive:
-            typeof v.isActive === "boolean"
-              ? v.isActive
-              : typeof v.is_active === "boolean"
-              ? v.is_active
-              : true,
-        }))
-        .filter((v) => v.optionValue !== "")
-    : [];
+      const finalPrice =
+  typeof api.salePrice === "number" &&
+  api.salePrice < api.price
+    ? api.salePrice
+    : api.price;
 
-  const stock = typeof api.stock === "number" ? api.stock : 0;
-  const isActive = api.isActive !== false;
+      const normalized: Product = {
+        id: api.id,
+        name: api.name,
+        price: api.price,
+        finalPrice,
+        isSale: finalPrice < api.price,
 
-  return {
-    id: api.id,
-    name: api.name,
-    price: api.price,
-    finalPrice,
-    isSale: finalPrice < api.price,
+        description: api.description ?? "",
+        detail: api.detail ?? "",
 
-    description: api.description ?? "",
-    detail: api.detail ?? "",
+        views: api.views ?? 0,
+        sold: api.sold ?? 0,
+        ratingAvg:
+          typeof api.rating_avg === "number"
+            ? api.rating_avg
+            : 0,
+        ratingCount:
+          typeof api.rating_count === "number"
+            ? api.rating_count
+            : 0,
 
-    views: api.views ?? 0,
-    sold: api.sold ?? 0,
-    ratingAvg:
-      typeof api.rating_avg === "number" ? api.rating_avg : 0,
-    ratingCount:
-      typeof api.rating_count === "number" ? api.rating_count : 0,
+        thumbnail: api.thumbnail ?? "",
+        images: Array.isArray(api.images) ? api.images : [],
+        categoryId: api.categoryId ?? null,
 
-    thumbnail: api.thumbnail ?? "",
-    images: Array.isArray(api.images) ? api.images : [],
-    categoryId: api.categoryId ?? null,
+        stock:
+          typeof api.stock === "number" ? api.stock : 0,
+        isActive: api.isActive !== false,
+        isOutOfStock:
+          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
+          api.isActive === false,
 
-    stock,
-    isActive,
-    isOutOfStock: stock <= 0 || !isActive,
-    variants,
-  };
-});
-        setProducts(normalized);
+        variants: Array.isArray(api.variants)
+          ? api.variants
+          : [],
+        shipping_rates: Array.isArray(api.shipping_rates)
+  ? api.shipping_rates.filter(
+      (r) =>
+        r &&
+        typeof r.zone === "string" &&
+        typeof r.price === "number"
+    )
+  : [],
+      };
 
-        const found = normalized.find((p) => p.id === id);
+      setProduct(normalized);
 
-if (found) {
-  setProduct(found);
+      const firstAvailableVariant =
+        normalized.variants.find(
+          (v) => (v.isActive ?? true) && v.stock > 0
+        ) ?? null;
 
-  const firstAvailableVariant =
-    found.variants.find((v) => (v.isActive ?? true) && v.stock > 0) ?? null;
-
-  setSelectedVariant(firstAvailableVariant);
-}
-      } finally {
-        setLoading(false);
-      }
+      setSelectedVariant(firstAvailableVariant);
+    } catch {
+      // không log sensitive
+    } finally {
+      setLoading(false);
     }
+  }
 
-    loadProduct();
-  }, [id]);
+  loadProduct();
+}, [id]);
+  useEffect(() => {
+  async function loadProducts() {
+    if (!product?.categoryId) return;
+
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+
+      if (!Array.isArray(data)) return;
+
+      const normalized = data.map((api: ApiProduct) => {
+        const finalPrice =
+          typeof api.finalPrice === "number"
+            ? api.finalPrice
+            : api.price;
+
+        return {
+          id: api.id,
+          name: api.name,
+          price: api.price,
+          finalPrice,
+          isSale: finalPrice < api.price,
+          thumbnail: api.thumbnail ?? "",
+          images: Array.isArray(api.images) ? api.images : [],
+          categoryId: api.categoryId ?? null,
+        };
+      });
+
+      setProducts(normalized);
+    } catch (err) {
+      console.error("Load products failed:", err);
+    }
+  }
+
+  loadProducts();
+}, [product]);
 
   /* =======================
    INCREMENT VIEW
@@ -241,17 +291,8 @@ if (found) {
   ...(product.thumbnail ? [product.thumbnail] : []),
   ...product.images.filter((img) => img && img !== product.thumbnail),
 ];
-
 const gallery =
   displayImages.length > 0 ? displayImages : ["/placeholder.png"];
-
-  const next = () =>
-  setCurrentIndex((i) => (i + 1) % gallery.length);
-
-const prev = () =>
-  setCurrentIndex((i) =>
-    i === 0 ? gallery.length - 1 : i - 1
-  );
 
 
   const hasVariants = product.variants.length > 0;
@@ -280,19 +321,18 @@ const canBuy = hasVariants
   if (!canBuy) return;
 
   addToCart({
-    id: hasVariants && selectedVariant?.id
-      ? `${product.id}-${selectedVariant.id}`
-      : product.id,
-    name: hasVariants && selectedVariant
-      ? `${product.name} - ${selectedVariant.optionValue}`
-      : product.name,
-    price: product.price,
-    sale_price: product.finalPrice,
-    thumbnail: product.thumbnail,
-    image: product.thumbnail || product.images?.[0] || "",
-    images: product.images,
-    quantity,
-  });
+  id: product.id,
+  variant_id: selectedVariant?.id ?? null,
+  name: hasVariants && selectedVariant
+    ? `${product.name} - ${selectedVariant.optionValue}`
+    : product.name,
+  price: product.price,
+  sale_price: product.finalPrice,
+  thumbnail: product.thumbnail,
+  image: product.thumbnail || product.images?.[0] || "",
+  images: product.images,
+  quantity,
+});
 
   router.push("/cart");
 };
@@ -329,50 +369,93 @@ const canBuy = hasVariants
   return (
     <div className="pb-32 bg-gray-50 min-h-screen">
       {/* MAIN IMAGES */}
-      <div className="mt-14 relative w-full h-80 bg-white">
-        <img
-  src={gallery[currentIndex]}
-  alt={product.name}
-  className="w-full h-full object-cover"
-/>
+<div className="mt-14 relative bg-white">
 
-        {product.isSale && (
-          <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-            -{calcSalePercent(product.price, product.finalPrice)}%
-          </div>
-        )}
-
-        {gallery.length > 1 && (
-  <>
-    <button
-      onClick={prev}
-      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
-    >
-      ‹
-    </button>
-    <button
-      onClick={next}
-      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
-    >
-      ›
-    </button>
-
-    <div className="absolute bottom-3 flex gap-2 w-full justify-center">
-      {gallery.map((_, i) => (
-        <span
-          key={i}
-          className={`w-2 h-2 rounded-full ${
-            i === currentIndex
-              ? "bg-orange-700"
-              : "bg-gray-700"
-          }`}
-        />
-      ))}
+  {/* SALE BADGE */}
+  {product.isSale && (
+    <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+      -{calcSalePercent(product.price, product.finalPrice)}%
     </div>
-  </>
-)}
-      </div>
+  )}
 
+  <Swiper
+    modules={[Pagination]}
+    pagination={{ clickable: true }}
+    spaceBetween={10}
+  >
+    {gallery.map((img, i) => (
+      <SwiperSlide key={i}>
+        <img
+  src={img}
+  alt={product.name}
+  onClick={() => {
+    setZoomImage(img);
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }}
+  className="w-full aspect-square object-cover cursor-zoom-in transition active:scale-95"
+/>
+      </SwiperSlide>
+    ))}
+  </Swiper>
+</div>
+{zoomImage && (
+  <div
+    className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center"
+    onClick={() => setZoomImage(null)}
+  >
+    <img
+      src={zoomImage}
+      onClick={(e) => e.stopPropagation()}
+     onTouchEnd={handleDoubleTap}
+      // 👉 PINCH START
+      onTouchStart={(e) => {
+        if (e.touches.length === 2) {
+          const distance = getDistance(e.touches);
+          setInitialDistance(distance);
+          setInitialScale(scale);
+        } else if (e.touches.length === 1) {
+          const touch = e.touches[0];
+          setDragging(true);
+          setStart({
+            x: touch.clientX - position.x,
+            y: touch.clientY - position.y,
+          });
+        }
+      }}
+
+      // 👉 PINCH MOVE
+      onTouchMove={(e) => {
+        if (e.touches.length === 2) {
+          const distance = getDistance(e.touches);
+          const scaleChange = distance / initialDistance;
+          let newScale = initialScale * scaleChange;
+
+          newScale = Math.max(1, Math.min(newScale, 6));
+          setScale(newScale);
+        }
+
+        if (e.touches.length === 1 && dragging) {
+          const touch = e.touches[0];
+          setPosition({
+            x: touch.clientX - start.x,
+            y: touch.clientY - start.y,
+          });
+        }
+      }}
+
+      onTouchEnd={() => setDragging(false)}
+
+      style={{
+        transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+        transition: "0.1s",
+      }}
+
+      className="max-w-full max-h-full object-contain"
+    
+    />
+  </div>
+)}
       {/* INFO */}
       <div className="bg-white p-4 flex justify-between">
         <h2 className="text-lg font-medium">
@@ -498,11 +581,11 @@ const canBuy = hasVariants
 
   {product.detail ? (
     <div
-      className="text-sm text-gray-700 leading-relaxed"
-      dangerouslySetInnerHTML={{
-        __html: product.detail,
-      }}
-    />
+  className="text-sm text-gray-700 leading-relaxed"
+  dangerouslySetInnerHTML={{
+    __html: formatDetail(product.detail),
+  }}
+/>
   ) : (
     <p className="text-sm text-gray-400">
       {t.no_description}
@@ -523,7 +606,7 @@ const canBuy = hasVariants
               <div
                 key={p.id}
                 onClick={() => router.push(`/product/${p.id}`)}
-                className="min-w-[140px] bg-gray-50 rounded-lg p-2"
+                className="min-w-[140px] bg-white rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition"
               >
                 <img
                   src={p.thumbnail || p.images[0] || "/placeholder.png"}
@@ -577,19 +660,18 @@ const canBuy = hasVariants
   open={openCheckout}
   onClose={() => setOpenCheckout(false)}
   product={{
-    id:
-      hasVariants && selectedVariant?.id
-        ? `${product.id}-${selectedVariant.id}`
-        : product.id,
+    id: product.id, 
+    variant_id: selectedVariant?.id ?? null, 
     name:
       hasVariants && selectedVariant
         ? `${product.name} - ${selectedVariant.optionValue}`
         : product.name,
+
     price: product.price,
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
-    image: product.thumbnail || product.images?.[0] || "",
-    images: product.images,
+    stock: selectedStock,
+    shipping_rates: product.shipping_rates,
   }}
 />
     </div>
