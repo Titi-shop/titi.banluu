@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { processPiPayment, validateShippingRegion } from "@/lib/db/orders";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
 
-/* ================= SAFE QTY ================= */
+/* ================= HELPERS ================= */
 
-function safeQuantity(v: unknown) {
+function isUUID(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+function safeQuantity(v: unknown): number {
   const n = Number(v);
   if (!Number.isInteger(n)) return 1;
   if (n < 1) return 1;
@@ -17,108 +24,122 @@ function safeQuantity(v: unknown) {
   return n;
 }
 
-/* ================= POST ================= */
+/* ================= TYPES ================= */
+
+type Body = {
+  paymentId?: unknown;
+  txid?: unknown;
+  product_id?: unknown;
+  variant_id?: unknown;
+  quantity?: unknown;
+  shipping?: {
+    country?: string;
+  };
+  selectedRegion?: unknown;
+};
+
+/* ================= API ================= */
 
 export async function POST(req: Request) {
-  const client = await pool.connect();
-
-  console.log("🟡 [PI COMPLETE] START");
-
   try {
+    console.log("🟡 [PAYMENT][COMPLETE] START");
+
     /* ================= BODY ================= */
 
-    const body = await req.json().catch(() => null);
-    console.log("🟡 BODY:", body);
+    const raw = await req.json().catch(() => null);
 
-    if (!body || typeof body !== "object") {
-      console.log("🔴 INVALID BODY");
-      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+    if (!raw || typeof raw !== "object") {
+      return NextResponse.json(
+        { error: "INVALID_BODY" },
+        { status: 400 }
+      );
     }
 
-    const paymentId = String((body as any).paymentId || "");
-    const txid = String((body as any).txid || "");
-    const productId = String((body as any).product_id || "");
-    const quantity = safeQuantity((body as any).quantity);
+    const body = raw as Body;
 
-    console.log("🟢 PARSED:", { paymentId, txid, productId, quantity });
+    const paymentId =
+      typeof body.paymentId === "string" ? body.paymentId : "";
+
+    const txid =
+      typeof body.txid === "string" ? body.txid : "";
+
+    const productId =
+      typeof body.product_id === "string" ? body.product_id : "";
+
+    const variantId =
+  typeof body.variant_id === "string" ? body.variant_id : null;
+    const quantity = safeQuantity(body.quantity);
+
+    const selectedRegion =
+      typeof body.selectedRegion === "string"
+        ? body.selectedRegion
+        : "";
+
+    const country =
+      typeof body.shipping?.country === "string"
+        ? body.shipping.country
+        : "";
+
+    console.log("🟢 PARSED", {
+      paymentId,
+      txid,
+      productId,
+      variantId,
+      quantity,
+      selectedRegion,
+      country,
+    });
+
+    /* ================= VALIDATE ================= */
 
     if (!paymentId || !txid || !productId) {
-      console.log("🔴 MISSING FIELD");
-      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+      return NextResponse.json(
+        { error: "INVALID_BODY" },
+        { status: 400 }
+      );
     }
 
+    if (!isUUID(productId)) {
+      return NextResponse.json(
+        { error: "INVALID_PRODUCT_ID" },
+        { status: 400 }
+      );
+    }
+
+    if (!country || !selectedRegion) {
+      return NextResponse.json(
+        { error: "INVALID_SHIPPING" },
+        { status: 400 }
+      );
+    }
+
+    if (variantId && !isUUID(variantId)) {
+  return NextResponse.json(
+    { error: "INVALID_VARIANT_ID" },
+    { status: 400 }
+  );
+}
     /* ================= AUTH ================= */
 
     const authUser = await getUserFromBearer(req);
 
     if (!authUser) {
-      console.log("🔴 UNAUTHORIZED");
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-    }
-
-    console.log("🟢 AUTH USER:", authUser.pi_uid);
-
-    const pi_uid = authUser.pi_uid;
-
-    /* ================= MAP USER ================= */
-
-    const userRes = await client.query(
-      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-      [pi_uid]
-    );
-
-    if (userRes.rowCount === 0) {
-      console.log("🔴 USER NOT FOUND IN DB");
-      return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
-    }
-
-    const userId = userRes.rows[0].id;
-    console.log("🟢 USER ID:", userId);
-
-    /* ================= CHECK DUP ================= */
-
-    const existing = await client.query(
-      `select id from orders where pi_payment_id=$1 limit 1`,
-      [paymentId]
-    );
-
-    if (existing.rows.length > 0) {
-      console.log("🟡 DUPLICATE ORDER:", existing.rows[0].id);
-      return NextResponse.json({
-        success: true,
-        order_id: existing.rows[0].id,
-      });
-    }
-
-    /* ================= PRODUCT ================= */
-
-    const productRes = await client.query(
-      `select * from products where id = $1 limit 1`,
-      [productId]
-    );
-
-    const product = productRes.rows[0];
-
-    console.log("🟢 PRODUCT:", product?.id);
-
-    if (!product || product.is_active === false || product.deleted_at) {
-      console.log("🔴 PRODUCT INVALID");
       return NextResponse.json(
-        { error: "PRODUCT_NOT_AVAILABLE" },
-        { status: 400 }
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
       );
     }
 
-    /* ================= PRICE ================= */
+    const userId = authUser.id; // ✅ FIX đúng kiến trúc
 
-    const unitPrice = Number(product.price);
-    const total = Number((unitPrice * quantity).toFixed(6));
+    /* ================= VERIFY SHIPPING ================= */
 
-    console.log("🟢 PRICE:", { unitPrice, total });
+    await validateShippingRegion({
+      country,
+      selectedRegion,
+    });
 
     /* ================= VERIFY PI ================= */
-
-    console.log("🟡 VERIFY PI PAYMENT");
 
     const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
       headers: { Authorization: `Key ${PI_KEY}` },
@@ -126,7 +147,6 @@ export async function POST(req: Request) {
     });
 
     if (!piRes.ok) {
-      console.log("🔴 PI PAYMENT NOT FOUND");
       return NextResponse.json(
         { error: "PI_PAYMENT_NOT_FOUND" },
         { status: 400 }
@@ -135,10 +155,7 @@ export async function POST(req: Request) {
 
     const payment = await piRes.json();
 
-    console.log("🟢 PI PAYMENT:", payment);
-
-    if (payment.user_uid !== pi_uid) {
-      console.log("🔴 INVALID OWNER");
+    if (payment.user_uid !== authUser.pi_uid) {
       return NextResponse.json(
         { error: "INVALID_PAYMENT_OWNER" },
         { status: 403 }
@@ -146,24 +163,13 @@ export async function POST(req: Request) {
     }
 
     if (payment.status !== "approved") {
-      console.log("🔴 NOT APPROVED:", payment.status);
       return NextResponse.json(
         { error: "PAYMENT_NOT_APPROVED" },
         { status: 400 }
       );
     }
 
-    if (Math.abs(Number(payment.amount) - total) > 0.00001) {
-      console.log("🔴 INVALID AMOUNT", payment.amount, total);
-      return NextResponse.json(
-        { error: "INVALID_AMOUNT" },
-        { status: 400 }
-      );
-    }
-
     /* ================= COMPLETE PI ================= */
-
-    console.log("🟡 COMPLETE START:", paymentId, txid);
 
     const completeRes = await fetch(
       `${PI_API}/payments/${paymentId}/complete`,
@@ -179,11 +185,7 @@ export async function POST(req: Request) {
 
     const completeData = await completeRes.json().catch(() => null);
 
-    console.log("🟢 COMPLETE RESULT:", completeData);
-
     if (!completeRes.ok) {
-      console.error("🔴 COMPLETE ERROR:", completeData);
-
       if (
         completeData?.error?.includes?.("already") ||
         completeData?.message?.includes?.("completed")
@@ -197,132 +199,30 @@ export async function POST(req: Request) {
       }
     }
 
-    /* ================= ADDRESS ================= */
+    /* ================= DB ================= */
 
-    const addrRes = await client.query(
-      `select * from addresses where user_id = $1 and is_default = true limit 1`,
-      [userId]
-    );
-
-    const addr = addrRes.rows[0];
-
-    if (!addr) {
-      console.log("🔴 NO ADDRESS");
-      return NextResponse.json(
-        { error: "NO_ADDRESS" },
-        { status: 400 }
-      );
-    }
-
-    console.log("🟢 ADDRESS OK");
-
-    /* ================= TRANSACTION ================= */
-
-    console.log("🟡 BEGIN TRANSACTION");
-    await client.query("BEGIN");
-
-    const stock = await client.query(
-      `
-      update products
-      set stock = stock - $1,
-          sold = sold + $1
-      where id = $2
-      and stock >= $1
-      returning id
-      `,
-      [quantity, productId]
-    );
-
-    if (stock.rowCount === 0) {
-      console.log("🔴 OUT OF STOCK");
-      await client.query("ROLLBACK");
-      return NextResponse.json({ error: "OUT_OF_STOCK" }, { status: 400 });
-    }
-
-    console.log("🟢 STOCK UPDATED");
-
-    const orderRes = await client.query(
-      `
-      insert into orders (
-        order_number,
-        buyer_id,
-        pi_payment_id,
-        pi_txid,
-        total,
-        shipping_name,
-        shipping_phone,
-        shipping_address
-      )
-      values (
-        gen_random_uuid()::text,
-        $1,$2,$3,$4,$5,$6,$7
-      )
-      returning id
-      `,
-      [
-        userId,
-        paymentId,
-        txid,
-        total,
-        addr.full_name,
-        addr.phone,
-        addr.address_line,
-      ]
-    );
-
-    const orderId = orderRes.rows[0].id;
-
-    console.log("🟢 ORDER CREATED:", orderId);
-
-    await client.query(
-      `
-      insert into order_items (
-        order_id,
-        product_id,
-        seller_id,
-        product_name,
-        thumbnail,
-        unit_price,
-        quantity,
-        total_price
-      )
-      values ($1,$2,$3,$4,$5,$6,$7,$8)
-      `,
-      [
-        orderId,
-        product.id,
-        product.seller_id,
-        product.name,
-        product.thumbnail ?? "",
-        unitPrice,
-        quantity,
-        total,
-      ]
-    );
-
-    console.log("🟢 ORDER ITEM CREATED");
-
-    await client.query("COMMIT");
-    console.log("🟢 COMMIT DONE");
+    const result = await processPiPayment({
+      userId,
+      productId,
+      variantId,
+      quantity,
+      paymentId,
+      txid,
+      country,
+      selectedRegion,
+    });
 
     return NextResponse.json({
       success: true,
-      order_id: orderId,
+      order_id: result.orderId,
     });
 
   } catch (err) {
-    try {
-      await client.query("ROLLBACK");
-    } catch {}
-
-    console.error("❌ COMPLETE ERROR:", err);
+    console.error("🔥 [PAYMENT][COMPLETE] ERROR", err);
 
     return NextResponse.json(
-      { error: "SERVER_ERROR" },
-      { status: 500 }
+      { error: "PAYMENT_FAILED" },
+      { status: 400 }
     );
-  } finally {
-    client.release();
-    console.log("🟡 [PI COMPLETE] END");
   }
 }
