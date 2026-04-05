@@ -1,29 +1,24 @@
-// app/api/uploadAvatar/route.ts
 import { NextResponse } from "next/server";
 import { put, del } from "@vercel/blob";
-import { query } from "@/lib/db";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { requireAuth } from "@/lib/auth/guard";
+
+import {
+  getUserAvatar,
+  updateAvatar,
+} from "@/lib/db/userProfiles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    // ==============================
-    // 🔐 AUTH (PI NETWORK)
-    // ==============================
-    const user = await getUserFromBearer(req);
+    /* ================= AUTH ================= */
+    const auth = await requireAuth();
+    if (!auth.ok) return auth.response;
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+    const userId = auth.userId;
 
-    // ==============================
-    // 📥 READ FILE
-    // ==============================
+    /* ================= FILE ================= */
     const formData = await req.formData();
     const file = formData.get("file");
 
@@ -34,34 +29,36 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // ==============================
-    // 📄 LOAD CURRENT AVATAR
-    // ==============================
-    const result = await query<{ avatar_url: string | null }>(
-      `SELECT avatar_url FROM user_profiles WHERE user_id = $1`,
-      [user.pi_uid]
-    );
+    if (!file.type.startsWith("image/")) {
+      return NextResponse.json(
+        { error: "INVALID_FILE_TYPE" },
+        { status: 400 }
+      );
+    }
 
-    const oldAvatarUrl =
-      result.rows.length > 0 ? result.rows[0].avatar_url : null;
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "FILE_TOO_LARGE" },
+        { status: 400 }
+      );
+    }
 
-    // ==============================
-    // 🗑 DELETE OLD AVATAR
-    // ==============================
+    /* ================= GET OLD ================= */
+    const oldAvatarUrl = await getUserAvatar(userId);
+
+    /* ================= DELETE OLD ================= */
     if (oldAvatarUrl) {
       try {
         const url = new URL(oldAvatarUrl);
         await del(url.pathname);
-      } catch (err) {
-        console.warn("⚠️ Failed to delete old avatar:", err);
+      } catch {
+        console.warn("[AVATAR] DELETE_OLD_FAILED");
       }
     }
 
-    // ==============================
-    // ☁️ UPLOAD NEW AVATAR
-    // ==============================
+    /* ================= UPLOAD ================= */
     const blob = await put(
-      `avatars/${user.pi_uid}-${Date.now()}`,
+      `avatars/${userId}-${Date.now()}`,
       file,
       {
         access: "public",
@@ -69,30 +66,17 @@ export async function POST(req: Request): Promise<NextResponse> {
       }
     );
 
-    // ==============================
-    // 💾 UPSERT PROFILE
-    // ==============================
-    await query(
-      `
-      INSERT INTO user_profiles (user_id, avatar_url, updated_at)
-      VALUES ($1, $2, NOW())
-      ON CONFLICT (user_id)
-      DO UPDATE SET
-        avatar_url = EXCLUDED.avatar_url,
-        updated_at = NOW()
-      `,
-      [user.pi_uid, blob.url]
-    );
+    /* ================= SAVE ================= */
+    await updateAvatar(userId, blob.url);
 
-    // ==============================
-    // ✅ RESPONSE (CACHE BUST)
-    // ==============================
     return NextResponse.json({
       success: true,
       avatar: `${blob.url}?t=${Date.now()}`,
     });
-  } catch (err) {
-    console.error("❌ UPLOAD AVATAR ERROR:", err);
+
+  } catch {
+    console.error("[AVATAR] UPLOAD_FAILED");
+
     return NextResponse.json(
       { error: "UPLOAD_FAILED" },
       { status: 500 }
