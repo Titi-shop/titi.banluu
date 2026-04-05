@@ -151,7 +151,7 @@ export async function POST(req: Request) {
 
     console.log("🟡 [PAYMENT][VERIFY_PI]");
 
-    const piRes = await fetch(`${PI_API}/${paymentId}`, {
+    const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
       headers: { Authorization: `Key ${PI_KEY}` },
       cache: "no-store",
     });
@@ -193,9 +193,7 @@ export async function POST(req: Request) {
 
     console.log("🟡 [PAYMENT][COMPLETE_PI]");
 
-    const completeRes = await fetch(
-      `${PI_API}/${paymentId}/complete`,
-      {
+    const completeRes = await fetch(`${PI_API}/payments/${paymentId}/complete`, {
         method: "POST",
         headers: {
           Authorization: `Key ${PI_KEY}`,
