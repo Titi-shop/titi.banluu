@@ -1,5 +1,3 @@
-/* app/api/products/seller/me/route.ts */
-
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 import { getSellerProducts } from "@/lib/db/products";
@@ -8,12 +6,31 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+  try {
+    /* =========================
+       1️⃣ AUTH + RBAC
+    ========================= */
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
 
-  const sellerPiUid = auth.user.uid;
+    const userId = auth.userId;
 
-  const products = await getSellerProducts(sellerPiUid);
+    /* =========================
+       2️⃣ DB
+    ========================= */
+    const products = await getSellerProducts(userId);
 
-  return NextResponse.json(products);
+    /* =========================
+       3️⃣ RESPONSE
+    ========================= */
+    return NextResponse.json(products);
+
+  } catch (err) {
+    console.error("❌ SELLER PRODUCTS ERROR:", err);
+
+    return NextResponse.json(
+      { error: "INTERNAL_SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
 }
