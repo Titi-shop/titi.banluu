@@ -269,7 +269,7 @@ const quantity = useMemo(() => {
 
     const payload = {
   country: shipping?.country,
-  zone: zone ?? "",
+  zone: zone || "",
   items: [
     {
       product_id: item!.id,
@@ -277,7 +277,10 @@ const quantity = useMemo(() => {
     },
   ],
 };
-
+console.log("🟡 [CHECKOUT][FINAL_DATA]", {
+  country: shipping?.country,
+  zone,
+});
     console.log("🟡 PREVIEW PAYLOAD:", payload);
 
     const res = await fetch("/api/orders/preview", {
@@ -497,7 +500,20 @@ setProcessing(true);
        processingRef.current = false;
       showMessage(t.transaction_failed);
     }
-  }, [item, quantity, total, shipping, unitPrice, processing, t, user, router, onClose]);
+  }, [
+  item,
+  quantity,
+  total,
+  shipping,
+  unitPrice,
+  processing,
+  t,
+  user,
+  router,
+  onClose,
+  zone,
+  product.variant_id
+]);
 
   /* ========================= */
 
