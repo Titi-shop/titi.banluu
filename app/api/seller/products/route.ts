@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { resolveRole } from "@/lib/auth/resolveRole";
+import { requireSeller } from "@/lib/auth/guard";
 import { getSellerProducts } from "@/lib/db/products";
 
 export const runtime = "nodejs";
@@ -22,24 +21,18 @@ type SellerProduct = {
 
 export async function GET() {
   try {
-    const user = await getUserFromBearer();
+    /* ================= AUTH + RBAC ================= */
+    const auth = await requireSeller();
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
+    if (!auth.ok) return auth.response;
 
-    const role = await resolveRole(user);
+    const userId = auth.userId;
 
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json([], { status: 200 });
-    }
-
-    const products = (await getSellerProducts(user.pi_uid)) as SellerProduct[];
+    /* ================= DB ================= */
+    const products = (await getSellerProducts(userId)) as SellerProduct[];
 
     return NextResponse.json(products);
+
   } catch (err) {
     console.warn("SELLER PRODUCTS WARN:", err);
     return NextResponse.json([], { status: 200 });
