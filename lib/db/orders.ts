@@ -387,24 +387,26 @@ export async function processPiPayment(params: {
   paymentId: string;
   txid: string;
   country: string;
-  selectedRegion: string;
+  zone: string;
 }) {
   function isUUID(v: string): boolean {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
   }
-
+const zone = params.zone?.trim().toLowerCase();
+const country = params.country?.trim().toUpperCase();
   if (!isUUID(params.productId)) {
+    console.error("❌ [ORDER] INVALID_PRODUCT_ID", params.productId);
     throw new Error("INVALID_PRODUCT_ID");
   }
 
   return withTransaction(async (client) => {
 
-  console.log("🟡 [ORDER][PROCESS PAYMENT]", {
-    productId: params.productId,
-    variantId: params.variantId,
-    quantity: params.quantity,
-    paymentId: params.paymentId,
-  });
+    console.log("🟡 [ORDER][START]", {
+      productId: params.productId,
+      variantId: params.variantId,
+      quantity: params.quantity,
+      paymentId: params.paymentId,
+    });
 
     /* ================= IDEMPOTENCY ================= */
     const existing = await client.query(
@@ -413,6 +415,7 @@ export async function processPiPayment(params: {
     );
 
     if (existing.rows.length > 0) {
+      console.log("🟡 [ORDER] DUPLICATED PAYMENT", params.paymentId);
       return { orderId: existing.rows[0].id, duplicated: true };
     }
 
@@ -425,16 +428,28 @@ export async function processPiPayment(params: {
       WHERE szc.country_code = $1
       LIMIT 1
       `,
-      [params.country.toUpperCase()]
+      [country]
     );
 
+    console.log("🟡 [ORDER] ZONE_RESULT", zoneRes.rows);
+
     if (!zoneRes.rows.length) {
+      console.error("❌ [ORDER] INVALID_COUNTRY", params.country);
       throw new Error("INVALID_COUNTRY");
     }
 
     const realZone = zoneRes.rows[0].code;
 
-    if (realZone !== params.selectedRegion) {
+    console.log("🟡 [ORDER] ZONE_CHECK", {
+      realZone,
+      zone: params.zone,
+    });
+
+    if (realZone !== zone) {
+      console.error("❌ [ORDER] INVALID_REGION", {
+        realZone,
+        zone,
+      });
       throw new Error("INVALID_REGION");
     }
 
@@ -451,7 +466,10 @@ export async function processPiPayment(params: {
 
     const product = productRes.rows[0];
 
+    console.log("🟡 [ORDER] PRODUCT", product);
+
     if (!product || product.is_active === false || product.deleted_at) {
+      console.error("❌ [ORDER] PRODUCT_NOT_AVAILABLE");
       throw new Error("PRODUCT_NOT_AVAILABLE");
     }
 
@@ -467,14 +485,24 @@ export async function processPiPayment(params: {
       AND sz.code = $2
       LIMIT 1
       `,
-      [product.seller_id, realZone]
+      
+        [params.productId, realZone]
+        
     );
 
-    if (!shippingRes.rows.length) {
-      throw new Error("SHIPPING_NOT_AVAILABLE");
-    }
+    console.log("🟡 [ORDER] SHIPPING_RESULT", shippingRes.rows);
+
+if (!shippingRes.rows.length) {
+  console.error("❌ [ORDER] SHIPPING_NOT_AVAILABLE", {
+    productId: params.productId,
+    zone: realZone,
+  });
+  throw new Error("SHIPPING_NOT_AVAILABLE");
+}
 
     const shippingFee = Number(shippingRes.rows[0].price);
+
+    console.log("🟡 [ORDER] SHIPPING_FEE", shippingFee);
 
     /* ================= ADDRESS ================= */
     const addrRes = await client.query(
@@ -488,101 +516,158 @@ export async function processPiPayment(params: {
     );
 
     const addr = addrRes.rows[0];
-    if (!addr) throw new Error("NO_ADDRESS");
-/* ===== VARIANT ===== */
 
-if (params.variantId) {
-  const variantRes = await client.query(
-    `
-    SELECT id, stock
-    FROM product_variants
-    WHERE id = $1 AND product_id = $2
-    LIMIT 1
-    `,
-    [params.variantId, params.productId]
-  );
+    console.log("🟡 [ORDER] ADDRESS", addr);
 
-  const variant = variantRes.rows[0];
+    if (!addr) {
+      console.error("❌ [ORDER] NO_ADDRESS");
+      throw new Error("NO_ADDRESS");
+    }
 
-  if (!variant) {
-    throw new Error("VARIANT_NOT_FOUND");
-  }
+    /* ===== VARIANT ===== */
 
-  const stockUpdate = await client.query(
-    `
-    UPDATE product_variants
-    SET stock = stock - $1
-    WHERE id = $2
-    AND stock >= $1
-    RETURNING id
-    `,
-    [params.quantity, params.variantId]
-  );
+    if (params.variantId) {
+      console.log("🟡 [ORDER] VARIANT_FLOW");
 
-  if (!stockUpdate.rowCount) {
-    throw new Error("OUT_OF_STOCK");
-  }
+      const variantRes = await client.query(
+        `
+        SELECT id, stock
+        FROM product_variants
+        WHERE id = $1 AND product_id = $2
+        LIMIT 1
+        `,
+        [params.variantId, params.productId]
+      );
 
-} else {
-  /* ===== PRODUCT ===== */
+      const variant = variantRes.rows[0];
 
-  const stock = await client.query(
-    `
-    UPDATE products
-    SET stock = stock - $1,
-        sold = sold + $1
-    WHERE id = $2
-    AND stock >= $1
-    RETURNING id
-    `,
-    [params.quantity, params.productId]
-  );
+      console.log("🟡 [ORDER] VARIANT", variant);
 
-  if (!stock.rowCount) {
-    throw new Error("OUT_OF_STOCK");
-  }
-}
-    
+      if (!variant) {
+        console.error("❌ [ORDER] VARIANT_NOT_FOUND");
+        throw new Error("VARIANT_NOT_FOUND");
+      }
+
+      const stockUpdate = await client.query(
+        `
+        UPDATE product_variants
+        SET stock = stock - $1
+        WHERE id = $2
+        AND stock >= $1
+        RETURNING id
+        `,
+        [params.quantity, params.variantId]
+      );
+
+      console.log("🟡 [ORDER] VARIANT_STOCK_UPDATE", stockUpdate.rowCount);
+
+      if (!stockUpdate.rowCount) {
+        console.error("❌ [ORDER] OUT_OF_STOCK_VARIANT");
+        throw new Error("OUT_OF_STOCK");
+      }
+
+    } else {
+      console.log("🟡 [ORDER] PRODUCT_FLOW");
+
+      const stock = await client.query(
+        `
+        UPDATE products
+        SET stock = stock - $1,
+            sold = sold + $1
+        WHERE id = $2
+        AND stock >= $1
+        RETURNING id
+        `,
+        [params.quantity, params.productId]
+      );
+
+      console.log("🟡 [ORDER] PRODUCT_STOCK_UPDATE", stock.rowCount);
+
+      if (!stock.rowCount) {
+        console.error("❌ [ORDER] OUT_OF_STOCK_PRODUCT");
+        throw new Error("OUT_OF_STOCK");
+      }
+    }
 
     /* ================= TOTAL ================= */
     const subtotal = price * params.quantity;
     const total = subtotal + shippingFee;
 
+    console.log("🟡 [ORDER] TOTAL", {
+      subtotal,
+      shippingFee,
+      total,
+    });
     /* ================= ORDER ================= */
-    const orderRes = await client.query(
-      `
-      INSERT INTO orders (
-        order_number,
-        buyer_id,
-        pi_payment_id,
-        pi_txid,
-        total,
-        shipping_name,
-        shipping_phone,
-        shipping_address,
-        shipping_zone,
-        shipping_fee
-      )
-      VALUES (
-        gen_random_uuid()::text,
-        $1,$2,$3,$4,$5,$6,$7,$8,$9
-      )
-      RETURNING id
-      `,
-      [
-        params.userId,
-        params.paymentId,
-        params.txid,
-        total,
-        addr.full_name,
-        addr.phone,
-        addr.address_line,
-        realZone,
-        shippingFee,
-      ]
-    );
+
+const orderRes = await client.query(
+  `
+  INSERT INTO orders (
+    order_number,
+    buyer_id,
+    pi_payment_id,
+    pi_txid,
+
+    total,
+    subtotal,
+    items_total,
+    discount,
+    tax,
+
+    currency,
+    payment_status,
+    paid_at,
+
+    shipping_name,
+    shipping_phone,
+    shipping_address,
+    shipping_zone,
+    shipping_fee,
+    shipping_country,
+    shipping_postal_code,
+    shipping_province
+  )
+  VALUES (
+    gen_random_uuid()::text,
+    $1,$2,$3,
+
+    $4,$5,$6,$7,$8,
+
+    $9,$10,$11,
+
+    $12,$13,$14,$15,$16,$17,$18,$19
+  )
+  RETURNING id
+  `,
+  [
+    params.userId,
+    params.paymentId,
+    params.txid,
+
+    total,                 // total
+    subtotal,              // subtotal
+    subtotal,              // items_total
+    0,                     // discount
+    0,                     // tax
+
+    "PI",                  // currency
+    "paid",                // payment_status
+     new Date(),        // paid_at
+
+    addr.full_name,
+    addr.phone,
+    addr.address_line,
+    realZone,
+    shippingFee,
+    params.country ?? "VN", // shipping_country
+    null,                   // postal_code (nếu chưa có)
+    null,                   // province (nếu chưa có)
+  ]
+);
 
     const orderId = orderRes.rows[0].id;
+
+    console.log("🟡 [ORDER] ORDER_CREATED", orderId);
 
     /* ================= ITEM ================= */
     await client.query(
@@ -612,6 +697,8 @@ if (params.variantId) {
         subtotal,
       ]
     );
+
+    console.log("🟢 [ORDER] SUCCESS", { orderId });
 
     return { orderId, duplicated: false };
   });
@@ -969,11 +1056,11 @@ type PreviewOrderResult = {
 export async function previewOrder(
   input: PreviewOrderInput
 ): Promise<PreviewOrderResult> {
-  const { userId, items, country, selectedRegion } = input;
+  const { userId, items, country, zone } = input;
 
   if (!userId) throw new Error("INVALID_USER");
   if (!country) throw new Error("MISSING_COUNTRY");
-  if (!selectedRegion) throw new Error("MISSING_REGION");
+  if (!zone) throw new Error("MISSING_REGION");
 
   /* ================= ZONE FROM COUNTRY ================= */
 
@@ -993,12 +1080,15 @@ export async function previewOrder(
   }
 
   const realZone = zoneRows[0].code;
-
+console.log("🟡 [PREVIEW][ZONE_CHECK]", {
+  zone,
+  realZone,
+});
   /* ================= VALIDATE REGION ================= */
 
-  if (selectedRegion !== realZone) {
-    throw new Error("INVALID_REGION");
-  }
+  if (zone !== realZone) {
+  throw new Error("INVALID_REGION");
+}
 
   /* ================= VALIDATE ITEMS ================= */
 
