@@ -74,14 +74,14 @@ export async function POST(req: Request) {
 
     const quantity = safeQuantity(body.quantity);
 
-       const zone =
-       typeof body.zone === "string"
-          ? body.zone
-             : "";
+    const zone =
+      typeof body.zone === "string"
+        ? body.zone.trim().toLowerCase()
+        : "";
 
     const country =
       typeof body.shipping?.country === "string"
-        ? body.shipping.country
+        ? body.shipping.country.trim().toUpperCase()
         : "";
 
     console.log("🟢 [PAYMENT][PARSED]", {
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
       );
     }
 
-      if (!country || !zone){
+    if (!country || !zone) {
       console.error("❌ [PAYMENT][INVALID_SHIPPING]", {
         country,
         zone,
@@ -135,23 +135,23 @@ export async function POST(req: Request) {
 
     const auth = await getUserFromBearer();
 
-if (!auth) {
-  console.error("❌ [PAYMENT][UNAUTHORIZED]");
-  return NextResponse.json(
-    { error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
+    if (!auth) {
+      console.error("❌ [PAYMENT][UNAUTHORIZED]");
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-const userId = auth.userId;
+    const userId = auth.userId;
 
-console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
+    console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
 
     /* ================= VERIFY PI ================= */
 
     console.log("🟡 [PAYMENT][VERIFY_PI]");
 
-    const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
+    const piRes = await fetch(`${PI_API}/${paymentId}`, {
       headers: { Authorization: `Key ${PI_KEY}` },
       cache: "no-store",
     });
@@ -171,12 +171,22 @@ console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
       user_uid: payment.user_uid,
     });
 
-    if (payment.status !== "approved") {
-      console.error("❌ [PAYMENT][NOT_APPROVED]", payment.status);
+    const status = payment.status;
+
+    if (
+      !status?.developer_approved ||
+      !status?.transaction_verified
+    ) {
+      console.error("❌ [PAYMENT][NOT_APPROVED]", status);
+
       return NextResponse.json(
         { error: "PAYMENT_NOT_APPROVED" },
         { status: 400 }
       );
+    }
+
+    if (status?.developer_completed) {
+      console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
     }
 
     /* ================= COMPLETE PI ================= */
@@ -184,7 +194,7 @@ console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
     console.log("🟡 [PAYMENT][COMPLETE_PI]");
 
     const completeRes = await fetch(
-      `${PI_API}/payments/${paymentId}/complete`,
+      `${PI_API}/${paymentId}/complete`,
       {
         method: "POST",
         headers: {
@@ -196,6 +206,8 @@ console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
     );
 
     const completeData = await completeRes.json().catch(() => null);
+
+    console.log("🟡 [PAYMENT][COMPLETE_RESPONSE]", completeData);
 
     if (!completeRes.ok) {
       console.error("❌ [PAYMENT][PI_COMPLETE_FAIL]", completeData);
