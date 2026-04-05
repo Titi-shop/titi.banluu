@@ -7,15 +7,16 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { getPiAccessToken } from "@/lib/piAuth";
+import { getPiAccessToken, clearPiToken } from "@/lib/piAuth";
 
-/* =========================
-   TYPES
-========================= */
+/* ========================= TYPES ========================= */
+
 export type PiUser = {
+  id: string;
   pi_uid: string;
   username: string;
   wallet_address?: string | null;
+  role?: string;
 };
 
 type AuthContextType = {
@@ -36,10 +37,14 @@ const AuthContext = createContext<AuthContextType>({
   logout: () => {},
 });
 
+/* ========================= PROVIDER ========================= */
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PiUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [piReady, setPiReady] = useState(false);
+
+  /* ================= PI READY ================= */
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -54,22 +59,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, []);
 
+  /* ================= INIT (NO AUTO LOGIN) ================= */
+
   useEffect(() => {
+    const rawUser = localStorage.getItem(USER_KEY);
+
+    if (!rawUser) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const rawUser = localStorage.getItem(USER_KEY);
-      if (rawUser) {
-        setUser(JSON.parse(rawUser));
-      }
+      const parsed = JSON.parse(rawUser);
+      setUser(parsed);
+    } catch {
+      setUser(null);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  /* ================= LOGIN ================= */
 
   const pilogin = async () => {
     try {
       setLoading(true);
 
       const token = await getPiAccessToken();
+
+      if (!token) return;
 
       const res = await fetch("/api/pi/verify", {
         method: "POST",
@@ -80,27 +99,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await res.json();
 
-      if (!res.ok || !data?.success || !data?.user) {
-        alert("❌ Pi verify thất bại");
-        return;
+      if (!res.ok || !data?.user) {
+        throw new Error("VERIFY_FAILED");
       }
 
       const verifiedUser: PiUser = data.user;
 
-      localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
       setUser(verifiedUser);
+      localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
+      sessionStorage.removeItem("cart_merged");
+      console.log("🟢 LOGIN SUCCESS");
     } catch (err) {
-      console.error("❌ Pi login error:", err);
-      alert("❌ Lỗi đăng nhập Pi");
+      console.error("❌ LOGIN ERROR:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= LOGOUT ================= */
+
   const logout = () => {
-    localStorage.removeItem(USER_KEY);
-    setUser(null);
-  };
+  console.log("🔴 LOGOUT");
+
+  // 🧹 clear user
+  localStorage.removeItem(USER_KEY);
+
+  // 🧹 clear cart (QUAN TRỌNG)
+  localStorage.removeItem("cart");
+
+  // 🧹 reset merge flag
+  sessionStorage.removeItem("cart_merged");
+
+  // 🧹 clear Pi token
+  clearPiToken();
+
+  setUser(null);
+};
+  /* ================= PROVIDER ================= */
 
   return (
     <AuthContext.Provider
@@ -110,5 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
+/* ================= HOOK ================= */
 
 export const useAuth = () => useContext(AuthContext);
