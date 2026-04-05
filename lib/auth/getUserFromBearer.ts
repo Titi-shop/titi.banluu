@@ -1,91 +1,94 @@
 import { headers } from "next/headers";
-import type { AuthUser } from "./types";
+import { getUserIdByPiUid } from "@/lib/db/users";
 
-/* =========================================================
-   PI AUTH — NETWORK FIRST (NO APP_ID)
-   - Verify directly with Pi /v2/me
-   - AccessToken only
-========================================================= */
+type AuthUser = {
+  userId: string;
+};
+
+type PiApiUser = {
+  uid: string;
+  username: string;
+  wallet_address?: string | null;
+};
+
+function isPiApiUser(data: unknown): data is PiApiUser {
+  if (typeof data !== "object" || data === null) return false;
+
+  const obj = data as Record<string, unknown>;
+
+  return (
+    typeof obj.uid === "string" &&
+    typeof obj.username === "string" &&
+    ("wallet_address" in obj
+      ? typeof obj.wallet_address === "string" || obj.wallet_address === null
+      : true)
+  );
+}
+
+// 🔥 cache token → userId
+const tokenCache = new Map<
+  string,
+  { userId: string; exp: number }
+>();
+
 export async function getUserFromBearer(): Promise<AuthUser | null> {
   try {
-    /* =========================
-       1️⃣ READ AUTH HEADER
-    ========================= */
     const authHeader = headers().get("authorization");
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return null;
     }
 
     const accessToken = authHeader.slice(7).trim();
-    if (!accessToken) {
-      return null;
+    if (!accessToken) return null;
+
+    // ✅ cache trước
+    const cached = tokenCache.get(accessToken);
+    if (cached && cached.exp > Date.now()) {
+      return { userId: cached.userId };
     }
 
-    /* =========================
-       2️⃣ VERIFY WITH PI
-    ========================= */
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch("https://api.minepi.com/v2/me", {
-      method: "GET",
+    // ✅ gọi Pi API
+    const res = await fetch("https://api.minepi.com/v2/me", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
       cache: "no-store",
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
+    });
 
-    if (!response.ok) {
+    if (!res.ok) {
+      console.warn("Pi token invalid:", res.status);
       return null;
     }
 
-    const data: unknown = await response.json();
+    const raw: unknown = await res.json();
 
-    /* =========================
-       3️⃣ STRICT TYPE CHECK
-    ========================= */
-    if (
-      !data ||
-      typeof data !== "object" ||
-      !("uid" in data)
-    ) {
+    if (!isPiApiUser(raw)) {
+      console.warn("Invalid Pi API response:", raw);
       return null;
     }
 
-    const {
-      uid,
-      username,
-      wallet_address,
-    } = data as {
-      uid: string | number;
-      username?: string;
-      wallet_address?: string | null;
-    };
+    const pi_uid = raw.uid;
 
-    if (!uid) return null;
+    // ✅ convert → UUID
+    const userId = await getUserIdByPiUid(pi_uid);
+    if (!userId) return null;
 
-    /* =========================
-       4️⃣ RETURN AUTH USER
-    ========================= */
-    return {
-      pi_uid: String(uid),
-      username: typeof username === "string" ? username : "",
-      wallet_address:
-        typeof wallet_address === "string"
-          ? wallet_address
-          : null,
-    };
+    // ✅ cache 60s
+    tokenCache.set(accessToken, {
+      userId,
+      exp: Date.now() + 60_000,
+    });
 
-  } catch (error) {
-    if ((error as { name?: string })?.name === "AbortError") {
-      console.warn("⚠️ Pi auth timeout");
-      return null;
+    if (tokenCache.size > 1000) {
+      tokenCache.clear();
     }
 
-    console.error("❌ getUserFromBearer error:", error);
+    return { userId };
+
+  } catch (err) {
+    console.error("AUTH_ERROR getUserFromBearer:", err);
     return null;
   }
 }
