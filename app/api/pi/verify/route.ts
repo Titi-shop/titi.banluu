@@ -1,51 +1,35 @@
-// app/api/pi/verify/route.ts
-/* =========================================================
-   PI TOKEN VERIFY API
-   - Identity Provider: Pi Network
-   - NETWORK–FIRST
-   - AUTH-CENTRIC
-   - NO COOKIE
-   - BOOTSTRAP MODE (Phase 1)
-========================================================= */
-
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { upsertUserFromPi } from "@/lib/db/users";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =========================================================
-   TYPES
-========================================================= */
+/* ================= TYPES ================= */
 type PiMeResponse = {
   uid?: string;
   username?: string;
   wallet_address?: string | null;
 };
 
-/* =========================================================
-   BLOCK UNSUPPORTED METHODS (avoid noisy logs)
-========================================================= */
+/* ================= BLOCK GET ================= */
 export async function GET() {
   return new Response("Method Not Allowed", { status: 405 });
 }
 
-/* =========================================================
-   POST /api/pi/verify
-========================================================= */
+/* ================= POST ================= */
 export async function POST(req: Request) {
   try {
-    
-   const authHeader = req.headers.get("authorization");
+    /* ================= 1️⃣ GET TOKEN ================= */
+    const authHeader = req.headers.get("authorization");
 
-if (!authHeader || !authHeader.startsWith("Bearer ")) {
-  return NextResponse.json(
-    { success: false, error: "MISSING_ACCESS_TOKEN" },
-    { status: 401 }
-  );
-}
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { success: false, error: "MISSING_ACCESS_TOKEN" },
+        { status: 401 }
+      );
+    }
 
-const accessToken = authHeader.slice(7).trim();
+    const accessToken = authHeader.slice(7).trim();
 
     if (!accessToken) {
       return NextResponse.json(
@@ -54,16 +38,18 @@ const accessToken = authHeader.slice(7).trim();
       );
     }
 
-    /* =====================================================
-       1️⃣ VERIFY TOKEN WITH PI NETWORK (NETWORK-FIRST)
-    ===================================================== */
-    const piRes = await fetch("https://api.minepi.com/v2/me", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
+    /* ================= 2️⃣ VERIFY PI ================= */
+    const controller = new AbortController();
+const timeout = setTimeout(() => controller.abort(), 5000);
+
+const piRes = await fetch("https://api.minepi.com/v2/me", {
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "application/json",
+  },
+  cache: "no-store",
+  signal: controller.signal,
+}).finally(() => clearTimeout(timeout));
 
     if (!piRes.ok) {
       return NextResponse.json(
@@ -74,65 +60,49 @@ const accessToken = authHeader.slice(7).trim();
 
     const data = (await piRes.json()) as PiMeResponse;
 
-    if (!data?.uid || !data?.username) {
+    if (typeof data.uid !== "string" || typeof data.username !== "string") {
       return NextResponse.json(
         { success: false, error: "INVALID_PI_USER" },
         { status: 401 }
       );
     }
 
-    const pi_uid = String(data.uid);
-    const username = String(data.username);
+    const pi_uid = data.uid;
+    const username = data.username.trim();
     const wallet_address = data.wallet_address ?? null;
 
-    /* =====================================================
-       2️⃣ UPSERT USER (DB = SOURCE OF TRUTH)
-       - Bootstrap: only ensure existence
-    ===================================================== */
-    await query(
-      `
-      INSERT INTO public.users (pi_uid, username)
-      VALUES ($1, $2)
-      ON CONFLICT (pi_uid)
-      DO UPDATE SET username = EXCLUDED.username
-      `,
-      [pi_uid, username]
-    );
+    /* ================= 3️⃣ UPSERT USER (DB LAYER) ================= */
+    const dbUser = await upsertUserFromPi(pi_uid, username);
 
-    /* =====================================================
-       3️⃣ RESOLVE ROLE (DB FIRST)
-       - Bootstrap default = customer
-    ===================================================== */
-    const { rows } = await query(
-      `
-      SELECT role
-      FROM public.users
-      WHERE pi_uid = $1
-      LIMIT 1
-      `,
-      [pi_uid]
-    );
+    if (!dbUser?.id) {
+      return NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 500 }
+      );
+    }
 
-    const dbRole = rows?.[0]?.role;
+    /* ================= 4️⃣ ROLE ================= */
     const role =
-      dbRole === "seller" || dbRole === "admin" || dbRole === "customer"
-        ? dbRole
+      dbUser.role === "seller" ||
+      dbUser.role === "admin" ||
+      dbUser.role === "customer"
+        ? dbUser.role
         : "customer";
 
-    /* =====================================================
-       4️⃣ RETURN VERIFIED SESSION (NO COOKIE)
-    ===================================================== */
-    return NextResponse.json({
-      success: true,
-      user: {
-        pi_uid,
-        username,
-        wallet_address,
-        role,
-      },
-    });
+    /* ================= 5️⃣ RESPONSE ================= */
+   return NextResponse.json({
+  success: true,
+  user: {
+    id: dbUser.id,
+    username,
+    wallet_address,
+    role,
+  },
+});
+
   } catch (err) {
     console.error("❌ PI VERIFY ERROR:", err);
+
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
