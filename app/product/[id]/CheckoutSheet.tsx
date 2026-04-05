@@ -268,7 +268,7 @@ const quantity = useMemo(() => {
     const token = await getPiAccessToken();
 
     const payload = {
-  country: shipping?.country,
+  country: shipping?.country?.toUpperCase(),
   zone: zone || "",
   items: [
     {
