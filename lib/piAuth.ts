@@ -100,19 +100,16 @@ export async function verifyPiToken(
 ): Promise<PiUser> {
 
   if (!token) {
-    throw new Error("PI_TOKEN_MISSING");
+    throw new Error("UNAUTHORIZED");
   }
 
-  const res = await fetch(
-    `${PI_API_URL}/me`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
-    }
-  );
+  const res = await fetch(`${PI_API_URL}/me`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     throw new Error("PI_TOKEN_INVALID");
@@ -133,28 +130,27 @@ export async function verifyPiToken(
   };
 }
 
-
 /* =========================================================
    SERVER: GET PI USER FROM REQUEST TOKEN
 ========================================================= */
 
 export async function getPiUserFromToken(
   req: Request
-): Promise<PiUser> {
+): Promise<PiUser | null> {
 
   const auth = req.headers.get("authorization");
 
-  if (!auth) {
-    throw new Error("PI_AUTH_HEADER_MISSING");
-  }
-
-  if (!auth.startsWith("Bearer ")) {
-    throw new Error("PI_AUTH_HEADER_INVALID");
+  if (!auth || !auth.startsWith("Bearer ")) {
+    return null;
   }
 
   const token = auth.replace("Bearer ", "").trim();
 
-  return verifyPiToken(token);
+  try {
+    return await verifyPiToken(token);
+  } catch {
+    return null;
+  }
 }
 /* =========================================================
    CLEAR TOKEN (LOGOUT)
