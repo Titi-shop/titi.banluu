@@ -1,55 +1,52 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+
+import {
+  getAddressesByUser,
+  createAddress,
+  setDefaultAddress,
+  deleteAddress,
+} from "@/lib/db/addresses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* =====================================================
-   TYPES
-===================================================== */
-interface AddressInsert {
-  full_name: string;
-  phone: string;
-  country: string;
-  province: string;
-  district?: string | null;
-  ward?: string | null;
-  address_line: string;
-  postal_code?: string | null;
-  label?: "home" | "office" | "other";
-}
+/* =========================
+   GET
+========================= */
+export async function GET(req: Request) {
+  try {
+    const auth = await getUserFromBearer();
 
-/* =====================================================
-   GET – LIST
-===================================================== */
-export async function GET() {
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    if (!auth) {
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
+
+    const userId = auth.userId;
+
+    const items = await getAddressesByUser(userId);
+
+    return NextResponse.json({
+      success: true,
+      items,
+    });
+  } catch (err) {
+    console.error("ADDRESS GET ERROR:", err);
+    return NextResponse.json({ success: false }, { status: 500 });
   }
-
-  const { data, error } = await supabaseAdmin
-    .from("addresses")
-    .select("*")
-    .eq("user_id", user.pi_uid)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true, items: data ?? [] });
 }
-
-/* =====================================================
-   POST – CREATE
-===================================================== */
+/* =========================
+   POST
+========================= */
 export async function POST(req: Request) {
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const auth = await getUserFromBearer();
+
+if (!auth) {
+  return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+}
+
+const userId = auth.userId;
+
 
   let body: unknown;
 
@@ -73,7 +70,7 @@ export async function POST(req: Request) {
     address_line,
     postal_code,
     label,
-  } = body as Partial<AddressInsert>;
+  } = body as Record<string, unknown>;
 
   if (
     typeof full_name !== "string" ||
@@ -85,115 +82,65 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 });
   }
 
-  /* Clear previous default (safe even if none exists) */
-  const { error: clearError } = await supabaseAdmin
-    .from("addresses")
-    .update({ is_default: false })
-    .eq("user_id", user.pi_uid);
-
-  if (clearError) {
-    return NextResponse.json({ error: clearError.message }, { status: 500 });
-  }
-
-  const { data, error } = await supabaseAdmin
-  .from("addresses")
-  .insert({
-    user_id: user.pi_uid,
+  const address = await createAddress(userId, {
     full_name: full_name.trim(),
     phone: phone.trim(),
     country: country.trim(),
     province: province.trim(),
-    district:
-      typeof district === "string" && district.trim()
-        ? district.trim()
-        : null,
-    ward:
-      typeof ward === "string" && ward.trim()
-        ? ward.trim()
-        : null,
+    district: typeof district === "string" ? district.trim() : null,
+    ward: typeof ward === "string" ? ward.trim() : null,
     address_line: address_line.trim(),
-
-    // ✅ FIX quan trọng ở đây
-    postal_code:
-      typeof postal_code === "string" && postal_code.trim()
-        ? postal_code.trim()
-        : null,
-
+    postal_code: typeof postal_code === "string" ? postal_code.trim() : null,
     label:
       label === "office" || label === "other"
         ? label
         : "home",
+  });
 
-    is_default: true,
-  })
-  .select()
-  .single();
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true, address: data });
+  return NextResponse.json({
+    success: true,
+    address,
+  });
 }
 
-/* =====================================================
-   PUT – SET DEFAULT
-===================================================== */
+/* =========================
+   PUT (SET DEFAULT)
+========================= */
 export async function PUT(req: Request) {
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const auth = await getUserFromBearer();
 
-  let body: unknown;
+if (!auth) {
+  return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+}
 
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
-  }
+const userId = auth.userId;
+
+  const body = await req.json();
 
   if (!body || typeof body !== "object" || !("id" in body)) {
     return NextResponse.json({ error: "INVALID_ID" }, { status: 400 });
   }
 
-  const { id } = body as { id?: unknown };
+  const { id } = body as { id: string };
 
-  if (typeof id !== "string") {
-    return NextResponse.json({ error: "INVALID_ID" }, { status: 400 });
-  }
-
-  /* Clear old default */
-  const { error: clearError } = await supabaseAdmin
-    .from("addresses")
-    .update({ is_default: false })
-    .eq("user_id", user.pi_uid);
-
-  if (clearError) {
-    return NextResponse.json({ error: clearError.message }, { status: 500 });
-  }
-
-  /* Set new default */
-  const { error } = await supabaseAdmin
-    .from("addresses")
-    .update({ is_default: true })
-    .eq("id", id)
-    .eq("user_id", user.pi_uid);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  await setDefaultAddress(userId, id);
 
   return NextResponse.json({ success: true });
 }
 
-/* =====================================================
+/* =========================
    DELETE
-===================================================== */
+========================= */
 export async function DELETE(req: Request) {
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const auth = await getUserFromBearer();
+
+if (!auth) {
+  return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+}
+
+const userId = auth.userId;
+
+
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
@@ -202,15 +149,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "INVALID_ID" }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin
-    .from("addresses")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.pi_uid);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  await deleteAddress(userId, id);
 
   return NextResponse.json({ success: true });
 }
