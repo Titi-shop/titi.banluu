@@ -1,7 +1,12 @@
+
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { blockedEmailDomains } from "@/data/validEmailDomains";
+
+import {
+  getUserProfile,
+  upsertUserProfile,
+} from "@/lib/db/userProfiles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +34,7 @@ function emptyProfile() {
     postal_code: null,
   };
 }
+
 /* ================= EMAIL CHECK ================= */
 
 function isValidEmail(email: string | null) {
@@ -45,44 +51,54 @@ function isValidEmail(email: string | null) {
 
 /* ================= GET ================= */
 
-export async function GET() {
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
-
+export async function GET(req: Request) {
   try {
-    const { rows } = await query(
-      `
-      SELECT *
-      FROM user_profiles
-      WHERE user_id = $1
-      LIMIT 1
-      `,
-      [user.pi_uid]
-    );
+    const auth = await getUserFromBearer();
+
+    if (!auth) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const userId = auth.userId;
+
+    const profile = await getUserProfile(userId);
 
     return NextResponse.json({
       success: true,
-      profile: rows[0] ?? emptyProfile(),
+      profile: profile ?? emptyProfile(),
     });
   } catch (err) {
     console.error("PROFILE GET ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+
+    return NextResponse.json(
+      { success: false },
+      { status: 500 }
+    );
   }
 }
-
 /* ================= POST ================= */
 
 export async function POST(req: Request) {
-  const user = await getUserFromBearer();
-  if (!user) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const auth = await getUserFromBearer();
 
+if (!auth) {
+  return NextResponse.json(
+    { error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
+
+const userId = auth.userId;
   const raw = await req.json().catch(() => null);
+
   if (!raw || typeof raw !== "object") {
-    return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+    return NextResponse.json(
+      { error: "INVALID_BODY" },
+      { status: 400 }
+    );
   }
 
   const body = raw as Record<string, unknown>;
@@ -94,10 +110,13 @@ export async function POST(req: Request) {
   const email = normalize(body.email, 100);
   const phone = normalize(body.phone, 20);
   const bio = normalize(body.bio, 500);
-const shop_name = normalize(body.shop_name, 120);
-const shop_description = normalize(body.shop_description, 500);
-const shop_banner =
-  typeof body.shop_banner === "string" ? body.shop_banner : null;
+
+  const shop_name = normalize(body.shop_name, 120);
+  const shop_description = normalize(body.shop_description, 500);
+
+  const shop_banner =
+    typeof body.shop_banner === "string" ? body.shop_banner : null;
+
   const country =
     typeof body.country === "string" && body.country
       ? body.country.trim().slice(0, 10)
@@ -108,6 +127,7 @@ const shop_banner =
   const ward = normalize(body.ward, 100);
   const address_line = normalize(body.address_line, 255);
   const postal_code = normalize(body.postal_code, 20);
+
   const avatar_url =
     typeof body.avatar_url === "string" ? body.avatar_url : null;
 
@@ -119,80 +139,33 @@ const shop_banner =
   }
 
   try {
-    await query(
-`
-INSERT INTO user_profiles (
-  user_id,
-  full_name,
-  email,
-  phone,
-  avatar_url,
-  bio,
 
-  shop_name,
-  shop_description,
-  shop_banner,
+    await upsertUserProfile(userId, {
+      full_name,
+      email,
+      phone,
+      avatar_url,
+      bio,
 
-  country,
-  province,
-  district,
-  ward,
-  address_line,
-  postal_code,
+      shop_name,
+      shop_description,
+      shop_banner,
 
-  created_at,
-  updated_at
-)
-VALUES (
-  $1,$2,$3,$4,$5,$6,
-  $7,$8,$9,
-  $10,$11,$12,$13,$14,$15,
-  NOW(),NOW()
-)
-ON CONFLICT (user_id)
-DO UPDATE SET
-  full_name = EXCLUDED.full_name,
-  email = EXCLUDED.email,
-  phone = EXCLUDED.phone,
-  avatar_url = EXCLUDED.avatar_url,
-  bio = EXCLUDED.bio,
+      country,
+      province,
+      district,
+      ward,
+      address_line,
+      postal_code,
+    });
 
-  shop_name = EXCLUDED.shop_name,
-  shop_description = EXCLUDED.shop_description,
-  shop_banner = EXCLUDED.shop_banner,
-
-  country = EXCLUDED.country,
-  province = EXCLUDED.province,
-  district = EXCLUDED.district,
-  ward = EXCLUDED.ward,
-  address_line = EXCLUDED.address_line,
-  postal_code = EXCLUDED.postal_code,
-
-  updated_at = NOW()
-`,
-[
-  user.pi_uid,
-  full_name,
-  email,
-  phone,
-  avatar_url,
-  bio,
-
-  shop_name,
-  shop_description,
-  shop_banner,
-
-  country,
-  province,
-  district,
-  ward,
-  address_line,
-  postal_code
-]
-);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("PROFILE SAVE ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+
+    return NextResponse.json(
+      { success: false },
+      { status: 500 }
+    );
   }
 }
