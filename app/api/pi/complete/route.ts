@@ -165,6 +165,9 @@ export async function POST(req: Request) {
     }
 
     const payment = await piRes.json();
+    console.log("🟡 [PAYMENT][AMOUNT_CHECK]", {
+  amount: payment.amount,
+});
 
     console.log("🟢 [PAYMENT][PI_DATA]", {
       status: payment.status,
@@ -186,42 +189,42 @@ export async function POST(req: Request) {
     }
 
     if (status?.developer_completed) {
+  console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
+} else {
+  console.log("🟡 [PAYMENT][COMPLETE_PI]");
+
+  const completeRes = await fetch(
+    `${PI_API}/payments/${paymentId}/complete`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${PI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ txid }),
+    }
+  );
+
+  const completeData = await completeRes.json().catch(() => null);
+
+  console.log("🟡 [PAYMENT][COMPLETE_RESPONSE]", completeData);
+
+  if (!completeRes.ok) {
+    console.error("❌ [PAYMENT][PI_COMPLETE_FAIL]", completeData);
+
+    if (
+      completeData?.error?.includes?.("already") ||
+      completeData?.message?.includes?.("completed")
+    ) {
       console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
+    } else {
+      return NextResponse.json(
+        { error: "PI_COMPLETE_FAILED" },
+        { status: 400 }
+      );
     }
-
-    /* ================= COMPLETE PI ================= */
-
-    console.log("🟡 [PAYMENT][COMPLETE_PI]");
-
-    const completeRes = await fetch(`${PI_API}/payments/${paymentId}/complete`, {
-        method: "POST",
-        headers: {
-          Authorization: `Key ${PI_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ txid }),
-      }
-    );
-
-    const completeData = await completeRes.json().catch(() => null);
-
-    console.log("🟡 [PAYMENT][COMPLETE_RESPONSE]", completeData);
-
-    if (!completeRes.ok) {
-      console.error("❌ [PAYMENT][PI_COMPLETE_FAIL]", completeData);
-
-      if (
-        completeData?.error?.includes?.("already") ||
-        completeData?.message?.includes?.("completed")
-      ) {
-        console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
-      } else {
-        return NextResponse.json(
-          { error: "PI_COMPLETE_FAILED" },
-          { status: 400 }
-        );
-      }
-    }
+  }
+}
 
     /* ================= DB ================= */
 
