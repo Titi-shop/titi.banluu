@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
-
+import {
+  upsertShippingRates,
+  getShippingRatesByProducts,
+} from "@/lib/db/shipping";
 import type { ProductRecord } from "@/lib/db/products";
 import {
   createProduct,
@@ -22,7 +25,10 @@ export const dynamic = "force-dynamic";
 /* =========================================================
    TYPES
 ========================================================= */
-
+type ShippingRateFE = {
+  zone: string;
+  price: number;
+};
 type ProductVariantInput = {
   id?: string;
   optionName?: string;
@@ -110,77 +116,96 @@ export async function GET(req: Request) {
     }
 
     const now = Date.now();
+    const productIds = products.map((p) => p.id);
+
+const shippingRows = await getShippingRatesByProducts(productIds);
+
+const shippingMap = new Map<
+  string,
+  { zone: string; price: number }[]
+>();
+
+for (const r of shippingRows) {
+  if (!shippingMap.has(r.product_id)) {
+    shippingMap.set(r.product_id, []);
+  }
+
+  shippingMap.get(r.product_id)!.push({
+    zone: r.zone,
+    price: r.price,
+  });
+}
 
     /* ================= ENRICH ================= */
     const enriched = await Promise.all(
-      products.map(async (p) => {
-        let variants: ProductVariantInput[] = [];
+  products.map(async (p) => {
+    let variants: ProductVariantInput[] = [];
 
-        try {
-          variants = await getVariantsByProductId(p.id);
-        } catch {
-          // không log verbose production
-        }
+    try {
+      variants = await getVariantsByProductId(p.id);
+    } catch {
+      // ignore
+    }
+const shipping_rates = shippingMap.get(p.id) ?? [];
+    /* ================= SALE ================= */
+    const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
+    const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
 
-        const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
-        const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
+    const isSale =
+      typeof p.sale_price === "number" &&
+      start !== null &&
+      end !== null &&
+      now >= start &&
+      now <= end;
 
-        const isSale =
-          typeof p.sale_price === "number" &&
-          start !== null &&
-          end !== null &&
-          now >= start &&
-          now <= end;
+    /* ================= STOCK ================= */
+    const baseStock =
+      typeof p.stock === "number" ? p.stock : 0;
 
-        const baseStock =
-          typeof p.stock === "number" ? p.stock : 0;
+    const hasVariants = variants.length > 0;
 
-        const hasVariants = variants.length > 0;
+    const totalVariantStock = hasVariants
+      ? variants.reduce((s, v) => s + (v.stock || 0), 0)
+      : 0;
 
-        const totalVariantStock = hasVariants
-          ? variants.reduce((s, v) => s + (v.stock || 0), 0)
-          : 0;
+    const finalStock = hasVariants ? totalVariantStock : baseStock;
 
-        const finalStock = hasVariants ? totalVariantStock : baseStock;
+    const isActive = p.is_active !== false;
 
-        const isActive = p.is_active !== false;
+    /* ================= RETURN ================= */
+    return {
+      id: p.id,
+      name: p.name,
 
-        return {
-          id: p.id,
-          name: p.name,
+      description: p.description ?? "",
+      detail: p.detail ?? "",
 
-          description: p.description ?? "",
-          detail: p.detail ?? "",
+      images: Array.isArray(p.images) ? p.images : [],
+      thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
 
-          images: Array.isArray(p.images) ? p.images : [],
-          thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
+      categoryId: p.category_id ?? null,
 
-          categoryId: p.category_id ?? null,
+      price: typeof p.price === "number" ? p.price : 0,
+      salePrice:
+        typeof p.sale_price === "number" ? p.sale_price : null,
 
-          price: typeof p.price === "number" ? p.price : 0,
-          salePrice:
-            typeof p.sale_price === "number" ? p.sale_price : null,
-
-          isSale,
-          finalPrice:
-            isSale && typeof p.sale_price === "number"
-              ? p.sale_price
-              : p.price,
-
-          stock: finalStock,
-          isActive,
-          isOutOfStock: finalStock <= 0 || !isActive,
-
-          views: p.views ?? 0,
-          sold: p.sold ?? 0,
-
-          rating_avg: p.rating_avg ?? 0,
-          rating_count: p.rating_count ?? 0,
-
-          variants,
-        };
-      })
-    );
+      isSale,
+      finalPrice:
+        isSale && typeof p.sale_price === "number"
+          ? p.sale_price
+          : p.price,
+      stock: finalStock,
+      isActive,
+      isOutOfStock: finalStock <= 0 || !isActive,
+      views: p.views ?? 0,
+      sold: p.sold ?? 0,
+      rating_avg: p.rating_avg ?? 0,
+      rating_count: p.rating_count ?? 0,
+      variants,
+      shipping_rates,
+    };
+  })
+);
 
     return NextResponse.json(enriched);
   } catch {
@@ -254,18 +279,26 @@ export async function POST(req: Request) {
       views: 0,
       sold: 0,
     });
+    if (Array.isArray(body.shipping_rates)) {
+  await upsertShippingRates({
+    productId: product.id,
+    rates: body.shipping_rates,
+  });
+}
 
     if (hasVariants) {
       await createVariantsForProduct(product.id, normalizedVariants);
     }
 
     return NextResponse.json({ success: true, data: product });
-  } catch {
-    return NextResponse.json(
-      { error: "FAILED_TO_CREATE_PRODUCT" },
-      { status: 500 }
-    );
-  }
+  } catch (err) {
+  console.error("❌ CREATE PRODUCT ERROR:", err);
+
+  return NextResponse.json(
+    { error: "FAILED_TO_CREATE_PRODUCT" },
+    { status: 500 }
+  );
+}
 }
 
 /* =========================================================
@@ -344,6 +377,12 @@ export async function PUT(req: Request) {
 
     await replaceVariantsByProductId(productId, normalizedVariants);
 
+    if (Array.isArray(body.shipping_rates)) {
+  await upsertShippingRates({
+    productId: productId,
+    rates: body.shipping_rates,
+  });
+}
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(
