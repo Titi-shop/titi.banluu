@@ -595,7 +595,7 @@ setProcessing(true);
         key={r.zone}
         onClick={() => {
   if (!r.zone) return;
-  setZone(r.zone);
+  setZone(r.zone.toLowerCase() as Region);
 }}
         className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
           ${
