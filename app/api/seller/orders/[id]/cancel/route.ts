@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { resolveRole } from "@/lib/auth/resolveRole";
+import { requireSeller } from "@/lib/auth/guard";
+import { cancelOrderBySeller } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,31 +10,21 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-
     /* ================= AUTH ================= */
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
 
-    const user = await getUserFromBearer();
+    const userId = auth.userId;
+    const orderId = params.id;
 
-    if (!user) {
+    if (!orderId) {
       return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
-
-    /* ================= RBAC ================= */
-
-    const role = await resolveRole(user);
-
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
+        { error: "MISSING_ORDER_ID" },
+        { status: 400 }
       );
     }
 
     /* ================= BODY ================= */
-
     const body = await req.json().catch(() => ({}));
 
     const cancelReason: string | null =
@@ -43,22 +32,14 @@ export async function PATCH(
         ? body.cancel_reason.trim()
         : null;
 
-    /* ================= UPDATE ITEMS ================= */
-
-    const { rowCount } = await query(
-      `
-      update order_items
-      set
-        status = 'cancelled',
-        seller_cancel_reason = $3
-      where order_id = $1
-      and seller_id = $2
-      and status in ('pending','confirmed')
-      `,
-      [params.id, user.pi_uid, cancelReason]
+    /* ================= DB ================= */
+    const updated = await cancelOrderBySeller(
+      orderId,
+      userId,
+      cancelReason
     );
 
-    if (!rowCount) {
+    if (!updated) {
       return NextResponse.json(
         { error: "NOTHING_UPDATED" },
         { status: 400 }
@@ -66,13 +47,9 @@ export async function PATCH(
     }
 
     /* ================= DONE ================= */
-
-    return NextResponse.json({
-      success: true
-    });
+    return NextResponse.json({ success: true });
 
   } catch (err) {
-
     console.error("❌ SELLER CANCEL ERROR:", err);
 
     return NextResponse.json(
