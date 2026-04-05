@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { processPiPayment, validateShippingRegion } from "@/lib/db/orders";
+import { processPiPayment } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,20 +35,21 @@ type Body = {
   shipping?: {
     country?: string;
   };
-  selectedRegion?: unknown;
+  zone?: unknown;
 };
 
 /* ================= API ================= */
 
 export async function POST(req: Request) {
   try {
-    console.log("🟡 [PAYMENT][COMPLETE] START");
+    console.log("🟡 [PAYMENT][START]");
 
     /* ================= BODY ================= */
 
     const raw = await req.json().catch(() => null);
 
     if (!raw || typeof raw !== "object") {
+      console.error("❌ [PAYMENT][INVALID_BODY_RAW]", raw);
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -67,32 +68,36 @@ export async function POST(req: Request) {
       typeof body.product_id === "string" ? body.product_id : "";
 
     const variantId =
-  typeof body.variant_id === "string" ? body.variant_id : null;
+      typeof body.variant_id === "string" && body.variant_id
+        ? body.variant_id
+        : null;
+
     const quantity = safeQuantity(body.quantity);
 
-    const selectedRegion =
-      typeof body.selectedRegion === "string"
-        ? body.selectedRegion
-        : "";
+       const zone =
+       typeof body.zone === "string"
+          ? body.zone
+             : "";
 
     const country =
       typeof body.shipping?.country === "string"
         ? body.shipping.country
         : "";
 
-    console.log("🟢 PARSED", {
+    console.log("🟢 [PAYMENT][PARSED]", {
       paymentId,
       txid,
       productId,
       variantId,
       quantity,
-      selectedRegion,
+      zone,
       country,
     });
 
     /* ================= VALIDATE ================= */
 
     if (!paymentId || !txid || !productId) {
+      console.error("❌ [PAYMENT][INVALID_REQUIRED_FIELDS]");
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -100,46 +105,51 @@ export async function POST(req: Request) {
     }
 
     if (!isUUID(productId)) {
+      console.error("❌ [PAYMENT][INVALID_PRODUCT_ID]", productId);
       return NextResponse.json(
         { error: "INVALID_PRODUCT_ID" },
         { status: 400 }
       );
     }
 
-    if (!country || !selectedRegion) {
+    if (variantId && !isUUID(variantId)) {
+      console.error("❌ [PAYMENT][INVALID_VARIANT_ID]", variantId);
+      return NextResponse.json(
+        { error: "INVALID_VARIANT_ID" },
+        { status: 400 }
+      );
+    }
+
+      if (!country || !zone){
+      console.error("❌ [PAYMENT][INVALID_SHIPPING]", {
+        country,
+        zone,
+      });
       return NextResponse.json(
         { error: "INVALID_SHIPPING" },
         { status: 400 }
       );
     }
 
-    if (variantId && !isUUID(variantId)) {
-  return NextResponse.json(
-    { error: "INVALID_VARIANT_ID" },
-    { status: 400 }
-  );
-}
     /* ================= AUTH ================= */
 
-    const authUser = await getUserFromBearer(req);
+    const auth = await getUserFromBearer();
 
-    if (!authUser) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+if (!auth) {
+  console.error("❌ [PAYMENT][UNAUTHORIZED]");
+  return NextResponse.json(
+    { error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
 
-    const userId = authUser.id; // ✅ FIX đúng kiến trúc
+const userId = auth.userId;
 
-    /* ================= VERIFY SHIPPING ================= */
-
-    await validateShippingRegion({
-      country,
-      selectedRegion,
-    });
+console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
 
     /* ================= VERIFY PI ================= */
+
+    console.log("🟡 [PAYMENT][VERIFY_PI]");
 
     const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
       headers: { Authorization: `Key ${PI_KEY}` },
@@ -147,6 +157,7 @@ export async function POST(req: Request) {
     });
 
     if (!piRes.ok) {
+      console.error("❌ [PAYMENT][PI_NOT_FOUND]", paymentId);
       return NextResponse.json(
         { error: "PI_PAYMENT_NOT_FOUND" },
         { status: 400 }
@@ -155,14 +166,13 @@ export async function POST(req: Request) {
 
     const payment = await piRes.json();
 
-    if (payment.user_uid !== authUser.pi_uid) {
-      return NextResponse.json(
-        { error: "INVALID_PAYMENT_OWNER" },
-        { status: 403 }
-      );
-    }
+    console.log("🟢 [PAYMENT][PI_DATA]", {
+      status: payment.status,
+      user_uid: payment.user_uid,
+    });
 
     if (payment.status !== "approved") {
+      console.error("❌ [PAYMENT][NOT_APPROVED]", payment.status);
       return NextResponse.json(
         { error: "PAYMENT_NOT_APPROVED" },
         { status: 400 }
@@ -170,6 +180,8 @@ export async function POST(req: Request) {
     }
 
     /* ================= COMPLETE PI ================= */
+
+    console.log("🟡 [PAYMENT][COMPLETE_PI]");
 
     const completeRes = await fetch(
       `${PI_API}/payments/${paymentId}/complete`,
@@ -186,11 +198,13 @@ export async function POST(req: Request) {
     const completeData = await completeRes.json().catch(() => null);
 
     if (!completeRes.ok) {
+      console.error("❌ [PAYMENT][PI_COMPLETE_FAIL]", completeData);
+
       if (
         completeData?.error?.includes?.("already") ||
         completeData?.message?.includes?.("completed")
       ) {
-        console.log("🟡 ALREADY COMPLETED");
+        console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
       } else {
         return NextResponse.json(
           { error: "PI_COMPLETE_FAILED" },
@@ -201,6 +215,8 @@ export async function POST(req: Request) {
 
     /* ================= DB ================= */
 
+    console.log("🟡 [PAYMENT][DB_PROCESS]");
+
     const result = await processPiPayment({
       userId,
       productId,
@@ -209,8 +225,10 @@ export async function POST(req: Request) {
       paymentId,
       txid,
       country,
-      selectedRegion,
+      zone,
     });
+
+    console.log("🟢 [PAYMENT][SUCCESS]", result);
 
     return NextResponse.json({
       success: true,
@@ -218,7 +236,7 @@ export async function POST(req: Request) {
     });
 
   } catch (err) {
-    console.error("🔥 [PAYMENT][COMPLETE] ERROR", err);
+    console.error("🔥 [PAYMENT][CRASH]", err);
 
     return NextResponse.json(
       { error: "PAYMENT_FAILED" },
