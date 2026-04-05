@@ -1,12 +1,6 @@
-/* =========================================================
-   SELLER START SHIPPING
-   PATCH /api/seller/orders/[id]/shipping
-========================================================= */
-
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { resolveRole } from "@/lib/auth/resolveRole";
+import { requireSeller } from "@/lib/auth/guard";
+import { startShippingBySeller } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,43 +11,26 @@ export async function PATCH(
 ) {
   try {
     /* ================= AUTH ================= */
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
 
-    const user = await getUserFromBearer();
+    const userId = auth.userId;
+    const orderId = params.id;
 
-    if (!user) {
+    if (!orderId) {
       return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
+        { error: "MISSING_ORDER_ID" },
+        { status: 400 }
       );
     }
 
-    /* ================= RBAC ================= */
-
-    const role = await resolveRole(user);
-
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
-    /* ================= UPDATE ITEM ================= */
-
-    const { rowCount } = await query(
-      `
-      update order_items
-      set
-        status = 'shipping',
-        shipped_at = now()
-      where order_id = $1
-      and seller_id = $2
-      and status = 'confirmed'
-      `,
-      [params.id, user.pi_uid]
+    /* ================= DB ================= */
+    const updated = await startShippingBySeller(
+      orderId,
+      userId
     );
 
-    if (!rowCount) {
+    if (!updated) {
       return NextResponse.json(
         { error: "NOTHING_UPDATED" },
         { status: 400 }
@@ -61,7 +38,6 @@ export async function PATCH(
     }
 
     /* ================= DONE ================= */
-
     return NextResponse.json({
       success: true,
       message: "ORDER_ITEMS_SHIPPING"
