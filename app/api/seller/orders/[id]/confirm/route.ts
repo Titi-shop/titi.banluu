@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { resolveRole } from "@/lib/auth/resolveRole";
+import { requireSeller } from "@/lib/auth/guard";
+import { confirmOrderBySeller } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,27 +14,22 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    /* ================= AUTH ================= */
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
 
-    const user = await getUserFromBearer(req);
+    const userId = auth.userId;
+    const orderId = params.id;
 
-    if (!user) {
+    if (!orderId) {
       return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
+        { error: "MISSING_ORDER_ID" },
+        { status: 400 }
       );
     }
 
-    const role = await resolveRole(user);
-
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
+    /* ================= BODY ================= */
     let body: Body = {};
-
     try {
       body = (await req.json()) as Body;
     } catch {}
@@ -45,57 +39,23 @@ export async function PATCH(
         ? body.seller_message.trim()
         : null;
 
-    /* UPDATE ITEMS */
-
-    const itemResult = await query(
-      `
-      update order_items
-      set
-        status='confirmed',
-        seller_message=$3
-      where
-        order_id=$1
-      and seller_id=$2
-      and status='pending'
-      `,
-      [params.id, user.pi_uid, sellerMessage]
+    /* ================= DB ================= */
+    const success = await confirmOrderBySeller(
+      orderId,
+      userId,
+      sellerMessage
     );
 
-    if (!itemResult.rowCount) {
+    if (!success) {
       return NextResponse.json(
         { error: "NOTHING_TO_CONFIRM" },
         { status: 400 }
       );
     }
 
-    /* CHECK PENDING ITEMS */
-
-    const { rows } = await query(
-      `
-      select count(*)::int as pending
-      from order_items
-      where order_id=$1
-      and status='pending'
-      `,
-      [params.id]
-    );
-
-    if (rows[0].pending === 0) {
-      await query(
-        `
-        update orders
-        set status='pickup'
-        where id=$1
-        and status='pending'
-        `,
-        [params.id]
-      );
-    }
-
     return NextResponse.json({ success: true });
 
   } catch (err) {
-
     console.error("CONFIRM ORDER ERROR", err);
 
     return NextResponse.json(
