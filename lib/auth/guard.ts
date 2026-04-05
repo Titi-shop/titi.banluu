@@ -1,24 +1,49 @@
 import { NextResponse } from "next/server";
-import { resolveRole } from "./resolveRole";
-import type { Role } from "./role";
 import { getUserFromBearer } from "./getUserFromBearer";
-import type { AuthUser } from "./types";
+import { getUserRoleByUserId } from "@/lib/db/users";
 
-/**
- * AUTH MODEL (FINAL – CHUẨN):
- * - Pi Network = Identity Provider
- * - NETWORK–FIRST
- * - AUTH–CENTRIC (SINGLE ENTRYPOINT)
- * - NO COOKIE
- * - RBAC = DB FIRST
- */
+type Role = "admin" | "seller" | "customer";
 
-export async function requireAuth() {
-  const user = await getUserFromBearer();
+type GuardSuccess = {
+  ok: true;
+  userId: string;
+  role: Role;
+};
 
-  if (!user) {
+type GuardFail = {
+  ok: false;
+  response: NextResponse;
+};
+
+type GuardResult = GuardSuccess | GuardFail;
+
+// 🔥 CACHE ROLE (userId → role)
+const roleCache = new Map<string, { role: Role; exp: number }>();
+
+async function resolveRole(userId: string): Promise<Role | null> {
+  const cached = roleCache.get(userId);
+  if (cached && cached.exp > Date.now()) {
+    return cached.role;
+  }
+
+  const role = await getUserRoleByUserId(userId);
+  if (!role) return null;
+
+  roleCache.set(userId, {
+    role,
+    exp: Date.now() + 60_000, // 60s
+  });
+
+  return role;
+}
+
+/* ================= BASE AUTH ================= */
+export async function requireAuth(): Promise<GuardResult> {
+  const auth = await getUserFromBearer();
+
+  if (!auth) {
     return {
-      ok: false as const,
+      ok: false,
       response: NextResponse.json(
         { error: "UNAUTHORIZED" },
         { status: 401 }
@@ -26,18 +51,33 @@ export async function requireAuth() {
     };
   }
 
-  const role = await resolveRole(user);
+  const role = await resolveRole(auth.userId);
 
-  return { ok: true as const, user, role };
+  if (!role) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "ROLE_NOT_FOUND" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return {
+    ok: true,
+    userId: auth.userId,
+    role,
+  };
 }
 
-export async function requireSeller() {
+/* ================= SELLER ================= */
+export async function requireSeller(): Promise<GuardResult> {
   const auth = await requireAuth();
   if (!auth.ok) return auth;
 
   if (auth.role !== "seller" && auth.role !== "admin") {
     return {
-      ok: false as const,
+      ok: false,
       response: NextResponse.json(
         { error: "FORBIDDEN" },
         { status: 403 }
@@ -48,13 +88,14 @@ export async function requireSeller() {
   return auth;
 }
 
-export async function requireCustomer() {
+/* ================= CUSTOMER ================= */
+export async function requireCustomer(): Promise<GuardResult> {
   const auth = await requireAuth();
   if (!auth.ok) return auth;
 
   if (auth.role !== "customer") {
     return {
-      ok: false as const,
+      ok: false,
       response: NextResponse.json(
         { error: "FORBIDDEN" },
         { status: 403 }
@@ -63,8 +104,4 @@ export async function requireCustomer() {
   }
 
   return auth;
-}
-
-export function hasRole(role: Role, allowed: Role[]): boolean {
-  return allowed.includes(role);
 }
