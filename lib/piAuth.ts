@@ -19,6 +19,13 @@ export type PiUser = {
   pi_uid: string;
   username: string;
 };
+type PiIncompletePayment = {
+  identifier?: string;
+  amount?: number;
+  memo?: string;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+};
 
 type PiAuthResult = {
   accessToken: string;
@@ -73,17 +80,27 @@ export async function getPiAccessToken(
       const auth = await window.Pi.authenticate(
   scopes,
   (payment: PiIncompletePayment) => {
-    console.log("🔥 INCOMPLETE PAYMENT FOUND:", payment);
+    console.log("🔥🔥🔥 FULL INCOMPLETE PAYMENT:", payment);
 
-    if (payment.identifier && typeof payment.identifier === "string") {
+    if (typeof payment === "object" && payment) {
+      console.log("🔥 TYPE:", typeof payment);
+      console.log("🔥 KEYS:", Object.keys(payment));
+    }
+
+    if (
+      payment.identifier &&
+      typeof payment.identifier === "string"
+    ) {
       const paymentId = payment.identifier;
 
       localStorage.setItem("pi_payment_id", paymentId);
 
       console.log("✅ SAVED PAYMENT ID:", paymentId);
+    } else {
+      console.log("⚠️ NO IDENTIFIER FOUND");
     }
   }
-      );
+);
 
       if (!auth || !auth.accessToken) {
         throw new Error("PI_AUTH_FAILED");
