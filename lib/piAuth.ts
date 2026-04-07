@@ -111,7 +111,7 @@ export async function getPiAccessToken(
 
         const token = await getPiAccessToken(true);
 
-        const res = await fetch("/api/pi/complete", {
+        const res = await fetch("/api/pi/complete-incomplete", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
