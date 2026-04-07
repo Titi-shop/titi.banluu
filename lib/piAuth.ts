@@ -79,25 +79,55 @@ export async function getPiAccessToken(
 
       const auth = await window.Pi.authenticate(
   scopes,
-  (payment: PiIncompletePayment) => {
-    console.log("🔥🔥🔥 FULL INCOMPLETE PAYMENT:", payment);
+  async (payment: PiIncompletePayment) => {
+    console.log("🔁 INCOMPLETE PAYMENT FOUND:", payment);
 
-    if (typeof payment === "object" && payment) {
-      console.log("🔥 TYPE:", typeof payment);
-      console.log("🔥 KEYS:", Object.keys(payment));
+    const paymentId =
+      typeof payment.identifier === "string"
+        ? payment.identifier
+        : "";
+
+    const txid =
+      typeof (payment as { transaction?: { txid?: string } })
+        .transaction?.txid === "string"
+        ? (payment as { transaction?: { txid?: string } })
+            .transaction!.txid!
+        : "";
+
+    if (paymentId) {
+      localStorage.setItem("pi:lastPaymentId", paymentId);
+      console.log("💾 SAVED paymentId:", paymentId);
     }
 
-    if (
-      payment.identifier &&
-      typeof payment.identifier === "string"
-    ) {
-      const paymentId = payment.identifier;
+    if (txid) {
+      localStorage.setItem("pi:lastTxid", txid);
+      console.log("💾 SAVED txid:", txid);
+    }
 
-      localStorage.setItem("pi_payment_id", paymentId);
+    // 🔥 AUTO FIX KẸT ĐƠN
+    if (paymentId && txid) {
+      try {
+        console.log("🟡 AUTO COMPLETE START");
 
-      console.log("✅ SAVED PAYMENT ID:", paymentId);
-    } else {
-      console.log("⚠️ NO IDENTIFIER FOUND");
+        const token = await getPiAccessToken(true);
+
+        const res = await fetch("/api/pi/complete", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            paymentId,
+            txid,
+          }),
+        });
+
+        console.log("🟢 AUTO COMPLETE RES:", res.status);
+
+      } catch (err) {
+        console.error("❌ AUTO COMPLETE FAIL", err);
+      }
     }
   }
 );
